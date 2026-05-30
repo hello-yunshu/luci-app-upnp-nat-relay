@@ -20,7 +20,7 @@ jobs:
       version: ${{ steps.check.outputs.version }}
       release: ${{ steps.check.outputs.release }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - id: check
@@ -53,7 +53,7 @@ jobs:
     if: needs.check-version.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Build ipk packages
         run: |
@@ -137,6 +137,7 @@ jobs:
 
           LUCI_DIR="${WORKDIR}/luci-app-data"
           mkdir -p "${LUCI_DIR}"
+          cd "${GITHUB_WORKSPACE}"
           cp -a luci-app-upnp-bridge-relay/htdocs "${LUCI_DIR}/"
           cp -a luci-app-upnp-bridge-relay/root "${LUCI_DIR}/"
 
