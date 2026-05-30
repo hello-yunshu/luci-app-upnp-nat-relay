@@ -64,27 +64,27 @@ return view.extend({
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (env.openclash_installed === 1 || env.openclash_installed === true) {
-				return '<span style="color:green">&#10004; Installed</span>';
+				return '<span style="color:green">&#10004; ' + _('Installed') + '</span>';
 			}
-			return '<span style="color:gray">&#10008; Not Installed</span>';
+			return '<span style="color:gray">&#10008; ' + _('Not Installed') + '</span>';
 		};
 
 		o = s.option(form.DummyValue, '_oc_running', _('OpenClash Running'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (env.openclash_running === 1 || env.openclash_running === true) {
-				return '<span style="color:green">&#10004; Running</span>';
+				return '<span style="color:green">&#10004; ' + _('Running') + '</span>';
 			}
-			return '<span style="color:orange">&#10008; Not Running</span>';
+			return '<span style="color:orange">&#10008; ' + _('Not Running') + '</span>';
 		};
 
 		o = s.option(form.DummyValue, '_oc_access_control', _('Source Access Control Detected'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (env.openclash_has_access_control === 1 || env.openclash_has_access_control === true) {
-				return '<span style="color:green">&#10004; Detected</span>';
+				return '<span style="color:green">&#10004; ' + _('Detected') + '</span>';
 			}
-			return '<span style="color:orange">&#10008; Not Detected</span>';
+			return '<span style="color:orange">&#10008; ' + _('Not Detected') + '</span>';
 		};
 
 		o = s.option(form.DummyValue, '_oc_existing_rule', _('Existing Matching Rule'));
@@ -102,9 +102,9 @@ return view.extend({
 				}
 			}
 			if (found) {
-				return '<span style="color:green">&#10004; Rule exists</span>';
+				return '<span style="color:green">&#10004; ' + _('Rule exists') + '</span>';
 			}
-			return '<span style="color:orange">&#10008; No matching rule found</span>';
+			return '<span style="color:orange">&#10008; ' + _('No matching rule found') + '</span>';
 		};
 
 		s = m.section(form.TypedSection, 'service', _('Suggested RETURN Rule'));
@@ -118,11 +118,11 @@ return view.extend({
 			var remark = uci.get('upnp_bridge_relay', 'main', 'openclash_rule_remark') || 'UPnP Bridge Relay Auto RETURN';
 
 			return '<div style="padding:1em;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;font-family:monospace">' +
-				'<b>Internal Address:</b> ' + downstreamWanIp + '<br>' +
-				'<b>Internal Ports:</b> ' + allowedPorts + '<br>' +
-				'<b>Protocol:</b> TCP/UDP<br>' +
-				'<b>Action:</b> RETURN<br>' +
-				'<b>Remark:</b> ' + remark +
+				'<b>' + _('Internal Address:') + '</b> ' + downstreamWanIp + '<br>' +
+				'<b>' + _('Internal Ports:') + '</b> ' + allowedPorts + '<br>' +
+				'<b>' + _('Protocol:') + '</b> TCP/UDP<br>' +
+				'<b>' + _('Action:') + '</b> RETURN<br>' +
+				'<b>' + _('Remark:') + '</b> ' + remark +
 				'</div>';
 		};
 
@@ -157,7 +157,7 @@ return view.extend({
 		o = s.option(form.DummyValue, '_oc_backup_status', _('Backup Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			return '<span style="color:gray">Check via Diagnostics page</span>';
+			return '<span style="color:gray">' + _('Check via Diagnostics page') + '</span>';
 		};
 
 		s = m.section(form.TypedSection, 'service', _('OpenClash Actions'));

@@ -235,13 +235,13 @@ return view.extend({
 			}).then(function(result) {
 				self.pingResult = result;
 				if (result && result.gateway_reachable === 1) {
-					pingResultDiv.innerHTML = '<span style="color:green">&#10004; Ping to gateway successful</span>';
+					pingResultDiv.innerHTML = '<span style="color:green">&#10004; ' + _('Ping to gateway successful') + '</span>';
 				} else {
-					pingResultDiv.innerHTML = '<span style="color:red">&#10008; Ping to gateway failed</span>' +
-						'<p style="color:orange">Check that the interface is connected and the firewall zone allows output.</p>';
+					pingResultDiv.innerHTML = '<span style="color:red">&#10008; ' + _('Ping to gateway failed') + '</span>' +
+						'<p style="color:orange">' + _('Check that the interface is connected and the firewall zone allows output.') + '</p>';
 				}
 			}).catch(function() {
-				pingResultDiv.innerHTML = '<span style="color:red">Network check failed</span>';
+				pingResultDiv.innerHTML = '<span style="color:red">' + _('Network check failed') + '</span>';
 			});
 
 		} else if (self.step === 5) {
@@ -256,13 +256,13 @@ return view.extend({
 				self.upnpcResult = result;
 				if (result && result.upnpc_readable === 1) {
 					var count = result.upnpc_mapping_count || 0;
-					upnpcResultDiv.innerHTML = '<span style="color:green">&#10004; UPnP IGD discovered, ' + count + ' mapping(s) found</span>';
+					upnpcResultDiv.innerHTML = '<span style="color:green">&#10004; ' + _('UPnP IGD discovered, %d mapping(s) found').format(count) + '</span>';
 				} else {
-					upnpcResultDiv.innerHTML = '<span style="color:red">&#10008; UPnP IGD discovery failed</span>' +
-						'<p style="color:orange">Ensure the downstream router has UPnP enabled and the bind IP is on its LAN side.</p>';
+					upnpcResultDiv.innerHTML = '<span style="color:red">&#10008; ' + _('UPnP IGD discovery failed') + '</span>' +
+						'<p style="color:orange">' + _('Ensure the downstream router has UPnP enabled and the bind IP is on its LAN side.') + '</p>';
 				}
 			}).catch(function() {
-				upnpcResultDiv.innerHTML = '<span style="color:red">UPnP check failed</span>';
+				upnpcResultDiv.innerHTML = '<span style="color:red">' + _('UPnP check failed') + '</span>';
 			});
 
 		} else if (self.step === 6) {
@@ -317,9 +317,9 @@ return view.extend({
 			s.appendChild(E('label', { 'class': 'cbi-value-title' }, _('OpenClash Mode: ')));
 			var ocSelect = E('select', { 'class': 'cbi-input-select', 'id': 'wiz-oc-mode' });
 			var modes = [
-				{ value: 'off', text: 'Off (Do not handle OpenClash)' },
-				{ value: 'prompt', text: 'Prompt (Show suggested rules only)' },
-				{ value: 'auto', text: 'Auto (Automatically write rules)' }
+				{ value: 'off', text: _('Off (Do not handle OpenClash)') },
+				{ value: 'prompt', text: _('Prompt (Show suggested rules only)') },
+				{ value: 'auto', text: _('Auto (Automatically write rules)') }
 			];
 			for (var i = 0; i < modes.length; i++) {
 				var opt = E('option', { 'value': modes[i].value }, modes[i].text);
@@ -339,20 +339,20 @@ return view.extend({
 
 			var summary = E('div', { 'style': 'margin:1em 0;padding:1em;background:#f5f5f5;border:1px solid #ddd;border-radius:4px' });
 			summary.innerHTML = '<table style="width:100%">' +
-				'<tr><td><b>Interface</b></td><td>' + (self.wizardData.bind_ifname || '-') + '</td></tr>' +
-				'<tr><td><b>Bind IP</b></td><td>' + (self.wizardData.bind_ip || '-') + '</td></tr>' +
-				'<tr><td><b>Downstream LAN Gateway</b></td><td>' + (self.wizardData.downstream_lan_gateway || '-') + '</td></tr>' +
-				'<tr><td><b>Downstream LAN Subnet</b></td><td>' + (self.wizardData.downstream_lan_subnet || '-') + '</td></tr>' +
-				'<tr><td><b>Downstream WAN IP</b></td><td>' + (self.wizardData.downstream_wan_ip || '-') + '</td></tr>' +
-				'<tr><td><b>Upstream WAN Interface</b></td><td>' + (self.wizardData.upstream_wan_if || '-') + '</td></tr>' +
-				'<tr><td><b>Allowed Ports</b></td><td>' + (self.wizardData.allowed_external_ports || '-') + '</td></tr>' +
-				'<tr><td><b>OpenClash Mode</b></td><td>' + (self.wizardData.openclash_mode || '-') + '</td></tr>' +
+				'<tr><td><b>' + _('Interface') + '</b></td><td>' + (self.wizardData.bind_ifname || '-') + '</td></tr>' +
+				'<tr><td><b>' + _('Bind IP') + '</b></td><td>' + (self.wizardData.bind_ip || '-') + '</td></tr>' +
+				'<tr><td><b>' + _('Downstream LAN Gateway') + '</b></td><td>' + (self.wizardData.downstream_lan_gateway || '-') + '</td></tr>' +
+				'<tr><td><b>' + _('Downstream LAN Subnet') + '</b></td><td>' + (self.wizardData.downstream_lan_subnet || '-') + '</td></tr>' +
+				'<tr><td><b>' + _('Downstream WAN IP') + '</b></td><td>' + (self.wizardData.downstream_wan_ip || '-') + '</td></tr>' +
+				'<tr><td><b>' + _('Upstream WAN Interface') + '</b></td><td>' + (self.wizardData.upstream_wan_if || '-') + '</td></tr>' +
+				'<tr><td><b>' + _('Allowed Ports') + '</b></td><td>' + (self.wizardData.allowed_external_ports || '-') + '</td></tr>' +
+				'<tr><td><b>' + _('OpenClash Mode') + '</b></td><td>' + (self.wizardData.openclash_mode || '-') + '</td></tr>' +
 				'</table>';
 			s.appendChild(summary);
 
 			if (self.wizardMode === 'auto') {
 				var uciPreview = E('div', { 'style': 'margin:1em 0;padding:1em;background:#fff3cd;border:1px solid #ffc107;border-radius:4px' });
-				uciPreview.innerHTML = '<h4>UCI Changes Preview</h4>' +
+				uciPreview.innerHTML = '<h4>' + _('UCI Changes Preview') + '</h4>' +
 					'<pre style="white-space:pre-wrap;font-size:0.9em">' +
 					'uci set upnp_bridge_relay.main.bind_ifname=' + (self.wizardData.bind_ifname || '') + '\n' +
 					'uci set upnp_bridge_relay.main.bind_ip=' + (self.wizardData.bind_ip || '') + '\n' +
