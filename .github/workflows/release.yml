@@ -1,0 +1,195 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check.outputs.changed }}
+      version: ${{ steps.check.outputs.version }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: check
+        run: |
+          PKG_VERSION=$(grep '^PKG_VERSION:=' package/upnp-bridge-relay/Makefile | cut -d= -f2)
+          PKG_RELEASE=$(grep '^PKG_RELEASE:=' package/upnp-bridge-relay/Makefile | cut -d= -f2)
+          TAG="v${PKG_VERSION}-${PKG_RELEASE}"
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger, proceeding with build"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
+            echo "release=${PKG_RELEASE}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git tag -l "$TAG" | grep -q .; then
+            echo "Tag ${TAG} already exists, skipping"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "New version detected: ${TAG}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release=${PKG_RELEASE}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ipk packages
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y binutils
+
+          PKG_VERSION="${{ needs.check-version.outputs.version }}"
+          PKG_RELEASE="${{ needs.check-version.outputs.release }}"
+
+          WORKDIR="/tmp/build-ipk"
+          rm -rf "${WORKDIR}"
+          mkdir -p "${WORKDIR}"
+
+          build_ipk() {
+            local pkg_name="$1" pkg_version="$2" pkg_release="$3" pkg_arch="$4"
+            local pkg_maintainer="$5" pkg_desc="$6" pkg_depends="$7"
+            local src_dir="$8" conffiles="$9" postinst="${10:-}" prerm="${11:-}"
+
+            local pkg_dir="${WORKDIR}/${pkg_name}"
+            local full_version="${pkg_version}-${pkg_release}"
+            local ipk_filename="${pkg_name}_${full_version}_${pkg_arch}.ipk"
+
+            echo "Building ${ipk_filename}..."
+
+            mkdir -p "${pkg_dir}/data" "${pkg_dir}/control"
+            cp -a "${src_dir}"/* "${pkg_dir}/data/" 2>/dev/null || true
+
+            cat > "${pkg_dir}/control/control" << EOF
+          Package: ${pkg_name}
+          Version: ${full_version}
+          Depends: ${pkg_depends}
+          Source: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
+          Section: net
+          Architecture: ${pkg_arch}
+          Maintainer: ${pkg_maintainer}
+          Description: ${pkg_desc}
+          EOF
+
+            if [ -n "${conffiles}" ]; then
+              printf '%s\n' ${conffiles} > "${pkg_dir}/control/conffiles"
+            fi
+
+            if [ -n "${postinst}" ]; then
+              printf '#!/bin/sh\n%s\n' "${postinst}" > "${pkg_dir}/control/postinst"
+              chmod 0755 "${pkg_dir}/control/postinst"
+            fi
+
+            if [ -n "${prerm}" ]; then
+              printf '#!/bin/sh\n%s\n' "${prerm}" > "${pkg_dir}/control/prerm"
+              chmod 0755 "${pkg_dir}/control/prerm"
+            fi
+
+            cd "${pkg_dir}/data"
+            tar czf "${pkg_dir}/data.tar.gz" .
+            cd "${pkg_dir}/control"
+            tar czf "${pkg_dir}/control.tar.gz" .
+            echo "2.0" > "${pkg_dir}/debian-binary"
+
+            cd "${pkg_dir}"
+            ar r "${WORKDIR}/${ipk_filename}" debian-binary control.tar.gz data.tar.gz
+            echo "Built: ${ipk_filename}"
+          }
+
+          POSTINST_UPNP='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
+          [ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null'
+
+          PRERM_UPNP='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
+          /etc/init.d/upnp_bridge_relay stop 2>/dev/null
+          /etc/init.d/upnp_bridge_relay disable 2>/dev/null'
+
+          build_ipk \
+            "upnp-bridge-relay" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
+            "yunshu" \
+            "UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT" \
+            "libc, miniupnpc, nftables, uci, ubus, rpcd" \
+            "package/upnp-bridge-relay/files" \
+            "/etc/config/upnp_bridge_relay" \
+            "${POSTINST_UPNP}" "${PRERM_UPNP}"
+
+          LUCI_DIR="${WORKDIR}/luci-app-data"
+          mkdir -p "${LUCI_DIR}"
+          cp -a luci-app-upnp-bridge-relay/htdocs "${LUCI_DIR}/"
+          cp -a luci-app-upnp-bridge-relay/root "${LUCI_DIR}/"
+
+          build_ipk \
+            "luci-app-upnp-bridge-relay" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
+            "yunshu" \
+            "LuCI support for UPnP Bridge Relay" \
+            "libc, upnp-bridge-relay, luci-base" \
+            "${LUCI_DIR}" "" "" ""
+
+          mkdir -p release
+          cp "${WORKDIR}"/*.ipk release/
+
+      - name: Verify build artifacts
+        working-directory: release
+        run: |
+          expected="upnp-bridge-relay luci-app-upnp-bridge-relay"
+          for pkg in $expected; do
+            if ! ls ${pkg}_*.ipk 1>/dev/null 2>&1; then
+              echo "ERROR: Expected package ${pkg}_*.ipk not found"
+              exit 1
+            fi
+          done
+          echo "All expected packages found:"
+          ls -la *.ipk
+
+      - name: Generate checksums
+        working-directory: release
+        run: |
+          sha256sum *.ipk > sha256sums.txt
+          cat sha256sums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
+          name: v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
+          body: |
+            UPnP Bridge Relay v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
+
+            ## Packages
+            - `upnp-bridge-relay` - Main service package
+            - `luci-app-upnp-bridge-relay` - LuCI web interface
+
+            ## Installation
+            ```bash
+            opkg install upnp-bridge-relay_*.ipk
+            opkg install luci-app-upnp-bridge-relay_*.ipk
+            ```
+
+            ## Requirements
+            - OpenWrt 23.05+ with fw4/nftables
+            - miniupnpc, nftables installed
+          files: |
+            release/*.ipk
+            release/sha256sums.txt

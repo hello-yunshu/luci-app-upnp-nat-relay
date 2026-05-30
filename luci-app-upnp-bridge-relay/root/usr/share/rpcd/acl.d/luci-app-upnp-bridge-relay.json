@@ -1,0 +1,18 @@
+{
+	"luci-app-upnp-bridge-relay": {
+		"description": "Grant access to UPnP Bridge Relay",
+		"read": {
+			"ubus": {
+				"upnp_bridge_relay": [ "status", "check-env", "check-network", "dry-run" ]
+			},
+			"uci": [ "upnp_bridge_relay" ],
+			"file": [ "/tmp/upnp_bridge_relay/*", "/usr/bin/logread" ]
+		},
+		"write": {
+			"ubus": {
+				"upnp_bridge_relay": [ "sync-now", "clear", "setup-interface", "fix-zone", "setup-openclash", "remove-openclash-rule", "rollback" ]
+			},
+			"uci": [ "upnp_bridge_relay" ]
+		}
+	}
+}
