@@ -147,6 +147,28 @@ jobs:
             "libc, upnp-bridge-relay, luci-base" \
             "${LUCI_DIR}" "" "" ""
 
+          for lang_dir in luci-app-upnp-bridge-relay/po/*/; do
+            [ -d "${lang_dir}" ] || continue
+            lang=$(basename "${lang_dir}")
+            [ "${lang}" = "templates" ] && continue
+            [ -f "${lang_dir}/upnp-bridge-relay.po" ] || continue
+
+            echo "Building i18n package for ${lang}..."
+
+            I18N_DATA="${WORKDIR}/luci-i18n-${lang}-data"
+            mkdir -p "${I18N_DATA}/usr/lib/lua/luci/i18n"
+            python3 luci-app-upnp-bridge-relay/po/po2lmo.py \
+              "${lang_dir}/upnp-bridge-relay.po" \
+              "${I18N_DATA}/usr/lib/lua/luci/i18n/upnp-bridge-relay.${lang}.lmo"
+
+            build_ipk \
+              "luci-i18n-upnp-bridge-relay-${lang}" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
+              "yunshu" \
+              "Translation (${lang}) for luci-app-upnp-bridge-relay" \
+              "libc, luci-app-upnp-bridge-relay, luci-i18n-base-${lang}" \
+              "${I18N_DATA}" "" "" ""
+          done
+
           mkdir -p release
           cp "${WORKDIR}"/*.ipk release/
 
@@ -160,6 +182,14 @@ jobs:
               exit 1
             fi
           done
+
+          i18n_count=$(ls luci-i18n-upnp-bridge-relay-*.ipk 2>/dev/null | wc -l)
+          if [ "${i18n_count}" -eq 0 ]; then
+            echo "WARNING: No i18n packages found"
+          else
+            echo "Found ${i18n_count} i18n package(s)"
+          fi
+
           echo "All expected packages found:"
           ls -la *.ipk
 
@@ -180,11 +210,13 @@ jobs:
             ## Packages
             - `upnp-bridge-relay` - Main service package
             - `luci-app-upnp-bridge-relay` - LuCI web interface
+            - `luci-i18n-upnp-bridge-relay-*` - Language packs
 
             ## Installation
             ```bash
             opkg install upnp-bridge-relay_*.ipk
             opkg install luci-app-upnp-bridge-relay_*.ipk
+            opkg install luci-i18n-upnp-bridge-relay-zh_Hans_*.ipk
             ```
 
             ## Requirements
@@ -193,4 +225,5 @@ jobs:
           files: |
             release/upnp-bridge-relay_*.ipk
             release/luci-app-upnp-bridge-relay_*.ipk
+            release/luci-i18n-upnp-bridge-relay-*.ipk
             release/sha256sums.txt

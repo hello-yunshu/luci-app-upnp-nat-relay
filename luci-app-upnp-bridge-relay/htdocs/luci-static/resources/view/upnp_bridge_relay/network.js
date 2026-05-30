@@ -67,28 +67,28 @@ return view.extend({
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (netCheck && netCheck.iface_exists === 1) {
-				return '<span style="color:green">&#10004; Interface exists</span>';
+				return '<span style="color:green">&#10004; ' + _('Interface exists') + '</span>';
 			}
-			return '<span style="color:red">&#10008; Interface not found</span>';
+			return '<span style="color:red">&#10008; ' + _('Interface not found') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_ip_status', _('IP Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (netCheck && netCheck.bind_ip_configured === 1) {
-				return '<span style="color:green">&#10004; IP configured</span>';
+				return '<span style="color:green">&#10004; ' + _('IP configured') + '</span>';
 			}
-			return '<span style="color:red">&#10008; IP not configured</span>';
+			return '<span style="color:red">&#10008; ' + _('IP not configured') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_default_route', _('Default Route Risk'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (netCheck && netCheck.default_route_on_bind === 1) {
-				return '<span style="color:red;font-weight:bold">&#9888; Default route points to read interface!</span>' +
-					'<p style="color:orange">The read interface should NOT be a default gateway.</p>';
+				return '<span style="color:red;font-weight:bold">&#9888; ' + _('Default route points to read interface!') + '</span>' +
+					'<p style="color:orange">' + _('The read interface should NOT be a default gateway.') + '</p>';
 			}
-			return '<span style="color:green">&#10004; No default route risk</span>';
+			return '<span style="color:green">&#10004; ' + _('No default route risk') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_gateway_set', _('Gateway Setting'));
@@ -96,10 +96,10 @@ return view.extend({
 		o.cfgvalue = function() {
 			var gw = uci.get('network', 'upnp_bridge_lan', 'gateway');
 			if (gw) {
-				return '<span style="color:red">&#9888; Gateway is set: ' + gw + '</span>' +
-					'<p style="color:orange">The read interface should not have a gateway configured.</p>';
+				return '<span style="color:red">&#9888; ' + _('Gateway is set: %s').format(gw) + '</span>' +
+					'<p style="color:orange">' + _('The read interface should not have a gateway configured.') + '</p>';
 			}
-			return '<span style="color:green">&#10004; No gateway set</span>';
+			return '<span style="color:green">&#10004; ' + _('No gateway set') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_dns_set', _('DNS Setting'));
@@ -107,18 +107,18 @@ return view.extend({
 		o.cfgvalue = function() {
 			var dns = uci.get('network', 'upnp_bridge_lan', 'dns');
 			if (dns) {
-				return '<span style="color:orange">&#9888; DNS is set: ' + dns + '</span>';
+				return '<span style="color:orange">&#9888; ' + _('DNS is set: %s').format(dns) + '</span>';
 			}
-			return '<span style="color:green">&#10004; No DNS set</span>';
+			return '<span style="color:green">&#10004; ' + _('No DNS set') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_forwarding', _('Extra Forwarding'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (netCheck && netCheck.bad_forwarding === 1) {
-				return '<span style="color:orange">&#9888; Unnecessary forwarding detected</span>';
+				return '<span style="color:orange">&#9888; ' + _('Unnecessary forwarding detected') + '</span>';
 			}
-			return '<span style="color:green">&#10004; No extra forwarding</span>';
+			return '<span style="color:green">&#10004; ' + _('No extra forwarding') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_hint', _('Hint'));
@@ -180,10 +180,10 @@ return view.extend({
 					if (input === 'ACCEPT') {
 						return '<span style="color:green">' + input + '</span>';
 					}
-					return '<span style="color:red">' + input + ' (should be ACCEPT)</span>';
+					return '<span style="color:red">' + input + ' ' + _('(should be ACCEPT)') + '</span>';
 				}
 			}
-			return '<span style="color:orange">Zone not found</span>';
+			return '<span style="color:orange">' + _('Zone not found') + '</span>';
 		};
 
 		o = s.taboption('zone_status', form.DummyValue, '_zone_output', _('Output Policy'));
@@ -197,10 +197,10 @@ return view.extend({
 					if (output === 'ACCEPT') {
 						return '<span style="color:green">' + output + '</span>';
 					}
-					return '<span style="color:red">' + output + ' (should be ACCEPT)</span>';
+					return '<span style="color:red">' + output + ' ' + _('(should be ACCEPT)') + '</span>';
 				}
 			}
-			return '<span style="color:orange">Zone not found</span>';
+			return '<span style="color:orange">' + _('Zone not found') + '</span>';
 		};
 
 		o = s.taboption('zone_status', form.DummyValue, '_zone_forward', _('Forward Policy'));
@@ -214,10 +214,10 @@ return view.extend({
 					if (forward === 'REJECT') {
 						return '<span style="color:green">' + forward + '</span>';
 					}
-					return '<span style="color:red">' + forward + ' (should be REJECT)</span>';
+					return '<span style="color:red">' + forward + ' ' + _('(should be REJECT)') + '</span>';
 				}
 			}
-			return '<span style="color:orange">Zone not found</span>';
+			return '<span style="color:orange">' + _('Zone not found') + '</span>';
 		};
 
 		o = s.taboption('zone_status', form.DummyValue, '_zone_maq', _('Masquerading'));
@@ -229,21 +229,21 @@ return view.extend({
 				if (zones[i].name === zoneName) {
 					var masq = zones[i].masq || '0';
 					if (masq === '0') {
-						return '<span style="color:green">Disabled</span>';
+						return '<span style="color:green">' + _('Disabled') + '</span>';
 					}
-					return '<span style="color:red">Enabled (should be Disabled)</span>';
+					return '<span style="color:red">' + _('Enabled (should be Disabled)') + '</span>';
 				}
 			}
-			return '<span style="color:orange">Zone not found</span>';
+			return '<span style="color:orange">' + _('Zone not found') + '</span>';
 		};
 
 		o = s.taboption('zone_status', form.DummyValue, '_zone_recommendation', _('Recommendation'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			return '<div style="padding:0.5em;background:#d9edf7;border:1px solid #bce8f1;border-radius:4px">' +
-				'<b>Recommended zone settings:</b><br>' +
+				'<b>' + _('Recommended zone settings:') + '</b><br>' +
 				'input: ACCEPT, output: ACCEPT, forward: REJECT, masq: 0<br>' +
-				'This allows the router to access the downstream LAN for UPnP reading while preventing unwanted forwarding.' +
+				_('This allows the router to access the downstream LAN for UPnP reading while preventing unwanted forwarding.') +
 				'</div>';
 		};
 

@@ -77,8 +77,8 @@ return view.extend({
 				var mapping = rawMappings[i];
 				var key = mapping.protocol + ':' + mapping.external_port;
 				var statusLabel = acceptedPorts[key] ?
-					'<span style="color:green">Accepted</span>' :
-					'<span style="color:red">Rejected</span>';
+					'<span style="color:green">' + _('Accepted') + '</span>' :
+					'<span style="color:red">' + _('Rejected') + '</span>';
 				var row = E('tr', { 'class': 'tr' }, [
 					E('td', {}, mapping.protocol || '-'),
 					E('td', {}, String(mapping.external_port || '-')),
@@ -117,7 +117,7 @@ return view.extend({
 					E('td', {}, String(mapping.external_port || '-')),
 					E('td', {}, dnatTarget),
 					E('td', {}, sourceMapping),
-					E('td', { 'innerHTML': '<span style="color:green">Active</span>' })
+					E('td', { 'innerHTML': '<span style="color:green">' + _('Active') + '</span>' })
 				]);
 				syncTable.appendChild(row);
 			}

@@ -64,9 +64,9 @@ return view.extend({
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (running) {
-				return '<span style="color:green;font-weight:bold">&#9679; Running</span>';
+				return '<span style="color:green;font-weight:bold">&#9679; ' + _('Running') + '</span>';
 			} else {
-				return '<span style="color:red;font-weight:bold">&#9679; Stopped</span>';
+				return '<span style="color:red;font-weight:bold">&#9679; ' + _('Stopped') + '</span>';
 			}
 		};
 
@@ -125,7 +125,7 @@ return view.extend({
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (nftStatus === 'present') {
-				return '<span style="color:green">&#10004; Present</span>';
+				return '<span style="color:green">&#10004; ' + _('Present') + '</span>';
 			} else if (nftStatus === '-') {
 				return '-';
 			} else {
@@ -137,9 +137,9 @@ return view.extend({
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (openclashStatus === 'running') {
-				return '<span style="color:green">&#10004; Running</span>';
+				return '<span style="color:green">&#10004; ' + _('Running') + '</span>';
 			} else if (openclashStatus === 'installed') {
-				return '<span style="color:orange">&#9888; Installed (Stopped)</span>';
+				return '<span style="color:orange">&#9888; ' + _('Installed (Stopped)') + '</span>';
 			} else if (openclashStatus === 'not_installed') {
 				return '<span style="color:gray">' + _('Not Installed') + '</span>';
 			} else if (openclashStatus === '-') {

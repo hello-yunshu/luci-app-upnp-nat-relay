@@ -154,19 +154,19 @@ return view.extend({
 						var statusHtml;
 						if (isRisk) {
 							if (val === 1 || val === true) {
-								statusHtml = '<span style="color:orange">&#9888; Warning</span>';
+								statusHtml = '<span style="color:orange">&#9888; ' + _('Warning') + '</span>';
 							} else if (val === 0 || val === false) {
-								statusHtml = '<span style="color:green">&#10004; OK</span>';
+								statusHtml = '<span style="color:green">&#10004; ' + _('OK') + '</span>';
 							} else {
 								statusHtml = '<span style="color:gray">' + (val || '-') + '</span>';
 							}
 						} else {
 							if (val === 1 || val === 'ok' || val === true) {
-								statusHtml = '<span style="color:green">&#10004; OK</span>';
+								statusHtml = '<span style="color:green">&#10004; ' + _('OK') + '</span>';
 							} else if (val === 0 || val === false || val === 'fail' || val === 'missing') {
-								statusHtml = '<span style="color:red">&#10008; Failed</span>';
+								statusHtml = '<span style="color:red">&#10008; ' + _('Failed') + '</span>';
 							} else if (val === 'warn') {
-								statusHtml = '<span style="color:orange">&#9888; Warning</span>';
+								statusHtml = '<span style="color:orange">&#9888; ' + _('Warning') + '</span>';
 							} else {
 								statusHtml = '<span style="color:gray">' + (val || '-') + '</span>';
 							}
