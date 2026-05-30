@@ -191,5 +191,6 @@ jobs:
             - OpenWrt 23.05+ with fw4/nftables
             - miniupnpc, nftables installed
           files: |
-            release/*.ipk
+            release/upnp-bridge-relay_*.ipk
+            release/luci-app-upnp-bridge-relay_*.ipk
             release/sha256sums.txt
