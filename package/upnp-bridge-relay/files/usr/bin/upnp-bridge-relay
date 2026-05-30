@@ -1,0 +1,1519 @@
+#!/bin/sh
+
+UCI_CONFIG="upnp_bridge_relay"
+NFT_TABLE_NAME="upnp_bridge_relay"
+NFT_CHAIN="prerouting"
+STATUS_DIR="/tmp/upnp_bridge_relay"
+STATUS_FILE="${STATUS_DIR}/status.json"
+RESOURCES_DIR="/etc/upnp_bridge_relay"
+RESOURCES_FILE="${RESOURCES_DIR}/resources.txt"
+LOCK_FILE="/tmp/upnp_bridge_relay.lock"
+OPENCLASH_BACKUP="/etc/config/openclash.bak.upnp_bridge_relay"
+
+uci_get() {
+    uci -q get "${UCI_CONFIG}.$1" 2>/dev/null
+}
+
+log_info() {
+    logger -t upnp-bridge-relay -p daemon.info "$1"
+}
+
+log_warn() {
+    logger -t upnp-bridge-relay -p daemon.warn "$1"
+}
+
+log_err() {
+    logger -t upnp-bridge-relay -p daemon.err "$1"
+}
+
+json_escape() {
+    printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/\\t/g' -e 's/</\\u003c/g' -e 's/>/\\u003e/g' -e 's/&/\\u0026/g' -e ':a;N;$!ba;s/\n/\\n/g'
+}
+
+_ja=""
+_ja_first=1
+
+ja_reset() {
+    _ja=""
+    _ja_first=1
+}
+
+ja_append() {
+    if [ "$_ja_first" -eq 1 ]; then
+        _ja="$1"
+        _ja_first=0
+    else
+        _ja="${_ja},$1"
+    fi
+}
+
+get_timestamp() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
+ensure_dirs() {
+    mkdir -p "${STATUS_DIR}" 2>/dev/null
+    mkdir -p "${RESOURCES_DIR}" 2>/dev/null
+}
+
+load_config() {
+    cfg_enabled="$(uci_get 'main.enabled')"
+    cfg_interval="$(uci_get 'main.interval')"
+    cfg_backend="$(uci_get 'main.backend')"
+    cfg_bind_ifname="$(uci_get 'main.bind_ifname')"
+    cfg_bind_ip="$(uci_get 'main.bind_ip')"
+    cfg_downstream_lan_gateway="$(uci_get 'main.downstream_lan_gateway')"
+    cfg_downstream_lan_subnet="$(uci_get 'main.downstream_lan_subnet')"
+    cfg_downstream_wan_ip="$(uci_get 'main.downstream_wan_ip')"
+    cfg_upstream_wan_if="$(uci_get 'main.upstream_wan_if')"
+    cfg_auto_config_network="$(uci_get 'main.auto_config_network')"
+    cfg_auto_config_firewall_zone="$(uci_get 'main.auto_config_firewall_zone')"
+    cfg_firewall_zone_name="$(uci_get 'main.firewall_zone_name')"
+    cfg_allowed_external_ports="$(uci_get 'main.allowed_external_ports')"
+    cfg_protocols="$(uci_get 'main.protocols')"
+    cfg_failure_grace_count="$(uci_get 'main.failure_grace_count')"
+    cfg_clear_on_stop="$(uci_get 'main.clear_on_stop')"
+    cfg_dry_run="$(uci_get 'main.dry_run')"
+    cfg_log_level="$(uci_get 'main.log_level')"
+    cfg_openclash_mode="$(uci_get 'main.openclash_mode')"
+    cfg_openclash_return_strategy="$(uci_get 'main.openclash_return_strategy')"
+    cfg_openclash_backup="$(uci_get 'main.openclash_backup')"
+    cfg_openclash_rule_remark="$(uci_get 'main.openclash_rule_remark')"
+    cfg_openclash_auto_restart="$(uci_get 'main.openclash_auto_restart')"
+    cfg_backend_command="$(uci_get 'upnpc.command')"
+    cfg_backend_timeout="$(uci_get 'upnpc.timeout')"
+
+    [ -z "${cfg_interval}" ] && cfg_interval="60"
+    [ -z "${cfg_backend}" ] && cfg_backend="upnpc"
+    [ -z "${cfg_backend_command}" ] && cfg_backend_command="upnpc"
+    [ -z "${cfg_backend_timeout}" ] && cfg_backend_timeout="10"
+    [ -z "${cfg_allowed_external_ports}" ] && cfg_allowed_external_ports="40000-65535"
+    [ -z "${cfg_protocols}" ] && cfg_protocols="tcp udp"
+    [ -z "${cfg_failure_grace_count}" ] && cfg_failure_grace_count="3"
+    [ -z "${cfg_clear_on_stop}" ] && cfg_clear_on_stop="1"
+    [ -z "${cfg_dry_run}" ] && cfg_dry_run="0"
+    [ -z "${cfg_log_level}" ] && cfg_log_level="info"
+    [ -z "${cfg_openclash_mode}" ] && cfg_openclash_mode="prompt"
+    [ -z "${cfg_openclash_return_strategy}" ] && cfg_openclash_return_strategy="port_pool"
+    [ -z "${cfg_openclash_backup}" ] && cfg_openclash_backup="1"
+    [ -z "${cfg_openclash_rule_remark}" ] && cfg_openclash_rule_remark="UPnP Bridge Relay Auto RETURN"
+    [ -z "${cfg_openclash_auto_restart}" ] && cfg_openclash_auto_restart="0"
+    [ -z "${cfg_firewall_zone_name}" ] && cfg_firewall_zone_name="upnp_bridge"
+
+    cfg_deny_ports=""
+    _dp_idx=0
+    while true; do
+        _dp_val="$(uci -q get "${UCI_CONFIG}.default.port.${_dp_idx}" 2>/dev/null)"
+        if [ -z "$_dp_val" ]; then
+            break
+        fi
+        if [ -z "${cfg_deny_ports}" ]; then
+            cfg_deny_ports="$_dp_val"
+        else
+            cfg_deny_ports="${cfg_deny_ports} $_dp_val"
+        fi
+        _dp_idx=$((_dp_idx + 1))
+    done
+    if [ -z "${cfg_deny_ports}" ]; then
+        cfg_deny_ports="22 23 25 53 80 110 143 443 445 465 587 993 995 1433 3306 3389 5432 6379 8080 8443"
+    fi
+
+    cfg_deny_low_ports="$(uci_get 'main.deny_low_ports')"
+    [ -z "${cfg_deny_low_ports}" ] && cfg_deny_low_ports="1"
+    cfg_restrict_to_subnet="$(uci_get 'main.restrict_to_subnet')"
+    [ -z "${cfg_restrict_to_subnet}" ] && cfg_restrict_to_subnet="1"
+    cfg_deny_empty_description="$(uci_get 'main.deny_empty_description')"
+    [ -z "${cfg_deny_empty_description}" ] && cfg_deny_empty_description="0"
+    cfg_log_rejected="$(uci_get 'main.log_rejected')"
+    [ -z "${cfg_log_rejected}" ] && cfg_log_rejected="1"
+}
+
+port_in_range() {
+    _p_port="$1"
+    _p_range="$2"
+    if [ -z "$_p_range" ]; then
+        return 0
+    fi
+    _p_lo="$(echo "$_p_range" | cut -d'-' -f1)"
+    _p_hi="$(echo "$_p_range" | cut -d'-' -f2)"
+    if [ -z "$_p_hi" ]; then
+        _p_hi="$_p_lo"
+    fi
+    if [ "$_p_port" -ge "$_p_lo" ] && [ "$_p_port" -le "$_p_hi" ]; then
+        return 0
+    fi
+    return 1
+}
+
+port_in_deny_list() {
+    _pd_port="$1"
+    for _pd_dp in ${cfg_deny_ports}; do
+        if [ "$_pd_port" = "$_pd_dp" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+ip_in_subnet() {
+    _pi_ip="$1"
+    _pi_subnet="$2"
+    if [ -z "$_pi_subnet" ]; then
+        return 0
+    fi
+    _pi_ip_int="$(printf '%s' "$_pi_ip" | awk -F. '{printf "%.0f",$1*16777216+$2*65536+$3*256+$4}')"
+    _pi_net_int="$(printf '%s' "$_pi_subnet" | awk -F'[/.]' '{printf "%.0f",$1*16777216+$2*65536+$3*256+$4}')"
+    _pi_cidr="$(printf '%s' "$_pi_subnet" | sed 's/.*\///')"
+    if [ -z "$_pi_cidr" ] || [ "$_pi_cidr" = "0" ]; then
+        [ "$_pi_ip_int" = "$_pi_net_int" ]
+        return $?
+    fi
+    _pi_mask=0
+    _pi_i=0
+    while [ "$_pi_i" -lt "$_pi_cidr" ]; do
+        _pi_mask=$((_pi_mask * 2 + 1))
+        _pi_i=$((_pi_i + 1))
+    done
+    _pi_i=0
+    while [ "$_pi_i" -lt $((32 - _pi_cidr)) ]; do
+        _pi_mask=$((_pi_mask * 2))
+        _pi_i=$((_pi_i + 1))
+    done
+    [ $((_pi_ip_int & _pi_mask)) -eq $((_pi_net_int & _pi_mask)) ]
+}
+
+protocol_allowed() {
+    _pp_proto="$1"
+    _pp_lower="$(echo "$_pp_proto" | tr '[:upper:]' '[:lower:]')"
+    for _pp_ap in ${cfg_protocols}; do
+        _pp_ap_lower="$(echo "$_pp_ap" | tr '[:upper:]' '[:lower:]')"
+        if [ "$_pp_lower" = "$_pp_ap_lower" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+filter_mapping() {
+    _fm_proto="$1"
+    _fm_ext_port="$2"
+    _fm_int_ip="$3"
+    _fm_int_port="$4"
+    _fm_desc="$5"
+
+    _fm_proto_upper="$(echo "$_fm_proto" | tr '[:lower:]' '[:upper:]')"
+
+    if ! protocol_allowed "$_fm_proto_upper"; then
+        printf 'reject|protocol_not_allowed'
+        return
+    fi
+
+    case "$_fm_ext_port" in
+        *[!0-9]*)
+            printf 'reject|invalid_external_port'
+            return
+            ;;
+    esac
+    if [ "$_fm_ext_port" -lt 1 ] || [ "$_fm_ext_port" -gt 65535 ]; then
+        printf 'reject|external_port_out_of_range'
+        return
+    fi
+
+    if [ "${cfg_deny_low_ports}" = "1" ] && [ "$_fm_ext_port" -lt 1024 ]; then
+        printf 'reject|low_port_denied'
+        return
+    fi
+
+    if ! port_in_range "$_fm_ext_port" "${cfg_allowed_external_ports}"; then
+        printf 'reject|port_not_in_allowed_range'
+        return
+    fi
+
+    if port_in_deny_list "$_fm_ext_port"; then
+        printf 'reject|port_in_deny_list'
+        return
+    fi
+
+    if [ "${cfg_restrict_to_subnet}" = "1" ]; then
+        if ! ip_in_subnet "$_fm_int_ip" "${cfg_downstream_lan_subnet}"; then
+            printf 'reject|internal_ip_not_in_allowed_subnet'
+            return
+        fi
+    fi
+
+    case "$_fm_int_port" in
+        *[!0-9]*)
+            printf 'reject|invalid_internal_port'
+            return
+            ;;
+    esac
+    if [ "$_fm_int_port" -lt 1 ] || [ "$_fm_int_port" -gt 65535 ]; then
+        printf 'reject|internal_port_out_of_range'
+        return
+    fi
+
+    if [ "${cfg_deny_empty_description}" = "1" ] && [ -z "$_fm_desc" ]; then
+        printf 'reject|empty_description'
+        return
+    fi
+
+    printf 'accept|'
+}
+
+check_port_conflict_single() {
+    _cpc_proto="$1"
+    _cpc_ext_port="$2"
+    _cpc_ruleset="${3:-}"
+
+    if [ -z "$_cpc_ruleset" ]; then
+        if ! command -v nft >/dev/null 2>&1; then
+            return 1
+        fi
+        _cpc_ruleset="$(nft list ruleset 2>/dev/null)"
+    fi
+
+    _cpc_proto_lower="$(echo "$_cpc_proto" | tr '[:upper:]' '[:lower:]')"
+    _cpc_conflict_source=""
+    _cpc_current_table=""
+    _cpc_old_ifs="$IFS"
+    IFS='
+'
+    for _cpc_line in $_cpc_ruleset; do
+        IFS="$_cpc_old_ifs"
+        case "$_cpc_line" in
+            table\ *)
+                _cpc_current_table="$(echo "$_cpc_line" | awk '{print $3}')"
+                ;;
+        esac
+        _cpc_line_lower="$(echo "$_cpc_line" | tr '[:upper:]' '[:lower:]')"
+        case "$_cpc_line_lower" in
+            *"upnp_bridge_relay"*)
+                continue
+                ;;
+        esac
+        case "$_cpc_line_lower" in
+            *"dnat"*)
+                _cpc_has_proto=0
+                _cpc_has_port=0
+                case "$_cpc_line_lower" in
+                    *"$_cpc_proto_lower"*)
+                        _cpc_has_proto=1
+                        ;;
+                esac
+                case "$_cpc_line_lower" in
+                    *"dport ${_cpc_ext_port} "*|*"dport ${_cpc_ext_port}"$)
+                        _cpc_has_port=1
+                        ;;
+                esac
+                if [ "$_cpc_has_proto" -eq 1 ] && [ "$_cpc_has_port" -eq 1 ]; then
+                    _cpc_conflict_source="${_cpc_current_table}"
+                    break
+                fi
+                ;;
+        esac
+    done
+    IFS="$_cpc_old_ifs"
+
+    if [ -n "$_cpc_conflict_source" ]; then
+        printf '%s' "$_cpc_conflict_source"
+        return 0
+    fi
+    return 1
+}
+
+nft_table_exists() {
+    nft list table inet ${NFT_TABLE_NAME} >/dev/null 2>&1
+}
+
+nft_ensure_table() {
+    if ! nft_table_exists; then
+        nft add table inet ${NFT_TABLE_NAME} || return 1
+    fi
+    if ! nft list chain inet ${NFT_TABLE_NAME} ${NFT_CHAIN} >/dev/null 2>&1; then
+        nft add chain inet ${NFT_TABLE_NAME} ${NFT_CHAIN} '{ type nat hook prerouting priority dstnat - 5; policy accept; }' || return 1
+    fi
+    return 0
+}
+
+nft_flush_chain() {
+    if nft_table_exists; then
+        if nft list chain inet ${NFT_TABLE_NAME} ${NFT_CHAIN} >/dev/null 2>&1; then
+            nft flush chain inet ${NFT_TABLE_NAME} ${NFT_CHAIN} || return 1
+        fi
+    fi
+    return 0
+}
+
+nft_add_dnat_rule() {
+    _nr_proto="$1"
+    _nr_port="$2"
+    _nr_dest_ip="$3"
+    _nr_dest_port="$4"
+    _nr_iface="$5"
+
+    _nr_proto_lower="$(echo "$_nr_proto" | tr '[:upper:]' '[:lower:]')"
+    nft add rule inet ${NFT_TABLE_NAME} ${NFT_CHAIN} iifname "\"${_nr_iface}\"" "${_nr_proto_lower}" dport "${_nr_port}" dnat ip to "${_nr_dest_ip}:${_nr_dest_port}" || return 1
+    return 0
+}
+
+nft_delete_table() {
+    if nft_table_exists; then
+        nft delete table inet ${NFT_TABLE_NAME} || return 1
+    fi
+    return 0
+}
+
+write_status() {
+    _ws_running="$1"
+    _ws_last_sync="$2"
+    _ws_last_result="$3"
+    _ws_backend="$4"
+    _ws_read_count="$5"
+    _ws_accepted_count="$6"
+    _ws_rejected_count="$7"
+    _ws_failure_count="$8"
+    _ws_accepted_json="$9"
+    _ws_rejected_json="${10}"
+    _ws_last_error="${11}"
+
+    ensure_dirs
+
+    printf '{"running":%s,"last_sync":"%s","last_result":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"failure_count":%d,"accepted":[%s],"rejected":[%s],"last_error":"%s"}\n' \
+        "$_ws_running" \
+        "$(json_escape "$_ws_last_sync")" \
+        "$(json_escape "$_ws_last_result")" \
+        "$(json_escape "$_ws_backend")" \
+        "$_ws_read_count" \
+        "$_ws_accepted_count" \
+        "$_ws_rejected_count" \
+        "$_ws_failure_count" \
+        "$_ws_accepted_json" \
+        "$_ws_rejected_json" \
+        "$(json_escape "$_ws_last_error")" \
+        > "${STATUS_FILE}"
+}
+
+read_status() {
+    if [ -f "${STATUS_FILE}" ]; then
+        cat "${STATUS_FILE}"
+    else
+        printf '{"running":false,"last_sync":"","last_result":"","backend":"","read_count":0,"accepted_count":0,"rejected_count":0,"failure_count":0,"accepted":[],"rejected":[],"last_error":""}\n'
+    fi
+}
+
+write_resource() {
+    _wr_key="$1"
+    _wr_value="$2"
+
+    ensure_dirs
+
+    _wr_tmp="${RESOURCES_DIR}/resources.tmp"
+    grep -v "^${_wr_key}=" "${RESOURCES_FILE}" 2>/dev/null > "${_wr_tmp}"
+    printf '%s=%s\n' "$_wr_key" "$_wr_value" >> "${_wr_tmp}"
+    mv "${_wr_tmp}" "${RESOURCES_FILE}" 2>/dev/null
+}
+
+read_resource() {
+    if [ -f "${RESOURCES_FILE}" ]; then
+        sed -n "s/^$1=//p" "${RESOURCES_FILE}" | head -1
+    fi
+}
+
+read_resources() {
+    if [ -f "${RESOURCES_FILE}" ]; then
+        ja_reset
+        while IFS='=' read -r _rr_key _rr_value; do
+            [ -z "$_rr_key" ] && continue
+            ja_append "\"$(json_escape "$_rr_key")\":\"$(json_escape "$_rr_value")\""
+        done < "${RESOURCES_FILE}"
+        printf '{%s}\n' "$_ja"
+    else
+        printf '{}\n'
+    fi
+}
+
+openclash_detect() {
+    _od_installed=0
+    _od_running=0
+    if [ -f /etc/config/openclash ]; then
+        _od_installed=1
+        if /etc/init.d/openclash status >/dev/null 2>&1; then
+            _od_running=1
+        fi
+    fi
+    printf '{"installed":%d,"running":%d}' "$_od_installed" "$_od_running"
+}
+
+openclash_has_plugin_rule() {
+    _oh_idx=0
+    while true; do
+        _oh_remark="$(uci -q get openclash.@access_control[${_oh_idx}].remark 2>/dev/null)"
+        if [ -z "$_oh_remark" ]; then
+            break
+        fi
+        if [ "$_oh_remark" = "${cfg_openclash_rule_remark}" ]; then
+            return 0
+        fi
+        _oh_idx=$((_oh_idx + 1))
+    done
+    return 1
+}
+
+openclash_generate_return_rule() {
+    printf '{"remark":"%s","internal_address":"%s","internal_ports":"%s","protocols":"%s","target":"RETURN"}\n' \
+        "$(json_escape "${cfg_openclash_rule_remark}")" \
+        "$(json_escape "${cfg_downstream_wan_ip}")" \
+        "$(json_escape "${cfg_allowed_external_ports}")" \
+        "$(json_escape "${cfg_protocols}")"
+}
+
+openclash_apply() {
+    if [ ! -f /etc/config/openclash ]; then
+        printf '{"success":false,"error":"openclash_not_installed"}\n'
+        return 1
+    fi
+
+    if openclash_has_plugin_rule; then
+        printf '{"success":true,"error":"","action":"already_exists"}\n'
+        return 0
+    fi
+
+    _oa_first_type="$(uci -q get openclash.@access_control[0] 2>/dev/null)"
+    if [ -z "$_oa_first_type" ]; then
+        printf '{"success":false,"error":"unrecognized_config_structure","message":"Cannot recognize OpenClash access_control structure. Please add manually."}\n'
+        return 1
+    fi
+
+    if [ "${cfg_openclash_backup}" = "1" ]; then
+        cp /etc/config/openclash "${OPENCLASH_BACKUP}" 2>/dev/null
+    fi
+
+    if ! uci add openclash access_control >/dev/null 2>&1; then
+        printf '{"success":false,"error":"failed_to_add_access_control_section"}\n'
+        return 1
+    fi
+    uci set "openclash.@access_control[-1].remark=${cfg_openclash_rule_remark}"
+    uci set "openclash.@access_control[-1].internal_address=${cfg_downstream_wan_ip}"
+    uci set "openclash.@access_control[-1].internal_ports=${cfg_allowed_external_ports}"
+    uci set "openclash.@access_control[-1].protocols=${cfg_protocols}"
+    uci set "openclash.@access_control[-1].target=RETURN"
+    uci commit openclash
+
+    write_resource "openclash_rule" "${cfg_openclash_rule_remark}"
+
+    _oa_restart_result="{}"
+    if [ "${cfg_openclash_auto_restart}" = "1" ]; then
+        _oa_restart_result="$(openclash_restart_service)"
+    fi
+
+    printf '{"success":true,"error":"","action":"added","restart":%s}\n' "$_oa_restart_result"
+    return 0
+}
+
+openclash_rollback() {
+    if [ -f "${OPENCLASH_BACKUP}" ]; then
+        cp "${OPENCLASH_BACKUP}" /etc/config/openclash 2>/dev/null
+        rm -f "${OPENCLASH_BACKUP}" 2>/dev/null
+        printf '{"removed":1,"method":"backup_restored"}\n'
+        return 0
+    fi
+
+    _or_removed=0
+    _or_idx=0
+    while true; do
+        _or_remark="$(uci -q get openclash.@access_control[${_or_idx}].remark 2>/dev/null)"
+        if [ -z "$_or_remark" ]; then
+            break
+        fi
+        if [ "$_or_remark" = "${cfg_openclash_rule_remark}" ]; then
+            uci delete "openclash.@access_control[${_or_idx}]" 2>/dev/null
+            _or_removed=1
+            continue
+        fi
+        _or_idx=$((_or_idx + 1))
+    done
+
+    if [ "$_or_removed" -eq 1 ]; then
+        uci commit openclash 2>/dev/null
+    fi
+
+    printf '{"removed":%d}\n' "$_or_removed"
+}
+
+openclash_restart_service() {
+    if [ ! -x /etc/init.d/openclash ]; then
+        log_warn "OpenClash init script not found, cannot restart"
+        printf '{"restarted":false,"error":"init_script_not_found"}\n'
+        return 1
+    fi
+
+    if ! /etc/init.d/openclash status >/dev/null 2>&1; then
+        log_info "OpenClash is not running, skipping restart (config will take effect on next start)"
+        printf '{"restarted":false,"error":"not_running"}\n'
+        return 0
+    fi
+
+    _ors_enable="$(uci -q get openclash.config.enable 2>/dev/null)"
+    if [ "${_ors_enable}" = "0" ]; then
+        log_info "OpenClash is disabled (enable=0), skipping restart to avoid interfering with other tools"
+        printf '{"restarted":false,"error":"disabled_by_other_tool"}\n'
+        return 0
+    fi
+
+    log_info "Restarting OpenClash service..."
+
+    /etc/init.d/openclash restart >/dev/null 2>&1
+
+    _ors_i=0
+    while [ "$_ors_i" -lt 30 ]; do
+        if pidof clash mihomo clash_premium clash_meta >/dev/null 2>&1; then
+            log_info "OpenClash restarted successfully (clash core running)"
+            printf '{"restarted":true,"error":""}\n'
+            return 0
+        fi
+        sleep 1
+        _ors_i=$((_ors_i + 1))
+    done
+
+    log_warn "OpenClash core not running after 30s (start_fail may have been triggered)"
+    printf '{"restarted":false,"error":"core_not_running_after_restart"}\n'
+    return 1
+}
+
+parse_upnpc_to_file() {
+    _pf_raw="$1"
+    _pf_outfile="$2"
+
+    : > "$_pf_outfile"
+
+    _pf_old_ifs="$IFS"
+    IFS='
+'
+    for _pf_line in $_pf_raw; do
+        IFS="$_pf_old_ifs"
+        _pf_line="$(echo "$_pf_line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        if [ -z "$_pf_line" ]; then
+            continue
+        fi
+        _pf_first="$(printf '%s' "$_pf_line" | cut -c1)"
+        case "$_pf_first" in
+            [0-9])
+                ;;
+            *)
+                continue
+                ;;
+        esac
+
+        _pf_proto="$(echo "$_pf_line" | awk '{print $2}')"
+        _pf_mapping="$(echo "$_pf_line" | awk '{print $3}')"
+        _pf_desc_raw="$(echo "$_pf_line" | sed -n "s/[^']*'\\([^']*\\)'.*/\\1/p")"
+        if [ -z "$_pf_desc_raw" ]; then
+            _pf_desc_raw="$(echo "$_pf_line" | awk '{for(i=4;i<=NF;i++) printf "%s ",$i; print ""}' | sed 's/[[:space:]]*$//')"
+        fi
+
+        if [ -z "$_pf_proto" ] || [ -z "$_pf_mapping" ]; then
+            printf 'PARSE_ERROR|%s|missing_fields\n' "$(json_escape "$_pf_line")" >> "$_pf_outfile"
+            continue
+        fi
+
+        _pf_ext_port="$(echo "$_pf_mapping" | cut -d'-' -f1)"
+        _pf_int_part="$(echo "$_pf_mapping" | cut -d'>' -f2)"
+        _pf_int_ip="$(echo "$_pf_int_part" | cut -d':' -f1)"
+        _pf_int_port="$(echo "$_pf_int_part" | cut -d':' -f2)"
+
+        if [ -z "$_pf_ext_port" ] || [ -z "$_pf_int_ip" ] || [ -z "$_pf_int_port" ]; then
+            printf 'PARSE_ERROR|%s|invalid_mapping_format\n' "$(json_escape "$_pf_line")" >> "$_pf_outfile"
+            continue
+        fi
+
+        printf 'MAPPING|%s|%s|%s|%s|%s\n' "$_pf_proto" "$_pf_ext_port" "$_pf_int_ip" "$_pf_int_port" "$_pf_desc_raw" >> "$_pf_outfile"
+    done
+    IFS="$_pf_old_ifs"
+}
+
+do_check_env() {
+    _ce_version=""
+    if [ -f /etc/openwrt_release ]; then
+        _ce_release="$(grep 'DISTRIB_RELEASE' /etc/openwrt_release 2>/dev/null | cut -d"'" -f2)"
+    fi
+    if [ -f /etc/os-release ]; then
+        _ce_os_version="$(grep '^VERSION=' /etc/os-release 2>/dev/null | cut -d'"' -f2)"
+    fi
+    if [ -n "$_ce_os_version" ]; then
+        _ce_version="$_ce_os_version"
+    elif [ -n "$_ce_release" ]; then
+        _ce_version="$_ce_release"
+    fi
+
+    _ce_pkg_manager="unknown"
+    if command -v apk >/dev/null 2>&1; then
+        _ce_pkg_manager="apk"
+    elif command -v opkg >/dev/null 2>&1; then
+        _ce_pkg_manager="opkg"
+    fi
+
+    _ce_firewall="unknown"
+    _ce_fw4=0
+    _ce_nft=0
+    if command -v fw4 >/dev/null 2>&1; then
+        _ce_fw4=1
+        if fw4 -q print >/dev/null 2>&1; then
+            _ce_firewall="fw4"
+        fi
+    fi
+    if command -v nft >/dev/null 2>&1; then
+        _ce_nft=1
+    fi
+    if [ "$_ce_firewall" = "unknown" ] && [ "$_ce_nft" -eq 1 ]; then
+        _ce_firewall="nftables_only"
+    fi
+
+    _ce_upnpc=0
+    if command -v upnpc >/dev/null 2>&1; then
+        _ce_upnpc=1
+    fi
+
+    _ce_luci=0
+    if [ -f /www/luci-static/resources/rpc.js ]; then
+        _ce_luci=1
+    fi
+
+    _ce_oc_installed=0
+    _ce_oc_running=0
+    _ce_oc_has_ac=0
+    if [ -f /etc/config/openclash ]; then
+        _ce_oc_installed=1
+        if /etc/init.d/openclash status >/dev/null 2>&1; then
+            _ce_oc_running=1
+        fi
+        if uci -q get openclash.@access_control[0] >/dev/null 2>&1; then
+            _ce_oc_has_ac=1
+        fi
+    fi
+
+    printf '{"openwrt_version":"%s","package_manager":"%s","firewall":"%s","fw4":%d,"nft":%d,"upnpc":%d,"luci":%d,"openclash_installed":%d,"openclash_running":%d,"openclash_has_access_control":%d}\n' \
+        "$(json_escape "$_ce_version")" \
+        "$(json_escape "$_ce_pkg_manager")" \
+        "$(json_escape "$_ce_firewall")" \
+        "$_ce_fw4" \
+        "$_ce_nft" \
+        "$_ce_upnpc" \
+        "$_ce_luci" \
+        "$_ce_oc_installed" \
+        "$_ce_oc_running" \
+        "$_ce_oc_has_ac"
+}
+
+do_check_network() {
+    load_config
+
+    _cn_iface_exists=0
+    if ip link show "${cfg_bind_ifname}" >/dev/null 2>&1; then
+        _cn_iface_exists=1
+    fi
+
+    _cn_bind_ip_ok=0
+    if ip addr show "${cfg_bind_ifname}" 2>/dev/null | grep -q "inet ${cfg_bind_ip}/"; then
+        _cn_bind_ip_ok=1
+    fi
+
+    _cn_gateway_ok=0
+    if ping -c 1 -W 3 "${cfg_downstream_lan_gateway}" >/dev/null 2>&1; then
+        _cn_gateway_ok=1
+    fi
+
+    _cn_upnpc_ok=0
+    _cn_upnpc_count=0
+    if command -v upnpc >/dev/null 2>&1; then
+        if _cn_upnpc_out="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>/dev/null)" && [ -n "$_cn_upnpc_out" ]; then
+            _cn_upnpc_ok=1
+            _cn_upnpc_count="$(echo "$_cn_upnpc_out" | grep -cE '^[0-9]+[[:space:]]+(TCP|UDP)')"
+        fi
+    fi
+
+    _cn_wan_ip_ok=0
+    if ping -c 1 -W 3 "${cfg_downstream_wan_ip}" >/dev/null 2>&1; then
+        _cn_wan_ip_ok=1
+    fi
+
+    _cn_upstream_wan_ok=0
+    if ip link show "${cfg_upstream_wan_if}" >/dev/null 2>&1; then
+        _cn_upstream_wan_ok=1
+    fi
+
+    _cn_def_route=0
+    if ip route show 2>/dev/null | grep "^default" | grep -q "${cfg_bind_ifname}"; then
+        _cn_def_route=1
+    fi
+
+    _cn_bad_fwd=0
+    _cn_fwd_idx=0
+    while true; do
+        _cn_fwd_src="$(uci -q get firewall.@forwarding[${_cn_fwd_idx}].src 2>/dev/null)"
+        if [ -z "$_cn_fwd_src" ]; then
+            break
+        fi
+        _cn_fwd_dst="$(uci -q get firewall.@forwarding[${_cn_fwd_idx}].dest 2>/dev/null)"
+        if [ "$_cn_fwd_src" = "${cfg_firewall_zone_name}" ] || [ "$_cn_fwd_dst" = "${cfg_firewall_zone_name}" ]; then
+            _cn_bad_fwd=1
+            break
+        fi
+        _cn_fwd_idx=$((_cn_fwd_idx + 1))
+    done
+
+    printf '{"bind_ifname":"%s","bind_ip":"%s","downstream_lan_gateway":"%s","downstream_wan_ip":"%s","upstream_wan_if":"%s","iface_exists":%d,"bind_ip_configured":%d,"gateway_reachable":%d,"upnpc_readable":%d,"upnpc_mapping_count":%d,"wan_ip_reachable":%d,"upstream_wan_exists":%d,"default_route_on_bind":%d,"bad_forwarding":%d}\n' \
+        "$(json_escape "${cfg_bind_ifname}")" \
+        "$(json_escape "${cfg_bind_ip}")" \
+        "$(json_escape "${cfg_downstream_lan_gateway}")" \
+        "$(json_escape "${cfg_downstream_wan_ip}")" \
+        "$(json_escape "${cfg_upstream_wan_if}")" \
+        "$_cn_iface_exists" \
+        "$_cn_bind_ip_ok" \
+        "$_cn_gateway_ok" \
+        "$_cn_upnpc_ok" \
+        "$_cn_upnpc_count" \
+        "$_cn_wan_ip_ok" \
+        "$_cn_upstream_wan_ok" \
+        "$_cn_def_route" \
+        "$_cn_bad_fwd"
+}
+
+do_sync() {
+    load_config
+    ensure_dirs
+
+    if [ -z "${cfg_bind_ip}" ] || [ -z "${cfg_downstream_wan_ip}" ] || [ -z "${cfg_upstream_wan_if}" ]; then
+        _s_missing=""
+        [ -z "${cfg_bind_ip}" ] && _s_missing="${_s_missing} bind_ip"
+        [ -z "${cfg_downstream_wan_ip}" ] && _s_missing="${_s_missing} downstream_wan_ip"
+        [ -z "${cfg_upstream_wan_if}" ] && _s_missing="${_s_missing} upstream_wan_if"
+        _s_missing="$(echo "$_s_missing" | sed 's/^ //')"
+        log_err "Sync failed: required config missing: ${_s_missing}"
+        printf '{"success":false,"error":"missing_required_config","missing":"%s"}\n' "$(json_escape "$_s_missing")"
+        return 1
+    fi
+
+    exec 9>"${LOCK_FILE}"
+    if ! flock -n 9; then
+        log_warn "Another sync process is running, skipping"
+        printf '{"success":false,"error":"another_sync_running"}\n'
+        return 1
+    fi
+
+    _s_timestamp="$(get_timestamp)"
+    _s_last_error=""
+    _s_failure_count=0
+
+    if [ -f "${STATUS_FILE}" ]; then
+        _s_prev_failure="$(sed -n 's/.*"failure_count":\([0-9]*\).*/\1/p' "${STATUS_FILE}" 2>/dev/null)"
+        if [ -n "$_s_prev_failure" ]; then
+            _s_failure_count="$_s_prev_failure"
+        fi
+    fi
+
+    if ! command -v nft >/dev/null 2>&1; then
+        _s_last_error="nft not found"
+        log_err "Sync failed: nft not found"
+        write_status "true" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
+        exec 9>&-
+        printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
+        return 1
+    fi
+
+    if ! command -v upnpc >/dev/null 2>&1; then
+        _s_last_error="upnpc not found"
+        log_err "Sync failed: upnpc not found"
+        write_status "true" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
+        exec 9>&-
+        printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
+        return 1
+    fi
+
+    _s_upnpc_output="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>&1)"
+    _s_upnpc_ret=$?
+    if [ $_s_upnpc_ret -ne 0 ] || [ -z "$_s_upnpc_output" ]; then
+        _s_last_error="upnpc read failed (exit: ${_s_upnpc_ret})"
+        log_err "Sync failed: $_s_last_error"
+
+        _s_failure_count=$((_s_failure_count + 1))
+
+        if [ "$_s_failure_count" -ge "${cfg_failure_grace_count}" ]; then
+            log_warn "Failure count (${_s_failure_count}) reached grace count (${cfg_failure_grace_count}), clearing rules"
+            nft_flush_chain
+            _s_failure_count=0
+        fi
+
+        write_status "true" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
+        exec 9>&-
+        printf '{"success":false,"error":"%s","failure_count":%d}\n' "$_s_last_error" "$_s_failure_count"
+        return 1
+    fi
+
+    _s_parsed_file="${STATUS_DIR}/_sync_parsed.tmp"
+    _s_accept_file="${STATUS_DIR}/_sync_accept.tmp"
+    _s_reject_file="${STATUS_DIR}/_sync_reject.tmp"
+    : > "$_s_accept_file"
+    : > "$_s_reject_file"
+
+    parse_upnpc_to_file "$_s_upnpc_output" "$_s_parsed_file"
+
+    _s_ruleset="$(nft list ruleset 2>/dev/null)"
+
+    _s_read_count=0
+    _s_accepted_count=0
+    _s_rejected_count=0
+
+    while IFS='|' read -r _s_type _s_data1 _s_data2 _s_data3 _s_data4 _s_data5 _s_data6; do
+        if [ "$_s_type" = "PARSE_ERROR" ]; then
+            _s_read_count=$((_s_read_count + 1))
+            _s_rejected_count=$((_s_rejected_count + 1))
+            printf 'REJECT|%s|%s|0|0|parse_error|parse_failed\n' "$_s_data1" "$_s_data2" >> "$_s_reject_file"
+            continue
+        fi
+
+        if [ "$_s_type" != "MAPPING" ]; then
+            continue
+        fi
+
+        _s_proto="$_s_data1"
+        _s_ext_port="$_s_data2"
+        _s_int_ip="$_s_data3"
+        _s_int_port="$_s_data4"
+        _s_desc="$_s_data5"
+
+        _s_read_count=$((_s_read_count + 1))
+
+        _s_filter_result="$(filter_mapping "$_s_proto" "$_s_ext_port" "$_s_int_ip" "$_s_int_port" "$_s_desc")"
+        _s_action="$(echo "$_s_filter_result" | cut -d'|' -f1)"
+        _s_reason="$(echo "$_s_filter_result" | cut -d'|' -f2-)"
+
+        if [ "$_s_action" = "accept" ]; then
+            _s_conflict="$(check_port_conflict_single "$_s_proto" "$_s_ext_port" "$_s_ruleset")"
+            if [ -n "$_s_conflict" ]; then
+                _s_action="reject"
+                _s_reason="port_conflict:${_s_conflict}"
+            fi
+        fi
+
+        if [ "$_s_action" = "accept" ]; then
+            _s_accepted_count=$((_s_accepted_count + 1))
+            printf 'ACCEPT|%s|%s|%s|%s|%s\n' "$_s_proto" "$_s_ext_port" "$_s_int_ip" "$_s_int_port" "$_s_desc" >> "$_s_accept_file"
+        else
+            _s_rejected_count=$((_s_rejected_count + 1))
+            printf 'REJECT|%s|%s|%s|%s|%s|%s\n' "$_s_proto" "$_s_ext_port" "$_s_int_ip" "$_s_int_port" "$_s_desc" "$_s_reason" >> "$_s_reject_file"
+            if [ "${cfg_log_rejected}" = "1" ]; then
+                log_info "Rejected: ${_s_proto} ${_s_ext_port} -> ${_s_int_ip}:${_s_int_port} (${_s_reason})"
+            fi
+        fi
+    done < "$_s_parsed_file"
+
+    rm -f "$_s_parsed_file"
+
+    ja_reset
+    if [ -f "$_s_accept_file" ]; then
+        while IFS='|' read -r _s_act _s_proto _s_ext_port _s_int_ip _s_int_port _s_desc; do
+            [ "$_s_act" != "ACCEPT" ] && continue
+            ja_append "$(printf '{"protocol":"%s","external_port":%s,"internal_ip":"%s","internal_port":%s,"description":"%s","dnat_target":"%s:%s"}' \
+                "$(json_escape "$_s_proto")" \
+                "$_s_ext_port" \
+                "$(json_escape "$_s_int_ip")" \
+                "$_s_int_port" \
+                "$(json_escape "$_s_desc")" \
+                "$(json_escape "${cfg_downstream_wan_ip}")" \
+                "$_s_ext_port")"
+        done < "$_s_accept_file"
+    fi
+    _s_accepted_json="$_ja"
+
+    ja_reset
+    if [ -f "$_s_reject_file" ]; then
+        while IFS='|' read -r _s_act _s_proto _s_ext_port _s_int_ip _s_int_port _s_desc _s_reason; do
+            [ "$_s_act" != "REJECT" ] && continue
+            ja_append "$(printf '{"protocol":"%s","external_port":%s,"internal_ip":"%s","internal_port":%s,"description":"%s","reason":"%s"}' \
+                "$(json_escape "$_s_proto")" \
+                "$_s_ext_port" \
+                "$(json_escape "$_s_int_ip")" \
+                "$_s_int_port" \
+                "$(json_escape "$_s_desc")" \
+                "$(json_escape "$_s_reason")")"
+        done < "$_s_reject_file"
+    fi
+    _s_rejected_json="$_ja"
+
+    if [ "${cfg_dry_run}" = "1" ]; then
+        log_info "Dry run mode enabled, skipping nft rule creation"
+        _s_failure_count=0
+        write_status "true" "$_s_timestamp" "success(dry_run)" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" ""
+        rm -f "$_s_accept_file" "$_s_reject_file"
+        exec 9>&-
+        printf '{"success":true,"dry_run":true,"timestamp":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"accepted":[%s],"rejected":[%s]}\n' \
+            "$(json_escape "$_s_timestamp")" \
+            "$(json_escape "${cfg_backend}")" \
+            "$_s_read_count" \
+            "$_s_accepted_count" \
+            "$_s_rejected_count" \
+            "$_s_accepted_json" \
+            "$_s_rejected_json"
+        return 0
+    fi
+
+    if ! nft_ensure_table; then
+        _s_last_error="Failed to ensure nft table"
+        log_err "Sync failed: $_s_last_error"
+        write_status "true" "$_s_timestamp" "failed" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" 0 "" "" "$_s_last_error"
+        rm -f "$_s_accept_file" "$_s_reject_file"
+        exec 9>&-
+        printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
+        return 1
+    fi
+
+    nft_flush_chain
+
+    _s_nft_fail=0
+    if [ -f "$_s_accept_file" ]; then
+        while IFS='|' read -r _s_act _s_proto _s_ext_port _s_int_ip _s_int_port _s_desc; do
+            [ "$_s_act" != "ACCEPT" ] && continue
+            if ! nft_add_dnat_rule "$_s_proto" "$_s_ext_port" "${cfg_downstream_wan_ip}" "$_s_ext_port" "${cfg_upstream_wan_if}"; then
+                log_warn "Failed to add nft rule: ${_s_proto} ${_s_ext_port} -> ${cfg_downstream_wan_ip}:${_s_ext_port}"
+                _s_nft_fail=$((_s_nft_fail + 1))
+            else
+                log_info "Added DNAT: ${_s_proto} ${_s_ext_port} -> ${cfg_downstream_wan_ip}:${_s_ext_port}"
+            fi
+        done < "$_s_accept_file"
+    fi
+
+    rm -f "$_s_accept_file" "$_s_reject_file"
+
+    _s_failure_count=0
+    if [ "$_s_nft_fail" -gt 0 ]; then
+        _s_last_error="nft_rule_add_failed: ${_s_nft_fail}"
+    fi
+    write_status "true" "$_s_timestamp" "success" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" "$_s_last_error"
+
+    log_info "Sync completed: read=${_s_read_count}, accepted=${_s_accepted_count}, rejected=${_s_rejected_count}"
+
+    exec 9>&-
+
+    printf '{"success":true,"timestamp":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"accepted":[%s],"rejected":[%s]}\n' \
+        "$(json_escape "$_s_timestamp")" \
+        "$(json_escape "${cfg_backend}")" \
+        "$_s_read_count" \
+        "$_s_accepted_count" \
+        "$_s_rejected_count" \
+        "$_s_accepted_json" \
+        "$_s_rejected_json"
+}
+
+do_dry_run() {
+    load_config
+    ensure_dirs
+
+    if [ -z "${cfg_bind_ip}" ]; then
+        printf '{"success":false,"error":"bind_ip not configured","read_mappings":[],"accepted":[],"rejected":[],"nft_commands":[],"openclash_suggestion":{}}\n'
+        return 1
+    fi
+
+    if [ -z "${cfg_downstream_wan_ip}" ] || [ -z "${cfg_upstream_wan_if}" ]; then
+        _dr_missing=""
+        [ -z "${cfg_downstream_wan_ip}" ] && _dr_missing="${_dr_missing} downstream_wan_ip"
+        [ -z "${cfg_upstream_wan_if}" ] && _dr_missing="${_dr_missing} upstream_wan_if"
+        _dr_missing="$(echo "$_dr_missing" | sed 's/^ //')"
+        printf '{"success":false,"error":"missing_required_config","missing":"%s","read_mappings":[],"accepted":[],"rejected":[],"nft_commands":[],"openclash_suggestion":{}}\n' "$(json_escape "$_dr_missing")"
+        return 1
+    fi
+
+    if ! command -v upnpc >/dev/null 2>&1; then
+        printf '{"success":false,"error":"upnpc not found","read_mappings":[],"accepted":[],"rejected":[],"nft_commands":[],"openclash_suggestion":{}}\n'
+        return 1
+    fi
+
+    if ! _dr_upnpc_output="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>&1)" || [ -z "$_dr_upnpc_output" ]; then
+        printf '{"success":false,"error":"upnpc read failed","read_mappings":[],"accepted":[],"rejected":[],"nft_commands":[],"openclash_suggestion":{}}\n'
+        return 1
+    fi
+
+    _dr_parsed_file="${STATUS_DIR}/_dry_parsed.tmp"
+    _dr_accept_file="${STATUS_DIR}/_dry_accept.tmp"
+    _dr_reject_file="${STATUS_DIR}/_dry_reject.tmp"
+    : > "$_dr_accept_file"
+    : > "$_dr_reject_file"
+
+    parse_upnpc_to_file "$_dr_upnpc_output" "$_dr_parsed_file"
+
+    _dr_ruleset="$(nft list ruleset 2>/dev/null)"
+
+    ja_reset
+    while IFS='|' read -r _dr_type _dr_data1 _dr_data2 _dr_data3 _dr_data4 _dr_data5 _dr_data6; do
+        if [ "$_dr_type" = "PARSE_ERROR" ]; then
+            ja_append "$(printf '{"protocol":"-","external_port":0,"internal_ip":"%s","internal_port":0,"description":"%s"}' \
+                "$(json_escape "$_dr_data1")" "$(json_escape "$_dr_data2")")"
+            printf 'REJECT|%s|%s|parse_error|0|parse_failed\n' "$_dr_data1" "$_dr_data2" >> "$_dr_reject_file"
+            continue
+        fi
+        if [ "$_dr_type" != "MAPPING" ]; then
+            continue
+        fi
+
+        _dr_proto="$_dr_data1"
+        _dr_ext_port="$_dr_data2"
+        _dr_int_ip="$_dr_data3"
+        _dr_int_port="$_dr_data4"
+        _dr_desc="$_dr_data5"
+
+        ja_append "$(printf '{"protocol":"%s","external_port":%s,"internal_ip":"%s","internal_port":%s,"description":"%s"}' \
+            "$(json_escape "$_dr_proto")" \
+            "$_dr_ext_port" \
+            "$(json_escape "$_dr_int_ip")" \
+            "$_dr_int_port" \
+            "$(json_escape "$_dr_desc")")"
+
+        _dr_filter_result="$(filter_mapping "$_dr_proto" "$_dr_ext_port" "$_dr_int_ip" "$_dr_int_port" "$_dr_desc")"
+        _dr_action="$(echo "$_dr_filter_result" | cut -d'|' -f1)"
+        _dr_reason="$(echo "$_dr_filter_result" | cut -d'|' -f2-)"
+
+        if [ "$_dr_action" = "accept" ]; then
+            _dr_conflict="$(check_port_conflict_single "$_dr_proto" "$_dr_ext_port" "$_dr_ruleset")"
+            if [ -n "$_dr_conflict" ]; then
+                _dr_action="reject"
+                _dr_reason="port_conflict:${_dr_conflict}"
+            fi
+        fi
+
+        if [ "$_dr_action" = "accept" ]; then
+            printf 'ACCEPT|%s|%s|%s|%s|%s\n' "$_dr_proto" "$_dr_ext_port" "$_dr_int_ip" "$_dr_int_port" "$_dr_desc" >> "$_dr_accept_file"
+        else
+            printf 'REJECT|%s|%s|%s|%s|%s|%s\n' "$_dr_proto" "$_dr_ext_port" "$_dr_int_ip" "$_dr_int_port" "$_dr_desc" "$_dr_reason" >> "$_dr_reject_file"
+        fi
+    done < "$_dr_parsed_file"
+
+    rm -f "$_dr_parsed_file"
+
+    _dr_read_json="$_ja"
+
+    ja_reset
+    if [ -f "$_dr_accept_file" ]; then
+        while IFS='|' read -r _dr_act _dr_proto _dr_ext_port _dr_int_ip _dr_int_port _dr_desc; do
+            [ "$_dr_act" != "ACCEPT" ] && continue
+            ja_append "$(printf '{"protocol":"%s","external_port":%s,"internal_ip":"%s","internal_port":%s,"description":"%s","dnat_target":"%s:%s"}' \
+                "$(json_escape "$_dr_proto")" \
+                "$_dr_ext_port" \
+                "$(json_escape "$_dr_int_ip")" \
+                "$_dr_int_port" \
+                "$(json_escape "$_dr_desc")" \
+                "$(json_escape "${cfg_downstream_wan_ip}")" \
+                "$_dr_ext_port")"
+        done < "$_dr_accept_file"
+    fi
+    _dr_accepted_json="$_ja"
+
+    ja_reset
+    if [ -f "$_dr_accept_file" ]; then
+        while IFS='|' read -r _dr_act _dr_proto _dr_ext_port _dr_int_ip _dr_int_port _dr_desc; do
+            [ "$_dr_act" != "ACCEPT" ] && continue
+            _dr_proto_lower="$(echo "$_dr_proto" | tr '[:upper:]' '[:lower:]')"
+            ja_append "\"$(json_escape "$(printf 'nft add rule inet %s %s iifname "\\"%s\\"" %s dport %s dnat ip to %s:%s' \
+                "${NFT_TABLE_NAME}" "${NFT_CHAIN}" "${cfg_upstream_wan_if}" "${_dr_proto_lower}" "${_dr_ext_port}" "${cfg_downstream_wan_ip}" "${_dr_ext_port}")")\""
+        done < "$_dr_accept_file"
+        rm -f "$_dr_accept_file"
+    fi
+    _dr_nft_json="$_ja"
+
+    ja_reset
+    if [ -f "$_dr_reject_file" ]; then
+        while IFS='|' read -r _dr_act _dr_proto _dr_ext_port _dr_int_ip _dr_int_port _dr_desc _dr_reason; do
+            [ "$_dr_act" != "REJECT" ] && continue
+            ja_append "$(printf '{"protocol":"%s","external_port":%s,"internal_ip":"%s","internal_port":%s,"description":"%s","reason":"%s"}' \
+                "$(json_escape "$_dr_proto")" \
+                "$_dr_ext_port" \
+                "$(json_escape "$_dr_int_ip")" \
+                "$_dr_int_port" \
+                "$(json_escape "$_dr_desc")" \
+                "$(json_escape "$_dr_reason")")"
+        done < "$_dr_reject_file"
+        rm -f "$_dr_reject_file"
+    fi
+    _dr_rejected_json="$_ja"
+
+    _dr_oc_suggestion="{}"
+    _dr_oc_detect="$(openclash_detect)"
+    _dr_oc_installed="$(echo "$_dr_oc_detect" | sed -n 's/.*"installed":\([0-9]*\).*/\1/p')"
+    if [ "$_dr_oc_installed" = "1" ]; then
+        _dr_oc_suggestion="$(openclash_generate_return_rule)"
+    fi
+
+    printf '{"success":true,"read_mappings":[%s],"accepted":[%s],"rejected":[%s],"nft_commands":[%s],"openclash_suggestion":%s}\n' \
+        "$_dr_read_json" \
+        "$_dr_accepted_json" \
+        "$_dr_rejected_json" \
+        "$_dr_nft_json" \
+        "$_dr_oc_suggestion"
+}
+
+do_clear() {
+    if nft_delete_table; then
+        log_info "Cleared nft table ${NFT_TABLE_NAME}"
+        printf '{"success":true}\n'
+    else
+        log_warn "Failed to clear nft table ${NFT_TABLE_NAME}"
+        printf '{"success":false}\n'
+    fi
+}
+
+do_status() {
+    read_status
+}
+
+do_full_status() {
+    load_config
+    _dfs_base="$(read_status)"
+    _dfs_nft_status="not_present"
+    if command -v nft >/dev/null 2>&1 && nft list table inet ${NFT_TABLE_NAME} >/dev/null 2>&1; then
+        _dfs_nft_status="present"
+    fi
+    _dfs_oc_status="not_installed"
+    _oc_detect="$(openclash_detect)"
+    _oc_installed="$(echo "$_oc_detect" | sed -n 's/.*"installed":\([0-9]*\).*/\1/p')"
+    _oc_running="$(echo "$_oc_detect" | sed -n 's/.*"running":\([0-9]*\).*/\1/p')"
+    if [ "$_oc_installed" = "1" ]; then
+        if [ "$_oc_running" = "1" ]; then
+            _dfs_oc_status="running"
+        else
+            _dfs_oc_status="installed"
+        fi
+    fi
+    _dfs_version=""
+    if command -v apk >/dev/null 2>&1; then
+        _dfs_version="$(apk info --installed upnp-bridge-relay 2>/dev/null | sed -n 's/.*-\([0-9][0-9.]*\)/\1/p' | head -1)"
+    elif command -v opkg >/dev/null 2>&1; then
+        _dfs_version="$(opkg info upnp-bridge-relay 2>/dev/null | sed -n 's/^Version: //p' | head -1)"
+    fi
+    [ -z "$_dfs_version" ] && _dfs_version="unknown"
+
+    _dfs_extra=",\"nft_table_status\":\"${_dfs_nft_status}\",\"openclash_status\":\"${_dfs_oc_status}\",\"version\":\"${_dfs_version}\"}"
+
+    _dfs_last_brace="$(printf '%s' "$_dfs_base" | sed -n 's/.*}/}/p' | tail -c 2)"
+    if [ "$_dfs_last_brace" = "}" ]; then
+        printf '%s' "$_dfs_base" | sed "s/}$/${_dfs_extra}/"
+        printf '\n'
+    else
+        printf '%s\n' "$_dfs_base"
+    fi
+}
+
+do_dump_mappings() {
+    load_config
+    ensure_dirs
+
+    if [ -z "${cfg_bind_ip}" ]; then
+        printf '{"success":false,"error":"bind_ip not configured","mappings":[]}\n'
+        return 1
+    fi
+
+    if ! command -v upnpc >/dev/null 2>&1; then
+        printf '{"success":false,"error":"upnpc not found","mappings":[]}\n'
+        return 1
+    fi
+
+    if ! _dm_upnpc_output="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>&1)" || [ -z "$_dm_upnpc_output" ]; then
+        printf '{"success":false,"error":"upnpc read failed","mappings":[]}\n'
+        return 1
+    fi
+
+    _dm_parsed_file="${STATUS_DIR}/_dump_parsed.tmp"
+    parse_upnpc_to_file "$_dm_upnpc_output" "$_dm_parsed_file"
+
+    ja_reset
+    while IFS='|' read -r _dm_type _dm_data1 _dm_data2 _dm_data3 _dm_data4 _dm_data5 _dm_data6; do
+        if [ "$_dm_type" != "MAPPING" ]; then
+            continue
+        fi
+        ja_append "$(printf '{"protocol":"%s","external_port":%s,"internal_ip":"%s","internal_port":%s,"description":"%s"}' \
+            "$(json_escape "$_dm_data1")" \
+            "$_dm_data2" \
+            "$(json_escape "$_dm_data3")" \
+            "$_dm_data4" \
+            "$(json_escape "$_dm_data5")")"
+    done < "$_dm_parsed_file"
+
+    rm -f "$_dm_parsed_file"
+
+    printf '{"success":true,"mappings":[%s]}\n' "$_ja"
+}
+
+cidr_to_netmask() {
+    _ctm_cidr="$1"
+    _ctm_mask=""
+    if [ -z "$_ctm_cidr" ] || [ "$_ctm_cidr" = "0" ]; then
+        printf '0.0.0.0'
+        return
+    fi
+    if [ "$_ctm_cidr" -ge 32 ] 2>/dev/null; then
+        printf '255.255.255.255'
+        return
+    fi
+    _ctm_full="$((_ctm_cidr / 8))"
+    _ctm_part="$((_ctm_cidr % 8))"
+    _ctm_i=0
+    while [ "$_ctm_i" -lt 4 ]; do
+        if [ "$_ctm_i" -lt "$_ctm_full" ]; then
+            _ctm_octet=255
+        elif [ "$_ctm_i" -eq "$_ctm_full" ]; then
+            _ctm_octet=$((256 - 2**(8 - _ctm_part)))
+        else
+            _ctm_octet=0
+        fi
+        if [ -z "$_ctm_mask" ]; then
+            _ctm_mask="${_ctm_octet}"
+        else
+            _ctm_mask="${_ctm_mask}.${_ctm_octet}"
+        fi
+        _ctm_i=$((_ctm_i + 1))
+    done
+    printf '%s' "$_ctm_mask"
+}
+
+do_setup_interface() {
+    load_config
+
+    if [ -z "${cfg_bind_ifname}" ]; then
+        printf '{"success":false,"error":"bind_ifname not configured"}\n'
+        return 1
+    fi
+    if [ -z "${cfg_bind_ip}" ]; then
+        printf '{"success":false,"error":"bind_ip not configured"}\n'
+        return 1
+    fi
+
+    _dsi_netmask="255.255.255.0"
+    if [ -n "${cfg_downstream_lan_subnet}" ]; then
+        _dsi_cidr="$(printf '%s' "${cfg_downstream_lan_subnet}" | sed 's/.*\///')"
+        if [ -n "$_dsi_cidr" ] && [ "$_dsi_cidr" -ge 1 ] 2>/dev/null && [ "$_dsi_cidr" -le 32 ] 2>/dev/null; then
+            _dsi_netmask="$(cidr_to_netmask "$_dsi_cidr")"
+        fi
+    fi
+
+    uci set network.upnp_bridge_lan='interface'
+    uci set network.upnp_bridge_lan.device="${cfg_bind_ifname}"
+    uci set network.upnp_bridge_lan.proto='static'
+    uci set network.upnp_bridge_lan.ipaddr="${cfg_bind_ip}"
+    uci set network.upnp_bridge_lan.netmask="${_dsi_netmask}"
+    uci delete network.upnp_bridge_lan.gateway 2>/dev/null
+    uci delete network.upnp_bridge_lan.dns 2>/dev/null
+    uci commit network
+
+    ifup upnp_bridge_lan >/dev/null 2>&1
+
+    write_resource "network_interface" "upnp_bridge_lan"
+
+    log_info "Created network interface upnp_bridge_lan (${cfg_bind_ifname}, ${cfg_bind_ip}, netmask ${_dsi_netmask})"
+
+    printf '{"success":true,"interface":"upnp_bridge_lan","device":"%s","ipaddr":"%s","netmask":"%s"}\n' \
+        "$(json_escape "${cfg_bind_ifname}")" \
+        "$(json_escape "${cfg_bind_ip}")" \
+        "$(json_escape "${_dsi_netmask}")"
+}
+
+do_fix_zone() {
+    load_config
+
+    _fz_zone_name="${cfg_firewall_zone_name}"
+    _fz_zone_exists=0
+    _fz_zone_idx=""
+    _fz_need_fix_output=0
+
+    _fz_idx=0
+    while true; do
+        _fz_z_name="$(uci -q get firewall.@zone[${_fz_idx}].name 2>/dev/null)"
+        if [ -z "$_fz_z_name" ]; then
+            break
+        fi
+        if [ "$_fz_z_name" = "$_fz_zone_name" ]; then
+            _fz_zone_exists=1
+            _fz_zone_idx="$_fz_idx"
+            break
+        fi
+        _fz_idx=$((_fz_idx + 1))
+    done
+
+    if [ "$_fz_zone_exists" -eq 1 ]; then
+        _fz_output="$(uci -q get firewall.@zone[${_fz_zone_idx}].output 2>/dev/null)"
+        if [ "$_fz_output" = "REJECT" ]; then
+            uci set "firewall.@zone[${_fz_zone_idx}].output=ACCEPT"
+            _fz_need_fix_output=1
+        fi
+        uci set "firewall.@zone[${_fz_zone_idx}].network=upnp_bridge_lan" 2>/dev/null
+        uci set "firewall.@zone[${_fz_zone_idx}].forward=REJECT" 2>/dev/null
+        uci set "firewall.@zone[${_fz_zone_idx}].masq=0" 2>/dev/null
+        uci set "firewall.@zone[${_fz_zone_idx}].mtu_fix=0" 2>/dev/null
+    else
+        uci add firewall zone >/dev/null
+        uci set "firewall.@zone[-1].name=${_fz_zone_name}"
+        uci set "firewall.@zone[-1].network=upnp_bridge_lan"
+        uci set "firewall.@zone[-1].input=ACCEPT"
+        uci set "firewall.@zone[-1].output=ACCEPT"
+        uci set "firewall.@zone[-1].forward=REJECT"
+        uci set "firewall.@zone[-1].masq=0"
+        uci set "firewall.@zone[-1].mtu_fix=0"
+    fi
+
+    uci commit firewall
+
+    write_resource "firewall_zone" "$_fz_zone_name"
+
+    log_info "Configured firewall zone ${_fz_zone_name}"
+
+    printf '{"success":true,"zone":"%s","existed":%d,"fixed_output":%d}\n' \
+        "$(json_escape "$_fz_zone_name")" \
+        "$_fz_zone_exists" \
+        "$_fz_need_fix_output"
+}
+
+do_setup_openclash() {
+    load_config
+    _so_result="$(openclash_apply)"
+    printf '%s\n' "$_so_result"
+
+    _so_success="$(echo "$_so_result" | sed -n 's/.*"success":\([a-z]*\).*/\1/p')"
+    if [ "$_so_success" = "true" ]; then
+        log_info "OpenClash RETURN rule applied"
+    else
+        log_warn "OpenClash RETURN rule failed: $_so_result"
+    fi
+}
+
+do_remove_openclash_rule() {
+    load_config
+    _ror_result="$(openclash_rollback)"
+    printf '%s\n' "$_ror_result"
+    log_info "OpenClash rule removed"
+}
+
+do_rollback() {
+    load_config
+    _rb_errors=""
+
+    if /etc/init.d/upnp_bridge_relay running >/dev/null 2>&1; then
+        /etc/init.d/upnp_bridge_relay stop >/dev/null 2>&1
+        log_info "Stopped running daemon before rollback"
+    fi
+
+    uci set "${UCI_CONFIG}.main.enabled=0"
+    uci commit "${UCI_CONFIG}" 2>/dev/null
+    /etc/init.d/upnp_bridge_relay disable >/dev/null 2>&1
+    log_info "Disabled service in UCI configuration"
+
+    _rb_has_iface="$(read_resource "network_interface")"
+    if [ -n "$_rb_has_iface" ]; then
+        ifdown "$_rb_has_iface" >/dev/null 2>&1
+        if uci delete "network.${_rb_has_iface}" 2>/dev/null; then
+            uci commit network 2>/dev/null
+            log_info "Rolled back network interface: $_rb_has_iface"
+        else
+            _rb_errors="${_rb_errors}network_interface_delete_failed;"
+        fi
+    fi
+
+    _rb_has_zone="$(read_resource "firewall_zone")"
+    if [ -n "$_rb_has_zone" ]; then
+        _rb_zi=0
+        while true; do
+            _rb_z_name="$(uci -q get firewall.@zone[${_rb_zi}].name 2>/dev/null)"
+            if [ -z "$_rb_z_name" ]; then
+                break
+            fi
+            if [ "$_rb_z_name" = "$_rb_has_zone" ]; then
+                uci delete "firewall.@zone[${_rb_zi}]" 2>/dev/null
+                break
+            fi
+            _rb_zi=$((_rb_zi + 1))
+        done
+        uci commit firewall 2>/dev/null
+        log_info "Rolled back firewall zone: $_rb_has_zone"
+    fi
+
+    _rb_has_oc="$(read_resource "openclash_rule")"
+    if [ -n "$_rb_has_oc" ]; then
+        openclash_rollback >/dev/null 2>&1
+        log_info "Rolled back OpenClash rule"
+    fi
+
+    nft_delete_table 2>/dev/null
+    log_info "Cleared nftables table"
+
+    if command -v fw4 >/dev/null 2>&1; then
+        fw4 reload >/dev/null 2>&1
+    fi
+
+    if [ -z "$_rb_errors" ]; then
+        rm -f "${RESOURCES_FILE}" 2>/dev/null
+        printf '{"success":true}\n'
+    else
+        printf '{"success":true,"warnings":"%s"}\n' "$(json_escape "$_rb_errors")"
+    fi
+}
+
+do_daemon() {
+    load_config
+    ensure_dirs
+
+    write_status "true" "$(get_timestamp)" "starting" "${cfg_backend}" 0 0 0 0 "" "" ""
+
+    trap 'log_info "Daemon stopping"; write_status "false" "$(get_timestamp)" "stopped" "${cfg_backend}" 0 0 0 0 "" ""; exec 9>&- 2>/dev/null; exit 0' TERM INT
+
+    log_info "Daemon started (interval=${cfg_interval}s, backend=${cfg_backend})"
+
+    while true; do
+        do_sync >/dev/null
+        _d_i=0
+        while [ "$_d_i" -lt "${cfg_interval}" ]; do
+            sleep 1
+            _d_i=$((_d_i + 1))
+        done
+    done
+}
+
+case "$1" in
+    --check-env)
+        do_check_env
+        ;;
+    --check-network)
+        do_check_network
+        ;;
+    --sync)
+        do_sync
+        ;;
+    --dry-run)
+        do_dry_run
+        ;;
+    --clear)
+        do_clear
+        ;;
+    --status)
+        do_full_status
+        ;;
+    --dump-mappings)
+        do_dump_mappings
+        ;;
+    --setup-interface)
+        do_setup_interface
+        ;;
+    --fix-zone)
+        do_fix_zone
+        ;;
+    --setup-openclash)
+        do_setup_openclash
+        ;;
+    --remove-openclash-rule)
+        do_remove_openclash_rule
+        ;;
+    --rollback)
+        do_rollback
+        ;;
+    --daemon)
+        do_daemon
+        ;;
+    *)
+        printf 'Usage: %s {--check-env|--check-network|--sync|--dry-run|--clear|--status|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--remove-openclash-rule|--rollback|--daemon}\n' "$0"
+        exit 1
+        ;;
+esac

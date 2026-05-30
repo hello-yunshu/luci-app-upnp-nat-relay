@@ -1,0 +1,68 @@
+#!/bin/sh
+
+. /lib/functions.sh
+
+UPNP_BRIDGE_RELAY_BIN="/usr/bin/upnp-bridge-relay"
+STATUS_FILE="/tmp/upnp_bridge_relay/status.json"
+
+case "$1" in
+	list)
+		echo '{'
+		echo '"status": {},'
+		echo '"check-env": {},'
+		echo '"check-network": {},'
+		echo '"dry-run": {},'
+		echo '"sync-now": {},'
+		echo '"clear": {},'
+		echo '"setup-interface": {},'
+		echo '"fix-zone": {},'
+		echo '"setup-openclash": {},'
+		echo '"remove-openclash-rule": {},'
+		echo '"rollback": {}'
+		echo '}'
+		;;
+	call)
+		method="$2"
+		case "$method" in
+			status)
+				"$UPNP_BRIDGE_RELAY_BIN" --status 2>/dev/null || echo '{"running":false,"last_sync":"","last_result":"unknown","backend":"","read_count":0,"accepted_count":0,"rejected_count":0,"failure_count":0,"accepted":[],"rejected":[],"last_error":"Status file not found"}'
+				;;
+			check-env)
+				"$UPNP_BRIDGE_RELAY_BIN" --check-env 2>/dev/null || echo '{"error":"check-env failed"}'
+				;;
+			check-network)
+				"$UPNP_BRIDGE_RELAY_BIN" --check-network 2>/dev/null || echo '{"error":"check-network failed"}'
+				;;
+			dry-run)
+				"$UPNP_BRIDGE_RELAY_BIN" --dry-run 2>/dev/null || echo '{"error":"dry-run failed"}'
+				;;
+			sync-now)
+				"$UPNP_BRIDGE_RELAY_BIN" --sync 2>/dev/null || echo '{"success":false,"error":"sync_failed"}'
+				;;
+			clear)
+				"$UPNP_BRIDGE_RELAY_BIN" --clear 2>/dev/null
+				;;
+			setup-interface)
+				"$UPNP_BRIDGE_RELAY_BIN" --setup-interface 2>/dev/null
+				;;
+			fix-zone)
+				"$UPNP_BRIDGE_RELAY_BIN" --fix-zone 2>/dev/null
+				;;
+			setup-openclash)
+				"$UPNP_BRIDGE_RELAY_BIN" --setup-openclash 2>/dev/null
+				;;
+			remove-openclash-rule)
+				"$UPNP_BRIDGE_RELAY_BIN" --remove-openclash-rule 2>/dev/null
+				;;
+			rollback)
+				"$UPNP_BRIDGE_RELAY_BIN" --rollback 2>/dev/null
+				;;
+			*)
+				echo '{"error":"unknown_method"}'
+				;;
+		esac
+		;;
+	*)
+		echo '{"error":"invalid_usage"}'
+		;;
+esac
