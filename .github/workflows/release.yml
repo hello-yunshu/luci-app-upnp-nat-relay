@@ -69,7 +69,7 @@ jobs:
           rm -rf "${WORKDIR}"
           mkdir -p "${WORKDIR}"
 
-          build_ipk() {
+          build_ipk() (
             local pkg_name="$1" pkg_version="$2" pkg_release="$3" pkg_arch="$4"
             local pkg_maintainer="$5" pkg_desc="$6" pkg_depends="$7"
             local src_dir="$8" conffiles="$9" postinst="${10:-}" prerm="${11:-}"
@@ -117,7 +117,7 @@ jobs:
             cd "${pkg_dir}"
             ar r "${WORKDIR}/${ipk_filename}" debian-binary control.tar.gz data.tar.gz
             echo "Built: ${ipk_filename}"
-          }
+          )
 
           POSTINST_UPNP='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
           [ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null'
@@ -137,7 +137,6 @@ jobs:
 
           LUCI_DIR="${WORKDIR}/luci-app-data"
           mkdir -p "${LUCI_DIR}"
-          cd "${GITHUB_WORKSPACE}"
           cp -a luci-app-upnp-bridge-relay/htdocs "${LUCI_DIR}/"
           cp -a luci-app-upnp-bridge-relay/root "${LUCI_DIR}/"
 
