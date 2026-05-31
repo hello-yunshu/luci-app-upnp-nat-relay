@@ -310,7 +310,7 @@ return view.extend({
 		if (missingDeps.length > 0) {
 			var pkgMgr = env.package_manager || 'opkg';
 			var installCmd = pkgMgr === 'apk' ?
-				'apk add ' + missingDeps.join(' ') :
+				'apk add --allow-untrusted ' + missingDeps.join(' ') :
 				'opkg install ' + missingDeps.join(' ');
 
 			depSection.appendChild(E('p', { 'style': 'color:#d9534f;margin-bottom:0.5em' },
