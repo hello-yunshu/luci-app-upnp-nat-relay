@@ -45,6 +45,7 @@ define Package/upnp-bridge-relay/postinst
 #!/bin/sh
 [ -n "$${IPKG_NO_SCRIPT}" ] && exit 0
 [ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null
+exit 0
 endef
 
 define Package/upnp-bridge-relay/prerm
@@ -52,6 +53,7 @@ define Package/upnp-bridge-relay/prerm
 [ -n "$${IPKG_NO_SCRIPT}" ] && exit 0
 /etc/init.d/upnp_bridge_relay stop 2>/dev/null
 /etc/init.d/upnp_bridge_relay disable 2>/dev/null
+exit 0
 endef
 
 $(eval $(call BuildPackage,upnp-bridge-relay))
