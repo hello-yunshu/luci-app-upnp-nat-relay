@@ -24,6 +24,13 @@ var callCheckNetwork = rpc.declare({
 	expect: { '': {} }
 });
 
+function safeApply() {
+	return uci.apply().catch(function(e) {
+		if (e.code === 5) return;
+		throw e;
+	});
+}
+
 var callDryRun = rpc.declare({
 	object: 'upnp_bridge_relay',
 	method: 'dry-run',
@@ -721,7 +728,7 @@ return view.extend({
 		if (self.wizardData.upstream_wan_if)
 			uci.set('upnp_bridge_relay', 'main', 'upstream_wan_if', self.wizardData.upstream_wan_if);
 		return uci.save().then(function() {
-			return uci.apply();
+			return safeApply();
 		});
 	},
 
@@ -740,7 +747,7 @@ return view.extend({
 		if (self.wizardData.upstream_wan_if)
 			uci.set('upnp_bridge_relay', 'main', 'upstream_wan_if', self.wizardData.upstream_wan_if);
 		return uci.save().then(function() {
-			return uci.apply();
+			return safeApply();
 		});
 	},
 
@@ -780,7 +787,7 @@ return view.extend({
 
 		uci.save()
 			.then(function() {
-				return uci.apply();
+				return safeApply();
 			})
 			.then(function() {
 				if (self.wizardMode === 'auto') {

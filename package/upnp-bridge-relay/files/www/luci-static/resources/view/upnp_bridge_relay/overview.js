@@ -11,6 +11,13 @@ var callStatus = rpc.declare({
 	expect: { '': {} }
 });
 
+function safeApply() {
+	return uci.apply().catch(function(e) {
+		if (e.code === 5) return;
+		throw e;
+	});
+}
+
 var callSyncNow = rpc.declare({
 	object: 'upnp_bridge_relay',
 	method: 'sync-now',
@@ -260,7 +267,7 @@ return view.extend({
 					if (enabled !== '1') {
 						uci.set('upnp_bridge_relay', 'main', 'enabled', '1');
 						chain = chain.then(function() { return uci.save(); })
-							.then(function() { return uci.apply(); });
+							.then(function() { return safeApply(); });
 					}
 					return chain.then(function() {
 						return callInitAction('start');
