@@ -199,6 +199,14 @@ jobs:
           sha256sum *.ipk > sha256sums.txt
           cat sha256sums.txt
 
+      - name: Delete existing release (manual trigger)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+
       - name: Create Release
         uses: softprops/action-gh-release@v3
         with:
