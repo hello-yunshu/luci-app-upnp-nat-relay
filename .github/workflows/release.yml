@@ -226,4 +226,10 @@ jobs:
             release/upnp-bridge-relay_*.ipk
             release/luci-app-upnp-bridge-relay_*.ipk
             release/luci-i18n-upnp-bridge-relay-*.ipk
+
+      - name: Upload checksums
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
+          files: |
             release/sha256sums.txt
