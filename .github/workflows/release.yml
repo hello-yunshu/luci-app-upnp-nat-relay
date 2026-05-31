@@ -174,55 +174,41 @@ jobs:
             echo "Built: ${apk_filename}"
           )
 
-          POSTINST_UPNP_IPK='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
+          PKG_SRC="package/upnp-bridge-relay/files"
+          PKG_DATA_DIR="${WORKDIR}/pkg-data"
+          mkdir -p "${PKG_DATA_DIR}"
+          cp -a "${PKG_SRC}"/etc "${PKG_SRC}"/usr "${PKG_SRC}"/www "${PKG_DATA_DIR}/"
+
+          POSTINST_IPK='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
           [ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null'
 
-          PRERM_UPNP_IPK='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
+          PRERM_IPK='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
           /etc/init.d/upnp_bridge_relay stop 2>/dev/null
           /etc/init.d/upnp_bridge_relay disable 2>/dev/null'
 
-          POSTINST_UPNP_APK='[ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null || true'
+          POSTINST_APK='[ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null || true'
 
-          PRERM_UPNP_APK='/etc/init.d/upnp_bridge_relay stop 2>/dev/null || true
+          PRERM_APK='/etc/init.d/upnp_bridge_relay stop 2>/dev/null || true
           /etc/init.d/upnp_bridge_relay disable 2>/dev/null || true'
 
           build_ipk \
             "upnp-bridge-relay" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
             "yunshu" \
-            "UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT" \
-            "libc, miniupnpc, nftables, uci, ubus, rpcd" \
-            "package/upnp-bridge-relay/files" \
+            "UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT (with LuCI)" \
+            "libc, miniupnpc, nftables, uci, ubus, rpcd, luci-base" \
+            "${PKG_DATA_DIR}" \
             "/etc/config/upnp_bridge_relay" \
-            "${POSTINST_UPNP_IPK}" "${PRERM_UPNP_IPK}"
+            "${POSTINST_IPK}" "${PRERM_IPK}"
 
           build_apk \
             "upnp-bridge-relay" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
             "yunshu" \
-            "UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT" \
-            "libc, miniupnpc, nftables, uci, ubus, rpcd" \
-            "package/upnp-bridge-relay/files" \
-            "${POSTINST_UPNP_APK}" "${PRERM_UPNP_APK}"
+            "UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT (with LuCI)" \
+            "libc, miniupnpc, nftables, uci, ubus, rpcd, luci-base" \
+            "${PKG_DATA_DIR}" \
+            "${POSTINST_APK}" "${PRERM_APK}"
 
-          LUCI_DIR="${WORKDIR}/luci-app-data"
-          mkdir -p "${LUCI_DIR}"
-          cp -a luci-app-upnp-bridge-relay/htdocs "${LUCI_DIR}/"
-          cp -a luci-app-upnp-bridge-relay/root "${LUCI_DIR}/"
-
-          build_ipk \
-            "luci-app-upnp-bridge-relay" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
-            "yunshu" \
-            "LuCI support for UPnP Bridge Relay" \
-            "libc, upnp-bridge-relay, luci-base" \
-            "${LUCI_DIR}" "" "" ""
-
-          build_apk \
-            "luci-app-upnp-bridge-relay" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
-            "yunshu" \
-            "LuCI support for UPnP Bridge Relay" \
-            "libc, upnp-bridge-relay, luci-base" \
-            "${LUCI_DIR}" "" ""
-
-          for lang_dir in luci-app-upnp-bridge-relay/po/*/; do
+          for lang_dir in package/upnp-bridge-relay/files/po/*/; do
             [ -d "${lang_dir}" ] || continue
             lang=$(basename "${lang_dir}")
             [ "${lang}" = "templates" ] && continue
@@ -232,22 +218,22 @@ jobs:
 
             I18N_DATA="${WORKDIR}/luci-i18n-${lang}-data"
             mkdir -p "${I18N_DATA}/usr/lib/lua/luci/i18n"
-            python3 luci-app-upnp-bridge-relay/po/po2lmo.py \
+            python3 package/upnp-bridge-relay/files/po/po2lmo.py \
               "${lang_dir}/upnp-bridge-relay.po" \
               "${I18N_DATA}/usr/lib/lua/luci/i18n/upnp-bridge-relay.${lang}.lmo"
 
             build_ipk \
               "luci-i18n-upnp-bridge-relay-${lang}" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
               "yunshu" \
-              "Translation (${lang}) for luci-app-upnp-bridge-relay" \
-              "libc, luci-app-upnp-bridge-relay, luci-i18n-base-${lang}" \
+              "Translation (${lang}) for upnp-bridge-relay" \
+              "libc, upnp-bridge-relay, luci-i18n-base-${lang}" \
               "${I18N_DATA}" "" "" ""
 
             build_apk \
               "luci-i18n-upnp-bridge-relay-${lang}" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
               "yunshu" \
-              "Translation (${lang}) for luci-app-upnp-bridge-relay" \
-              "libc, luci-app-upnp-bridge-relay, luci-i18n-base-${lang}" \
+              "Translation (${lang}) for upnp-bridge-relay" \
+              "libc, upnp-bridge-relay, luci-i18n-base-${lang}" \
               "${I18N_DATA}" "" ""
           done
 
@@ -258,13 +244,11 @@ jobs:
         working-directory: release
         run: |
           for fmt in ipk apk; do
-            expected="upnp-bridge-relay luci-app-upnp-bridge-relay"
-            for pkg in $expected; do
-              if ! ls ${pkg}_*.${fmt} 1>/dev/null 2>&1; then
-                echo "ERROR: Expected package ${pkg}_*.${fmt} not found"
-                exit 1
-              fi
-            done
+            if ! ls upnp-bridge-relay_*.${fmt} 1>/dev/null 2>&1; then
+              echo "ERROR: upnp-bridge-relay_*.${fmt} not found"
+              exit 1
+            fi
+            echo "upnp-bridge-relay ${fmt}: OK"
 
             i18n_count=$(ls luci-i18n-upnp-bridge-relay-*.${fmt} 2>/dev/null | wc -l)
             if [ "${i18n_count}" -eq 0 ]; then
@@ -274,7 +258,8 @@ jobs:
             fi
           done
 
-          echo "All expected packages found:"
+          echo ""
+          echo "All packages:"
           ls -la *.ipk *.apk
 
           echo ""
@@ -285,30 +270,18 @@ jobs:
             if echo "${listing}" | grep -q '\.PKGINFO'; then
               echo "  .PKGINFO: OK"
             else
-              echo "  ERROR: .PKGINFO not found in control section"
+              echo "  ERROR: .PKGINFO not found"
               exit 1
             fi
             if echo "${listing}" | grep -q '\.post-install'; then
               echo "  .post-install: OK"
             else
-              echo "  .post-install: not present (OK for packages without scripts)"
+              echo "  .post-install: not present (OK)"
             fi
             if echo "${listing}" | grep -q '\.pre-deinstall'; then
               echo "  .pre-deinstall: OK"
             else
-              echo "  .pre-deinstall: not present (OK for packages without scripts)"
-            fi
-          done
-
-          for apk_file in luci-app-upnp-bridge-relay_*.apk luci-i18n-*.apk; do
-            [ -f "${apk_file}" ] || continue
-            echo "Checking ${apk_file}..."
-            listing=$(tar tzf "${apk_file}" 2>/dev/null)
-            if echo "${listing}" | grep -q '\.PKGINFO'; then
-              echo "  .PKGINFO: OK"
-            else
-              echo "  ERROR: .PKGINFO not found in control section"
-              exit 1
+              echo "  .pre-deinstall: not present (OK)"
             fi
           done
 
@@ -335,8 +308,7 @@ jobs:
             UPnP Bridge Relay v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
 
             ## Packages
-            - `upnp-bridge-relay` - Main service package
-            - `luci-app-upnp-bridge-relay` - LuCI web interface
+            - `upnp-bridge-relay` - Main service + LuCI web interface (all-in-one)
             - `luci-i18n-upnp-bridge-relay-*` - Language packs
 
             Both `.ipk` (opkg) and `.apk` (apk) formats are provided.
@@ -344,14 +316,12 @@ jobs:
             ## Installation (opkg - OpenWrt 23.05 / 24.10)
             ```bash
             opkg install upnp-bridge-relay_*.ipk
-            opkg install luci-app-upnp-bridge-relay_*.ipk
             opkg install luci-i18n-upnp-bridge-relay-zh_Hans_*.ipk
             ```
 
             ## Installation (apk - OpenWrt 25.12+)
             ```bash
             apk add --allow-untrusted ./upnp-bridge-relay_*.apk
-            apk add --allow-untrusted ./luci-app-upnp-bridge-relay_*.apk
             apk add --allow-untrusted ./luci-i18n-upnp-bridge-relay-zh_Hans_*.apk
             ```
 
@@ -371,10 +341,8 @@ jobs:
             - miniupnpc, nftables installed
           files: |
             release/upnp-bridge-relay_*.ipk
-            release/luci-app-upnp-bridge-relay_*.ipk
-            release/luci-i18n-upnp-bridge-relay-*.ipk
             release/upnp-bridge-relay_*.apk
-            release/luci-app-upnp-bridge-relay_*.apk
+            release/luci-i18n-upnp-bridge-relay-*.ipk
             release/luci-i18n-upnp-bridge-relay-*.apk
 
       - name: Upload checksums

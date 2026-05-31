@@ -27,11 +27,10 @@ cd /path/to/openwrt-sdk
 
 echo "src-git upnp_bridge_relay https://github.com/yunshu/upnp-bridge-relay.git" >> feeds.conf.default
 ./scripts/feeds update upnp_bridge_relay
-./scripts/feeds install upnp-bridge-relay luci-app-upnp-bridge-relay
+./scripts/feeds install upnp-bridge-relay
 
 make menuconfig
 make package/upnp-bridge-relay/compile V=s
-make package/luci-app-upnp-bridge-relay/compile V=s
 ```
 
 **Method 2: Download pre-built from [Releases](https://github.com/yunshu/upnp-bridge-relay/releases)**
@@ -43,11 +42,9 @@ CI automatically builds both `.ipk` (opkg) and `.apk` (apk) format packages on e
 ```sh
 # OpenWrt 24.10 / 23.05 (opkg)
 opkg install upnp-bridge-relay_*.ipk
-opkg install luci-app-upnp-bridge-relay_*.ipk
 
 # OpenWrt 25.12+ (apk)
 apk add --allow-untrusted ./upnp-bridge-relay_*.apk
-apk add --allow-untrusted ./luci-app-upnp-bridge-relay_*.apk
 ```
 
 ### Use
