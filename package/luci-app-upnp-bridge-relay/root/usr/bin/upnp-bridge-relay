@@ -1,5 +1,6 @@
 #!/bin/sh
 
+SCRIPT_VERSION="@PKG_VERSION@"
 UCI_CONFIG="upnp_bridge_relay"
 NFT_TABLE_NAME="upnp_bridge_relay"
 NFT_CHAIN="prerouting"
@@ -317,6 +318,55 @@ check_port_conflict_single() {
         printf '%s' "$_cpc_conflict_source"
         return 0
     fi
+    return 1
+}
+
+check_uci_redirect_conflict() {
+    _cur_proto="$1"
+    _cur_ext_port="$2"
+
+    command -v uci >/dev/null 2>&1 || return 1
+
+    _cur_proto_lower="$(echo "$_cur_proto" | tr '[:upper:]' '[:lower:]')"
+    _cur_idx=0
+    while true; do
+        _cur_target="$(uci -q get "firewall.@redirect[${_cur_idx}].target" 2>/dev/null)"
+        _cur_name="$(uci -q get "firewall.@redirect[${_cur_idx}].name" 2>/dev/null)"
+        if [ -z "$_cur_target" ] && [ -z "$_cur_name" ]; then
+            break
+        fi
+        _cur_save_idx="$_cur_idx"
+        _cur_idx=$((_cur_idx + 1))
+        [ "$_cur_target" = "DNAT" ] || [ "$_cur_target" = "dnat" ] || continue
+        _cur_r_proto="$(uci -q get "firewall.@redirect[${_cur_save_idx}].proto" 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+        [ -z "$_cur_r_proto" ] && _cur_r_proto="tcpudp"
+        case "$_cur_r_proto" in
+            "$_cur_proto_lower" | tcpudp) ;;
+            *) continue ;;
+        esac
+        _cur_r_src_dport="$(uci -q get "firewall.@redirect[${_cur_save_idx}].src_dport" 2>/dev/null)"
+        if [ -z "$_cur_r_src_dport" ]; then
+            _cur_r_src_dport="$(uci -q get "firewall.@redirect[${_cur_save_idx}].dest_port" 2>/dev/null)"
+        fi
+        [ -z "$_cur_r_src_dport" ] && continue
+        case "$_cur_r_src_dport" in
+            *[-:]*)
+                _cur_r_port_start="${_cur_r_src_dport%%[-:]*}"
+                _cur_r_port_end="${_cur_r_src_dport##*[-:]}"
+                if [ "$_cur_ext_port" -ge "$_cur_r_port_start" ] 2>/dev/null && \
+                   [ "$_cur_ext_port" -le "$_cur_r_port_end" ] 2>/dev/null; then
+                    printf 'uci_redirect:%s' "${_cur_name:-@redirect[${_cur_save_idx}]}"
+                    return 0
+                fi
+                ;;
+            *)
+                if [ "$_cur_r_src_dport" = "$_cur_ext_port" ] 2>/dev/null; then
+                    printf 'uci_redirect:%s' "${_cur_name:-@redirect[${_cur_save_idx}]}"
+                    return 0
+                fi
+                ;;
+        esac
+    done
     return 1
 }
 
@@ -802,6 +852,10 @@ do_sync() {
     _s_timestamp="$(get_timestamp)"
     _s_last_error=""
     _s_failure_count=0
+    _s_daemon_running="false"
+    if pidof upnp-bridge-relay >/dev/null 2>&1; then
+        _s_daemon_running="true"
+    fi
 
     if [ -f "${STATUS_FILE}" ]; then
         _s_prev_failure="$(sed -n 's/.*"failure_count":\([0-9]*\).*/\1/p' "${STATUS_FILE}" 2>/dev/null)"
@@ -813,7 +867,7 @@ do_sync() {
     if ! command -v nft >/dev/null 2>&1; then
         _s_last_error="nft not found"
         log_err "Sync failed: nft not found"
-        write_status "true" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
+        write_status "$_s_daemon_running" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
         exec 9>&-
         printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
         return 1
@@ -822,7 +876,7 @@ do_sync() {
     if ! command -v upnpc >/dev/null 2>&1; then
         _s_last_error="upnpc not found"
         log_err "Sync failed: upnpc not found"
-        write_status "true" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
+        write_status "$_s_daemon_running" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
         exec 9>&-
         printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
         return 1
@@ -842,7 +896,7 @@ do_sync() {
             _s_failure_count=0
         fi
 
-        write_status "true" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
+        write_status "$_s_daemon_running" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
         exec 9>&-
         printf '{"success":false,"error":"%s","failure_count":%d}\n' "$_s_last_error" "$_s_failure_count"
         return 1
@@ -895,6 +949,14 @@ do_sync() {
         fi
 
         if [ "$_s_action" = "accept" ]; then
+            _s_uci_conflict="$(check_uci_redirect_conflict "$_s_proto" "$_s_ext_port")"
+            if [ -n "$_s_uci_conflict" ]; then
+                _s_action="reject"
+                _s_reason="port_conflict:${_s_uci_conflict}"
+            fi
+        fi
+
+        if [ "$_s_action" = "accept" ]; then
             _s_accepted_count=$((_s_accepted_count + 1))
             printf 'ACCEPT|%s|%s|%s|%s|%s\n' "$_s_proto" "$_s_ext_port" "$_s_int_ip" "$_s_int_port" "$_s_desc" >> "$_s_accept_file"
         else
@@ -942,7 +1004,7 @@ do_sync() {
     if [ "${cfg_dry_run}" = "1" ]; then
         log_info "Dry run mode enabled, skipping nft rule creation"
         _s_failure_count=0
-        write_status "true" "$_s_timestamp" "success(dry_run)" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" ""
+        write_status "$_s_daemon_running" "$_s_timestamp" "success(dry_run)" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" ""
         rm -f "$_s_accept_file" "$_s_reject_file"
         exec 9>&-
         printf '{"success":true,"dry_run":true,"timestamp":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"accepted":[%s],"rejected":[%s]}\n' \
@@ -959,7 +1021,7 @@ do_sync() {
     if ! nft_ensure_table; then
         _s_last_error="Failed to ensure nft table"
         log_err "Sync failed: $_s_last_error"
-        write_status "true" "$_s_timestamp" "failed" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" 0 "" "" "$_s_last_error"
+        write_status "$_s_daemon_running" "$_s_timestamp" "failed" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" 0 "" "" "$_s_last_error"
         rm -f "$_s_accept_file" "$_s_reject_file"
         exec 9>&-
         printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
@@ -989,7 +1051,7 @@ do_sync() {
         _s_last_error="nft_rule_add_failed: ${_s_nft_fail}"
         _s_sync_status="partial"
     fi
-    write_status "true" "$_s_timestamp" "$_s_sync_status" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" "$_s_last_error"
+    write_status "$_s_daemon_running" "$_s_timestamp" "$_s_sync_status" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" "$_s_last_error"
 
     log_info "Sync completed: read=${_s_read_count}, accepted=${_s_accepted_count}, rejected=${_s_rejected_count}"
 
@@ -1094,6 +1156,14 @@ do_dry_run() {
         fi
 
         if [ "$_dr_action" = "accept" ]; then
+            _dr_uci_conflict="$(check_uci_redirect_conflict "$_dr_proto" "$_dr_ext_port")"
+            if [ -n "$_dr_uci_conflict" ]; then
+                _dr_action="reject"
+                _dr_reason="port_conflict:${_dr_uci_conflict}"
+            fi
+        fi
+
+        if [ "$_dr_action" = "accept" ]; then
             printf 'ACCEPT|%s|%s|%s|%s|%s\n' "$_dr_proto" "$_dr_ext_port" "$_dr_int_ip" "$_dr_int_port" "$_dr_desc" >> "$_dr_accept_file"
         else
             printf 'REJECT|%s|%s|%s|%s|%s|%s\n' "$_dr_proto" "$_dr_ext_port" "$_dr_int_ip" "$_dr_int_port" "$_dr_desc" "$_dr_reason" >> "$_dr_reject_file"
@@ -1166,6 +1236,9 @@ do_dry_run() {
 do_clear() {
     if nft_delete_table; then
         log_info "Cleared nft table ${NFT_TABLE_NAME}"
+        if ! pidof upnp-bridge-relay >/dev/null 2>&1; then
+            write_status "false" "$(get_timestamp)" "cleared" "${cfg_backend:-unknown}" 0 0 0 0 "" "" ""
+        fi
         printf '{"success":true}\n'
     else
         log_warn "Failed to clear nft table ${NFT_TABLE_NAME}"
@@ -1180,6 +1253,11 @@ do_status() {
 do_full_status() {
     load_config
     _dfs_base="$(read_status)"
+
+    if ! pidof upnp-bridge-relay >/dev/null 2>&1; then
+        _dfs_base="$(printf '%s' "$_dfs_base" | sed 's/"running":true/"running":false/')"
+    fi
+
     _dfs_nft_status="not_present"
     if command -v nft >/dev/null 2>&1 && nft list table inet ${NFT_TABLE_NAME} >/dev/null 2>&1; then
         _dfs_nft_status="present"
@@ -1196,10 +1274,16 @@ do_full_status() {
         fi
     fi
     _dfs_version=""
-    if command -v apk >/dev/null 2>&1; then
-        _dfs_version="$(apk info --installed upnp-bridge-relay 2>/dev/null | sed -n 's/.*-\([0-9][0-9.]*\)/\1/p' | head -1)"
-    elif command -v opkg >/dev/null 2>&1; then
-        _dfs_version="$(opkg info upnp-bridge-relay 2>/dev/null | sed -n 's/^Version: //p' | head -1)"
+    case "$SCRIPT_VERSION" in
+        @*) ;;
+        *) _dfs_version="$SCRIPT_VERSION" ;;
+    esac
+    if [ -z "$_dfs_version" ]; then
+        if command -v apk >/dev/null 2>&1; then
+            _dfs_version="$(apk info --installed luci-app-upnp-bridge-relay 2>/dev/null | sed -n 's/.*-\([0-9][0-9.]*\)/\1/p' | head -1)"
+        elif command -v opkg >/dev/null 2>&1; then
+            _dfs_version="$(opkg info luci-app-upnp-bridge-relay 2>/dev/null | sed -n 's/^Version: //p' | head -1)"
+        fi
     fi
     [ -z "$_dfs_version" ] && _dfs_version="unknown"
 
@@ -1457,6 +1541,8 @@ do_rollback() {
     if command -v fw4 >/dev/null 2>&1; then
         fw4 reload >/dev/null 2>&1
     fi
+
+    write_status "false" "$(get_timestamp)" "rolled_back" "${cfg_backend:-unknown}" 0 0 0 0 "" "" ""
 
     if [ -z "$_rb_errors" ]; then
         rm -f "${RESOURCES_FILE}" 2>/dev/null

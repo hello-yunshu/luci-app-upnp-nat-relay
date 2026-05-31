@@ -17,6 +17,31 @@ var callSyncNow = rpc.declare({
 	expect: { '': {} }
 });
 
+var css = `
+	.ubr-mappings { max-width: 100%; }
+	.ubr-mappings h3 {
+		margin: 1.2em 0 0.5em 0;
+		font-size: 1.05em;
+		padding-left: 0.6em;
+		border-left: 3px solid var(--main-color);
+	}
+	.ubr-mappings .cbi-section {
+		margin-bottom: 1.5em; padding: 1.2em;
+		border-radius: 8px;
+		background: var(--background-color-a);
+		border: 1px solid var(--border-color);
+		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
+	}
+	.ubr-btn-bar {
+		margin-bottom: 1.5em; padding: 1.2em;
+		border-radius: 8px;
+		background: var(--background-color-a);
+		border: 1px solid var(--border-color);
+		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
+		display: flex; gap: 1em;
+	}
+`;
+
 return view.extend({
 	load: function() {
 		return Promise.all([
@@ -28,11 +53,12 @@ return view.extend({
 	},
 
 	render: function(status) {
-		var container = E('div', { 'class': 'cbi-map' });
+		var container = E('div', { 'class': 'cbi-map ubr-mappings' });
+		container.appendChild(E('style', {}, css));
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Mappings')));
 
-		var btnBar = E('div', { 'class': 'cbi-section', 'style': 'margin-bottom:1em;display:flex;gap:1em' });
+		var btnBar = E('div', { 'class': 'ubr-btn-bar' });
 		btnBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
 			'click': function() {
@@ -77,8 +103,8 @@ return view.extend({
 				var mapping = rawMappings[i];
 				var key = mapping.protocol + ':' + mapping.external_port;
 				var statusLabel = acceptedPorts[key] ?
-					'<span style="color:var(--success-color, #5cb85c)">' + _('Accepted') + '</span>' :
-					'<span style="color:var(--danger-color, #d9534f)">' + _('Rejected') + '</span>';
+					'<span style="color:var(--success-color)">' + _('Accepted') + '</span>' :
+					'<span style="color:var(--danger-color)">' + _('Rejected') + '</span>';
 				var row = E('tr', { 'class': 'tr' }, [
 					E('td', {}, mapping.protocol || '-'),
 					E('td', {}, String(mapping.external_port || '-')),
@@ -117,7 +143,7 @@ return view.extend({
 					E('td', {}, String(mapping.external_port || '-')),
 					E('td', {}, dnatTarget),
 					E('td', {}, sourceMapping),
-					E('td', { 'innerHTML': '<span style="color:var(--success-color, #5cb85c)">' + _('Active') + '</span>' })
+					E('td', { 'innerHTML': '<span style="color:var(--success-color)">' + _('Active') + '</span>' })
 				]);
 				syncTable.appendChild(row);
 			}
@@ -146,7 +172,7 @@ return view.extend({
 					E('td', {}, String(mapping.external_port || '-')),
 					E('td', {}, mapping.internal_ip || '-'),
 					E('td', {}, String(mapping.internal_port || '-')),
-					E('td', { 'innerHTML': '<span style="color:var(--danger-color, #d9534f)">' + (mapping.reason || '-') + '</span>' })
+					E('td', { 'innerHTML': '<span style="color:var(--danger-color)">' + (mapping.reason || '-') + '</span>' })
 				]);
 				rejectTable.appendChild(row);
 			}

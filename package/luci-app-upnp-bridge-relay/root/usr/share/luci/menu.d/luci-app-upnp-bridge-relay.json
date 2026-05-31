@@ -16,7 +16,7 @@
 		"order": 10,
 		"action": {
 			"type": "view",
-			"path": "upnp_bridge_relay/overview"
+			"path": "upnp-bridge-relay/overview"
 		}
 	},
 	"admin/services/upnp_bridge_relay/wizard": {
@@ -24,7 +24,7 @@
 		"order": 20,
 		"action": {
 			"type": "view",
-			"path": "upnp_bridge_relay/wizard"
+			"path": "upnp-bridge-relay/wizard"
 		}
 	},
 	"admin/services/upnp_bridge_relay/network": {
@@ -32,7 +32,7 @@
 		"order": 30,
 		"action": {
 			"type": "view",
-			"path": "upnp_bridge_relay/network"
+			"path": "upnp-bridge-relay/network"
 		}
 	},
 	"admin/services/upnp_bridge_relay/security": {
@@ -40,7 +40,7 @@
 		"order": 40,
 		"action": {
 			"type": "view",
-			"path": "upnp_bridge_relay/security"
+			"path": "upnp-bridge-relay/security"
 		}
 	},
 	"admin/services/upnp_bridge_relay/mappings": {
@@ -48,7 +48,7 @@
 		"order": 50,
 		"action": {
 			"type": "view",
-			"path": "upnp_bridge_relay/mappings"
+			"path": "upnp-bridge-relay/mappings"
 		}
 	},
 	"admin/services/upnp_bridge_relay/openclash": {
@@ -56,7 +56,7 @@
 		"order": 60,
 		"action": {
 			"type": "view",
-			"path": "upnp_bridge_relay/openclash"
+			"path": "upnp-bridge-relay/openclash"
 		}
 	},
 	"admin/services/upnp_bridge_relay/diagnostics": {
@@ -64,7 +64,7 @@
 		"order": 70,
 		"action": {
 			"type": "view",
-			"path": "upnp_bridge_relay/diagnostics"
+			"path": "upnp-bridge-relay/diagnostics"
 		}
 	}
 }

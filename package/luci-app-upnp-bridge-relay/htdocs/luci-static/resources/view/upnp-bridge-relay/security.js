@@ -5,6 +5,45 @@
 'require uci';
 'require form';
 
+var css = `
+	.cbi-dynlist {
+		display: flex !important;
+		flex-wrap: wrap !important;
+		gap: 0.4em !important;
+		align-items: center !important;
+	}
+	.cbi-dynlist > .item {
+		display: inline-flex !important;
+		align-items: center;
+		gap: 0.3em;
+		padding: 0.2em 0.6em !important;
+		margin: 0 !important;
+		border-radius: 4px;
+		background: color-mix(in srgb, var(--main-color) 12%, transparent);
+		color: var(--main-color);
+		font-size: 0.9em;
+		font-weight: 500;
+		line-height: 1.5;
+		white-space: nowrap;
+		border: 1px solid color-mix(in srgb, var(--main-color) 25%, transparent) !important;
+	}
+	.cbi-dynlist > .item > span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.cbi-dynlist > .item > .btn.cbi-button-remove {
+		padding: 0.1em 0.4em !important;
+		font-size: 0.85em !important;
+		line-height: 1 !important;
+		border-radius: 3px !important;
+		min-height: unset !important;
+	}
+	.cbi-dynlist > .add-item {
+		flex-basis: 100%;
+		margin-top: 0.3em;
+	}
+`;
+
 return view.extend({
 	load: function() {
 		return uci.load('upnp_bridge_relay');
@@ -120,6 +159,9 @@ return view.extend({
 				'</div>';
 		};
 
-		return m.render();
+		return m.render().then(function(node) {
+			node.insertBefore(E('style', {}, css), node.firstChild);
+			return node;
+		});
 	}
 });
