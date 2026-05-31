@@ -36,7 +36,7 @@ make package/luci-app-upnp-bridge-relay/compile V=s
 
 **Method 2: Download pre-built from [Releases](https://github.com/yunshu/upnp-bridge-relay/releases)**
 
-CI automatically builds `.ipk` packages on every push to main (compatible with both opkg and apk).
+CI automatically builds both `.ipk` (opkg) and `.apk` (apk) format packages on every push to main.
 
 ### Install
 
@@ -46,8 +46,8 @@ opkg install upnp-bridge-relay_*.ipk
 opkg install luci-app-upnp-bridge-relay_*.ipk
 
 # OpenWrt 25.12+ (apk)
-apk add --allow-untrusted ./upnp-bridge-relay_*.ipk
-apk add --allow-untrusted ./luci-app-upnp-bridge-relay_*.ipk
+apk add --allow-untrusted ./upnp-bridge-relay_*.apk
+apk add --allow-untrusted ./luci-app-upnp-bridge-relay_*.apk
 ```
 
 ### Use
