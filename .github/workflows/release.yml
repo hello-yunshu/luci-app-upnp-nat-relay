@@ -168,7 +168,10 @@ jobs:
             fi
 
             cd "${pkg_dir}/control"
-            tar czf "${pkg_dir}/control.tar.gz" --owner=0 --group=0 --transform='s,^\./,,' .
+            local ctrl_files=".PKGINFO"
+            [ -f ".post-install" ] && ctrl_files="${ctrl_files} .post-install"
+            [ -f ".pre-deinstall" ] && ctrl_files="${ctrl_files} .pre-deinstall"
+            tar czf "${pkg_dir}/control.tar.gz" --owner=0 --group=0 ${ctrl_files}
 
             cat "${pkg_dir}/control.tar.gz" "${pkg_dir}/data.tar.gz" > "${WORKDIR}/${apk_filename}"
             echo "Built: ${apk_filename}"
