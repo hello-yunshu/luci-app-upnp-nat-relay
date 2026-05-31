@@ -180,11 +180,13 @@ jobs:
           cp -a "${PKG_SRC}"/etc "${PKG_SRC}"/usr "${PKG_SRC}"/www "${PKG_DATA_DIR}/"
 
           POSTINST_IPK='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
-          [ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null'
+          [ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null
+          exit 0'
 
           PRERM_IPK='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
           /etc/init.d/upnp_bridge_relay stop 2>/dev/null
-          /etc/init.d/upnp_bridge_relay disable 2>/dev/null'
+          /etc/init.d/upnp_bridge_relay disable 2>/dev/null
+          exit 0'
 
           POSTINST_APK='[ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null || true'
 
