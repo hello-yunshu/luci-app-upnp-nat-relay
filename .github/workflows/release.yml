@@ -12,6 +12,10 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  SDKDIR: /builder
+  REPO_NAME: upnp-bridge-relay
+
 jobs:
   check-version:
     runs-on: ubuntu-latest
@@ -51,225 +55,87 @@ jobs:
   build:
     needs: check-version
     if: needs.check-version.outputs.changed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - branch: "v24.10.5"
+            pkgtype: ipk
+            arch: x86_64
+          - branch: "v25.12.0"
+            pkgtype: apk
+            arch: x86_64
+    name: "Build ${{ matrix.pkgtype }} (${{ matrix.branch }})"
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/openwrt/sdk:${{ matrix.arch }}-${{ matrix.branch }}
+      options: --user root
     steps:
       - uses: actions/checkout@v5
+        with:
+          path: ${{ env.REPO_NAME }}
 
-      - name: Build packages
+      - name: Fix SDK paths
         run: |
-          set -euo pipefail
+          mkdir -p $SDKDIR/shared-workdir
+          rm -rf $SDKDIR/shared-workdir/build
+          ln -sf $SDKDIR $SDKDIR/shared-workdir/build
 
-          sudo apt-get update -qq
-          sudo apt-get install -qq -y binutils
-
-          PKG_VERSION="${{ needs.check-version.outputs.version }}"
-          PKG_RELEASE="${{ needs.check-version.outputs.release }}"
-
-          WORKDIR="/tmp/build-pkg"
-          rm -rf "${WORKDIR}"
-          mkdir -p "${WORKDIR}"
-
-          build_ipk() (
-            local pkg_name="$1" pkg_version="$2" pkg_release="$3" pkg_arch="$4"
-            local pkg_maintainer="$5" pkg_desc="$6" pkg_depends="$7"
-            local src_dir="$8" conffiles="$9" postinst="${10:-}" prerm="${11:-}"
-
-            local pkg_dir="${WORKDIR}/ipk/${pkg_name}"
-            local full_version="${pkg_version}-${pkg_release}"
-            local ipk_filename="${pkg_name}_${full_version}_${pkg_arch}.ipk"
-
-            echo "Building ${ipk_filename}..."
-
-            mkdir -p "${pkg_dir}/data" "${pkg_dir}/control"
-            cp -a "${src_dir}"/* "${pkg_dir}/data/" 2>/dev/null || true
-
-            cat > "${pkg_dir}/control/control" << EOF
-          Package: ${pkg_name}
-          Version: ${full_version}
-          Depends: ${pkg_depends}
-          Source: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
-          Section: net
-          Architecture: ${pkg_arch}
-          Maintainer: ${pkg_maintainer}
-          Description: ${pkg_desc}
-          EOF
-
-            if [ -n "${conffiles}" ]; then
-              printf '%s\n' ${conffiles} > "${pkg_dir}/control/conffiles"
-            fi
-
-            if [ -n "${postinst}" ]; then
-              printf '#!/bin/sh\n%s\n' "${postinst}" > "${pkg_dir}/control/postinst"
-              chmod 0755 "${pkg_dir}/control/postinst"
-            fi
-
-            if [ -n "${prerm}" ]; then
-              printf '#!/bin/sh\n%s\n' "${prerm}" > "${pkg_dir}/control/prerm"
-              chmod 0755 "${pkg_dir}/control/prerm"
-            fi
-
-            cd "${pkg_dir}/data"
-            tar czf "${pkg_dir}/data.tar.gz" --owner=0 --group=0 .
-            cd "${pkg_dir}/control"
-            tar czf "${pkg_dir}/control.tar.gz" --owner=0 --group=0 .
-            echo "2.0" > "${pkg_dir}/debian-binary"
-
-            cd "${pkg_dir}"
-            ar r "${WORKDIR}/${ipk_filename}" debian-binary control.tar.gz data.tar.gz
-            echo "Built: ${ipk_filename}"
-          )
-
-          build_apk() (
-            local pkg_name="$1" pkg_version="$2" pkg_release="$3" pkg_arch="$4"
-            local pkg_maintainer="$5" pkg_desc="$6" pkg_depends="$7"
-            local src_dir="$8" postinst="${9:-}" prerm="${10:-}"
-
-            local pkg_dir="${WORKDIR}/apk/${pkg_name}"
-            local full_version="${pkg_version}-r${pkg_release}"
-            local apk_filename="${pkg_name}_${full_version}_${pkg_arch}.apk"
-
-            echo "Building ${apk_filename}..."
-
-            mkdir -p "${pkg_dir}/data" "${pkg_dir}/control"
-            cp -a "${src_dir}"/* "${pkg_dir}/data/" 2>/dev/null || true
-
-            cd "${pkg_dir}/data"
-            tar czf "${pkg_dir}/data.tar.gz" --owner=0 --group=0 .
-            local datahash=$(sha256sum "${pkg_dir}/data.tar.gz" | cut -d' ' -f1)
-            local data_size=$(du -sb . | cut -f1)
-
-            cat > "${pkg_dir}/control/.PKGINFO" << EOF
-          pkgname = ${pkg_name}
-          pkgver = ${full_version}
-          pkgdesc = ${pkg_desc}
-          url = ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
-          builddate = $(date +%s)
-          packager = ${pkg_maintainer}
-          size = ${data_size}
-          arch = ${pkg_arch}
-          origin = ${pkg_name}
-          license = GPL-3.0-only
-          datahash = ${datahash}
-          EOF
-
-            for dep in ${pkg_depends//,/ }; do
-              dep=$(echo "$dep" | xargs)
-              [ -n "$dep" ] && echo "depend = ${dep}" >> "${pkg_dir}/control/.PKGINFO"
-            done
-
-            if [ -n "${postinst}" ]; then
-              printf '#!/bin/sh\n%s\nexit 0\n' "${postinst}" > "${pkg_dir}/control/.post-install"
-              chmod 0755 "${pkg_dir}/control/.post-install"
-            fi
-
-            if [ -n "${prerm}" ]; then
-              printf '#!/bin/sh\n%s\nexit 0\n' "${prerm}" > "${pkg_dir}/control/.pre-deinstall"
-              chmod 0755 "${pkg_dir}/control/.pre-deinstall"
-            fi
-
-            cd "${pkg_dir}/control"
-            local ctrl_files=".PKGINFO"
-            [ -f ".post-install" ] && ctrl_files="${ctrl_files} .post-install"
-            [ -f ".pre-deinstall" ] && ctrl_files="${ctrl_files} .pre-deinstall"
-            tar czf "${pkg_dir}/control.tar.gz" --owner=0 --group=0 ${ctrl_files}
-
-            cat "${pkg_dir}/control.tar.gz" "${pkg_dir}/data.tar.gz" > "${WORKDIR}/${apk_filename}"
-            echo "Built: ${apk_filename}"
-          )
-
-          PKG_SRC="package/upnp-bridge-relay/files"
-          PKG_DATA_DIR="${WORKDIR}/pkg-data"
-          mkdir -p "${PKG_DATA_DIR}"
-          cp -a "${PKG_SRC}"/etc "${PKG_SRC}"/usr "${PKG_SRC}"/www "${PKG_DATA_DIR}/"
-
-          mkdir -p "${PKG_DATA_DIR}/usr/lib/lua/luci/i18n"
-          for lang_dir in "${PKG_SRC}"/po/*/; do
-            [ -d "${lang_dir}" ] || continue
-            lang=$(basename "${lang_dir}")
-            [ "${lang}" = "templates" ] && continue
-            [ -f "${lang_dir}/upnp-bridge-relay.po" ] || continue
-            python3 "${PKG_SRC}/po/po2lmo.py" \
-              "${lang_dir}/upnp-bridge-relay.po" \
-              "${PKG_DATA_DIR}/usr/lib/lua/luci/i18n/upnp-bridge-relay.${lang}.lmo"
-            echo "Compiled translation: ${lang}"
-          done
-
-          POSTINST_IPK='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
-          [ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null
-          exit 0'
-
-          PRERM_IPK='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
-          /etc/init.d/upnp_bridge_relay stop 2>/dev/null
-          /etc/init.d/upnp_bridge_relay disable 2>/dev/null
-          exit 0'
-
-          POSTINST_APK='[ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null || true'
-
-          PRERM_APK='/etc/init.d/upnp_bridge_relay stop 2>/dev/null || true
-          /etc/init.d/upnp_bridge_relay disable 2>/dev/null || true'
-
-          build_ipk \
-            "upnp-bridge-relay" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
-            "yunshu" \
-            "UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT (with LuCI)" \
-            "libc, miniupnpc, nftables, uci, ubus, rpcd, luci-base" \
-            "${PKG_DATA_DIR}" \
-            "/etc/config/upnp_bridge_relay" \
-            "${POSTINST_IPK}" "${PRERM_IPK}"
-
-          build_apk \
-            "upnp-bridge-relay" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
-            "yunshu" \
-            "UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT (with LuCI)" \
-            "libc, miniupnpc, nftables, uci, ubus, rpcd, luci-base" \
-            "${PKG_DATA_DIR}" \
-            "${POSTINST_APK}" "${PRERM_APK}"
-
-          mkdir -p release
-          cp "${WORKDIR}"/*.ipk "${WORKDIR}"/*.apk release/
-
-      - name: Verify build artifacts
-        working-directory: release
+      - name: Prepare package source
+        working-directory: ${{ env.SDKDIR }}
         run: |
-          for fmt in ipk apk; do
-            if ! ls upnp-bridge-relay_*.${fmt} 1>/dev/null 2>&1; then
-              echo "ERROR: upnp-bridge-relay_*.${fmt} not found"
-              exit 1
-            fi
-            echo "upnp-bridge-relay ${fmt}: OK"
-          done
+          cp -r $GITHUB_WORKSPACE/$REPO_NAME/package/$REPO_NAME ./package/
 
-          echo ""
-          echo "All packages:"
-          ls -la *.ipk *.apk
+      - name: Update feeds
+        working-directory: ${{ env.SDKDIR }}
+        run: |
+          mv feeds.conf.default feeds.conf
+          sed -i -e 's|base.*\.git|base https://github.com/openwrt/openwrt.git|' feeds.conf
+          sed -i -e 's|packages.*\.git|packages https://github.com/openwrt/packages.git|' feeds.conf
+          sed -i -e 's|luci.*\.git|luci https://github.com/openwrt/luci.git|' feeds.conf
+          ./scripts/feeds update base packages luci
+          ./scripts/feeds install -a
 
-          echo ""
-          echo "=== APK structure verification ==="
-          for apk_file in upnp-bridge-relay_*.apk; do
-            echo "Checking ${apk_file}..."
-            listing=$(tar tzf "${apk_file}" 2>/dev/null)
-            if echo "${listing}" | grep -q '\.PKGINFO'; then
-              echo "  .PKGINFO: OK"
-            else
-              echo "  ERROR: .PKGINFO not found"
-              exit 1
-            fi
-            if echo "${listing}" | grep -q '\.post-install'; then
-              echo "  .post-install: OK"
-            else
-              echo "  .post-install: not present (OK)"
-            fi
-            if echo "${listing}" | grep -q '\.pre-deinstall'; then
-              echo "  .pre-deinstall: OK"
-            else
-              echo "  .pre-deinstall: not present (OK)"
-            fi
-          done
+      - name: Configure
+        working-directory: ${{ env.SDKDIR }}
+        run: |
+          echo "CONFIG_PACKAGE_$REPO_NAME=y" >> .config
+          make defconfig
+
+      - name: Build package
+        working-directory: ${{ env.SDKDIR }}
+        run: |
+          make package/$REPO_NAME/compile V=sc
+
+      - name: Collect package
+        working-directory: ${{ env.SDKDIR }}
+        run: |
+          mkdir -p $GITHUB_WORKSPACE/output
+          find ./bin/packages/ -name "${REPO_NAME}_*.${{ matrix.pkgtype }}" -exec cp {} $GITHUB_WORKSPACE/output/ \;
+          ls -la $GITHUB_WORKSPACE/output/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.pkgtype }}
+          path: output/
+
+  release:
+    needs: [check-version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release/
+
+      - name: List artifacts
+        run: |
+          find release/ -type f -ls
 
       - name: Generate checksums
         working-directory: release
         run: |
-          sha256sum *.ipk *.apk > sha256sums.txt
+          find . -type f \( -name '*.ipk' -o -name '*.apk' \) -exec sha256sum {} + > sha256sums.txt
           cat sha256sums.txt
 
       - name: Delete existing release (manual trigger)
@@ -317,12 +183,6 @@ jobs:
             - OpenWrt 23.05+ with fw4/nftables
             - miniupnpc, nftables installed
           files: |
-            release/upnp-bridge-relay_*.ipk
-            release/upnp-bridge-relay_*.apk
-
-      - name: Upload checksums
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
-          files: |
+            release/ipk/*.ipk
+            release/apk/*.apk
             release/sha256sums.txt
