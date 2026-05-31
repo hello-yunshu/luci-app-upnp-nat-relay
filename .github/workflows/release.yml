@@ -144,8 +144,7 @@ jobs:
           find . -type f \( -name '*.ipk' -o -name '*.apk' \) -exec sha256sum {} + > sha256sums.txt
           cat sha256sums.txt
 
-      - name: Delete existing release (manual trigger)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Delete existing release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
