@@ -44,7 +44,7 @@ CI automatically builds both `.ipk` (opkg) and `.apk` (apk) format packages on e
 opkg install upnp-bridge-relay_*.ipk
 
 # OpenWrt 25.12+ (apk)
-apk add --allow-untrusted ./upnp-bridge-relay_*.apk
+apk add --allow-untrusted ./upnp-bridge-relay*.apk
 ```
 
 ### Use

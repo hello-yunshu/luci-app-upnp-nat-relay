@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=upnp-bridge-relay
 PKG_VERSION:=1.1.0
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_MAINTAINER:=yunshu
 PKG_LICENSE:=GPL-3.0
@@ -30,16 +30,20 @@ define Package/upnp-bridge-relay/conffiles
 endef
 
 define Build/Compile
-	$(if $(wildcard ./files/po/po2lmo.py),\
-		@mkdir -p $(PKG_BUILD_DIR)/lmo;\
+	if [ -f ./files/po/po2lmo.py ]; then \
+		mkdir -p $(PKG_BUILD_DIR)/lmo; \
 		for po_dir in ./files/po/*/; do \
 			[ -d "$$$$po_dir" ] || continue; \
 			lang=$$$$(basename "$$$$po_dir"); \
 			[ "$$$$lang" = "templates" ] && continue; \
 			[ -f "$$$$po_dir/upnp-bridge-relay.po" ] || continue; \
-			python3 ./files/po/po2lmo.py "$$$$po_dir/upnp-bridge-relay.po" "$(PKG_BUILD_DIR)/lmo/upnp-bridge-relay.$$$$lang.lmo"; \
-		done \
-	)
+			if [ -x "$(STAGING_DIR_HOSTPKG)/bin/po2lmo" ]; then \
+				"$(STAGING_DIR_HOSTPKG)/bin/po2lmo" "$$$$po_dir/upnp-bridge-relay.po" "$(PKG_BUILD_DIR)/lmo/upnp-bridge-relay.$$$$lang.lmo"; \
+			elif command -v python3 >/dev/null 2>&1; then \
+				python3 ./files/po/po2lmo.py "$$$$po_dir/upnp-bridge-relay.po" "$(PKG_BUILD_DIR)/lmo/upnp-bridge-relay.$$$$lang.lmo"; \
+			fi; \
+		done; \
+	fi
 endef
 
 define Package/upnp-bridge-relay/install
@@ -58,10 +62,10 @@ define Package/upnp-bridge-relay/install
 	$(INSTALL_DATA) ./files/usr/share/luci/menu.d/luci-app-upnp-bridge-relay.json $(1)/usr/share/luci/menu.d/
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) ./files/usr/share/rpcd/acl.d/luci-app-upnp-bridge-relay.json $(1)/usr/share/rpcd/acl.d/
-	$(if $(wildcard $(PKG_BUILD_DIR)/lmo/*.lmo),\
-		$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n;\
-		$(INSTALL_DATA) $(PKG_BUILD_DIR)/lmo/*.lmo $(1)/usr/lib/lua/luci/i18n/;\
-	)
+	if [ -n "$$$$(ls $(PKG_BUILD_DIR)/lmo/*.lmo 2>/dev/null)" ]; then \
+		$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n; \
+		$(INSTALL_DATA) $(PKG_BUILD_DIR)/lmo/*.lmo $(1)/usr/lib/lua/luci/i18n/; \
+	fi
 endef
 
 define Package/upnp-bridge-relay/postinst

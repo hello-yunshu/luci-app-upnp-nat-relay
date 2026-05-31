@@ -44,7 +44,7 @@ make package/upnp-bridge-relay/compile V=s
 opkg install upnp-bridge-relay_*.ipk
 
 # OpenWrt 25.12+ (apk)
-apk add --allow-untrusted ./upnp-bridge-relay_*.apk
+apk add --allow-untrusted ./upnp-bridge-relay*.apk
 ```
 
 ### 使用
