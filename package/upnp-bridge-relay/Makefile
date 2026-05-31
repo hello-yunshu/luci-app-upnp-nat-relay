@@ -13,13 +13,14 @@ define Package/upnp-bridge-relay
 	SECTION:=net
 	CATEGORY:=Network
 	TITLE:=UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT
-	DEPENDS:=+miniupnpc +nftables +uci +ubus +rpcd
+	DEPENDS:=+miniupnpc +nftables +uci +ubus +rpcd +luci-base
 	PKGARCH:=all
 endef
 
 define Package/upnp-bridge-relay/description
 	OpenWrt plugin for bridging downstream router UPnP mappings through
 	upstream NAT, with nftables DNAT and OpenClash RETURN support.
+	Includes LuCI web interface.
 endef
 
 define Package/upnp-bridge-relay/conffiles
@@ -39,6 +40,12 @@ define Package/upnp-bridge-relay/install
 	$(INSTALL_DIR) $(1)/etc/upnp_bridge_relay
 	$(INSTALL_DIR) $(1)/usr/libexec/rpcd
 	$(INSTALL_BIN) ./files/usr/libexec/rpcd/upnp_bridge_relay $(1)/usr/libexec/rpcd/
+	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/upnp_bridge_relay
+	$(INSTALL_DATA) ./files/www/luci-static/resources/view/upnp_bridge_relay/*.js $(1)/www/luci-static/resources/view/upnp_bridge_relay/
+	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d/luci-app-upnp-bridge-relay
+	$(INSTALL_DATA) ./files/usr/share/luci/menu.d/luci-app-upnp-bridge-relay.json $(1)/usr/share/luci/menu.d/luci-app-upnp-bridge-relay/
+	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
+	$(INSTALL_DATA) ./files/usr/share/rpcd/acl.d/luci-app-upnp-bridge-relay.json $(1)/usr/share/rpcd/acl.d/
 endef
 
 define Package/upnp-bridge-relay/postinst
