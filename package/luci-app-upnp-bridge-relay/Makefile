@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 LUCI_TITLE:=UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT
-LUCI_DEPENDS:=+miniupnpc +nftables +uci +ubus +rpcd +luci-base
+LUCI_DEPENDS:=+luci-base +miniupnpc +nftables
 LUCI_PKGARCH:=all
 
 PKG_VERSION:=1.1.1
