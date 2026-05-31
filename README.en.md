@@ -25,12 +25,12 @@ This replaces the need for wide-range DMZ or manual port forwarding on the upstr
 ```sh
 cd /path/to/openwrt-sdk
 
-echo "src-git upnp_bridge_relay https://github.com/yunshu/upnp-bridge-relay.git" >> feeds.conf.default
-./scripts/feeds update upnp_bridge_relay
-./scripts/feeds install upnp-bridge-relay
+echo "src-git luci_app_upnp_bridge_relay https://github.com/yunshu/upnp-bridge-relay.git" >> feeds.conf.default
+./scripts/feeds update luci_app_upnp_bridge_relay
+./scripts/feeds install luci-app-upnp-bridge-relay
 
 make menuconfig
-make package/upnp-bridge-relay/compile V=s
+make package/luci-app-upnp-bridge-relay/compile V=s
 ```
 
 **Method 2: Download pre-built from [Releases](https://github.com/yunshu/upnp-bridge-relay/releases)**
@@ -41,10 +41,12 @@ CI automatically builds both `.ipk` (opkg) and `.apk` (apk) format packages on e
 
 ```sh
 # OpenWrt 24.10 / 23.05 (opkg)
-opkg install upnp-bridge-relay_*.ipk
+opkg install luci-app-upnp-bridge-relay_*.ipk
+opkg install luci-i18n-upnp-bridge-relay-zh-cn_*.ipk
 
 # OpenWrt 25.12+ (apk)
-apk add --allow-untrusted ./upnp-bridge-relay*.apk
+apk add --allow-untrusted ./luci-app-upnp-bridge-relay*.apk
+apk add --allow-untrusted ./luci-i18n-upnp-bridge-relay-zh-cn*.apk
 ```
 
 ### Use

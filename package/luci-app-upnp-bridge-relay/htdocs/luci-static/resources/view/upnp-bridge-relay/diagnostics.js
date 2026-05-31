@@ -49,10 +49,12 @@ var css = `
 		border-radius: 8px;
 		background: var(--background-color-a);
 		border: 1px solid var(--border-color);
+		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
 	}
 	.ubr-section h4 {
-		margin: 0 0 0.8em 0; padding-bottom: 0.5em;
+		margin: 0 0 0.8em 0; padding: 0 0 0.5em 0.6em;
 		border-bottom: 1px solid var(--border-color);
+		border-left: 3px solid var(--main-color);
 		font-size: 1.05em;
 	}
 	.ubr-env-grid {
@@ -61,7 +63,7 @@ var css = `
 	}
 	.ubr-env-card {
 		padding: 0.8em 1em; border-radius: 6px;
-		background: var(--background-color-a);
+		background: color-mix(in srgb, var(--background-color-a) 85%, var(--main-color));
 		border: 1px solid var(--border-color);
 		display: flex; justify-content: space-between; align-items: center;
 	}
@@ -70,24 +72,24 @@ var css = `
 		display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
 		font-size: 0.85em; font-weight: 500;
 	}
-	.ubr-badge.green { background: color-mix(in srgb, var(--success-color, #5cb85c) 15%, transparent); color: var(--success-color, #5cb85c); }
-	.ubr-badge.red { background: color-mix(in srgb, var(--danger-color, #d9534f) 15%, transparent); color: var(--danger-color, #d9534f); }
-	.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color, #f0ad4e) 15%, transparent); color: var(--warning-color, #f0ad4e); }
-	.ubr-badge.gray { background: color-mix(in srgb, var(--subtext-color, gray) 15%, transparent); color: var(--subtext-color, gray); }
+	.ubr-badge.green { background: color-mix(in srgb, var(--success-color) 15%, transparent); color: var(--success-color); }
+	.ubr-badge.red { background: color-mix(in srgb, var(--danger-color) 15%, transparent); color: var(--danger-color); }
+	.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color) 15%, transparent); color: var(--warning-color); }
+	.ubr-badge.gray { background: color-mix(in srgb, var(--subtext-color) 15%, transparent); color: var(--subtext-color); }
 	.ubr-check-grid {
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 		gap: 0.8em;
 	}
 	.ubr-check-card {
 		padding: 0.8em 1em; border-radius: 6px;
-		background: var(--background-color-a);
+		background: color-mix(in srgb, var(--background-color-a) 85%, var(--main-color));
 		border: 1px solid var(--border-color);
 		display: flex; justify-content: space-between; align-items: center;
 	}
 	.ubr-check-label { font-size: 0.9em; }
 	.ubr-log-area {
 		max-height: 300px; overflow-y: auto; padding: 1em;
-		background: var(--background-color-a);
+		background: color-mix(in srgb, var(--background-color-a) 85%, var(--main-color));
 		color: var(--main-text-color);
 		font-size: 0.85em; border-radius: 6px;
 		border: 1px solid var(--border-color);
@@ -99,16 +101,17 @@ var css = `
 		border-radius: 8px;
 		background: var(--background-color-a);
 		border: 1px solid var(--border-color);
-		border-left: 5px solid var(--danger-color, #d9534f);
+		border-left: 5px solid var(--danger-color);
+		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
 	}
 	.ubr-danger-zone h4 {
 		margin: 0 0 0.8em 0; padding-bottom: 0.5em;
 		border-bottom: 1px solid var(--border-color);
-		font-size: 1.05em; color: var(--danger-color, #d9534f);
+		font-size: 1.05em; color: var(--danger-color);
 	}
 	.ubr-cmd-box {
 		padding: 0.8em 1em; border-radius: 6px;
-		background: var(--background-color-a);
+		background: color-mix(in srgb, var(--background-color-a) 85%, var(--main-color));
 		border: 1px solid var(--border-color);
 		font-family: monospace; font-size: 0.9em;
 	}
@@ -313,11 +316,11 @@ return view.extend({
 				'apk add --allow-untrusted ' + missingDeps.join(' ') :
 				'opkg install ' + missingDeps.join(' ');
 
-			depSection.appendChild(E('p', { 'style': 'color:var(--danger-color, #d9534f);margin-bottom:0.5em' },
+			depSection.appendChild(E('p', { 'style': 'color:var(--danger-color);margin-bottom:0.5em' },
 				'\u2718 ' + _('Missing dependencies: ') + missingDeps.join(', ')));
 			depSection.appendChild(E('div', { 'class': 'ubr-cmd-box' }, installCmd));
 		} else {
-			depSection.appendChild(E('p', { 'style': 'color:var(--success-color, #5cb85c)' },
+			depSection.appendChild(E('p', { 'style': 'color:var(--success-color)' },
 				'\u2714 ' + _('All dependencies are installed.')));
 		}
 		container.appendChild(depSection);

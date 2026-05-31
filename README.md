@@ -25,12 +25,12 @@ OpenWrt LuCI 插件，用于在双路由器（多级 NAT）网络环境中，将
 ```sh
 cd /path/to/openwrt-sdk
 
-echo "src-git upnp_bridge_relay https://github.com/yunshu/upnp-bridge-relay.git" >> feeds.conf.default
-./scripts/feeds update upnp_bridge_relay
-./scripts/feeds install upnp-bridge-relay
+echo "src-git luci_app_upnp_bridge_relay https://github.com/yunshu/upnp-bridge-relay.git" >> feeds.conf.default
+./scripts/feeds update luci_app_upnp_bridge_relay
+./scripts/feeds install luci-app-upnp-bridge-relay
 
 make menuconfig
-make package/upnp-bridge-relay/compile V=s
+make package/luci-app-upnp-bridge-relay/compile V=s
 ```
 
 **方式二：从 [Releases](https://github.com/yunshu/upnp-bridge-relay/releases) 下载预编译包**
@@ -41,10 +41,12 @@ make package/upnp-bridge-relay/compile V=s
 
 ```sh
 # OpenWrt 24.10 / 23.05 (opkg)
-opkg install upnp-bridge-relay_*.ipk
+opkg install luci-app-upnp-bridge-relay_*.ipk
+opkg install luci-i18n-upnp-bridge-relay-zh-cn_*.ipk
 
 # OpenWrt 25.12+ (apk)
-apk add --allow-untrusted ./upnp-bridge-relay*.apk
+apk add --allow-untrusted ./luci-app-upnp-bridge-relay*.apk
+apk add --allow-untrusted ./luci-i18n-upnp-bridge-relay-zh-cn*.apk
 ```
 
 ### 使用

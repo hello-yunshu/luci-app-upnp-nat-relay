@@ -30,6 +30,10 @@ stop_service() {
 	config_get_bool clear_on_stop main clear_on_stop 1
 
 	[ "$clear_on_stop" -eq 1 ] && /usr/bin/upnp-bridge-relay --clear
+
+	if [ -f /tmp/upnp_bridge_relay/status.json ]; then
+		sed -i 's/"running":true/"running":false/' /tmp/upnp_bridge_relay/status.json 2>/dev/null
+	fi
 }
 
 service_triggers() {
