@@ -109,9 +109,9 @@ jobs:
             fi
 
             cd "${pkg_dir}/data"
-            tar czf "${pkg_dir}/data.tar.gz" .
+            tar czf "${pkg_dir}/data.tar.gz" --owner=0 --group=0 .
             cd "${pkg_dir}/control"
-            tar czf "${pkg_dir}/control.tar.gz" .
+            tar czf "${pkg_dir}/control.tar.gz" --owner=0 --group=0 .
             echo "2.0" > "${pkg_dir}/debian-binary"
 
             cd "${pkg_dir}"
@@ -134,7 +134,7 @@ jobs:
             cp -a "${src_dir}"/* "${pkg_dir}/data/" 2>/dev/null || true
 
             cd "${pkg_dir}/data"
-            tar czf "${pkg_dir}/data.tar.gz" .
+            tar czf "${pkg_dir}/data.tar.gz" --owner=0 --group=0 .
             local datahash=$(sha256sum "${pkg_dir}/data.tar.gz" | cut -d' ' -f1)
             local data_size=$(du -sb . | cut -f1)
 
@@ -168,7 +168,7 @@ jobs:
             fi
 
             cd "${pkg_dir}/control"
-            tar czf "${pkg_dir}/control.tar.gz" .
+            tar czf "${pkg_dir}/control.tar.gz" --owner=0 --group=0 --transform='s,^\./,,' .
 
             cat "${pkg_dir}/control.tar.gz" "${pkg_dir}/data.tar.gz" > "${WORKDIR}/${apk_filename}"
             echo "Built: ${apk_filename}"
@@ -276,6 +276,41 @@ jobs:
 
           echo "All expected packages found:"
           ls -la *.ipk *.apk
+
+          echo ""
+          echo "=== APK structure verification ==="
+          for apk_file in upnp-bridge-relay_*.apk; do
+            echo "Checking ${apk_file}..."
+            listing=$(tar tzf "${apk_file}" 2>/dev/null)
+            if echo "${listing}" | grep -q '\.PKGINFO'; then
+              echo "  .PKGINFO: OK"
+            else
+              echo "  ERROR: .PKGINFO not found in control section"
+              exit 1
+            fi
+            if echo "${listing}" | grep -q '\.post-install'; then
+              echo "  .post-install: OK"
+            else
+              echo "  .post-install: not present (OK for packages without scripts)"
+            fi
+            if echo "${listing}" | grep -q '\.pre-deinstall'; then
+              echo "  .pre-deinstall: OK"
+            else
+              echo "  .pre-deinstall: not present (OK for packages without scripts)"
+            fi
+          done
+
+          for apk_file in luci-app-upnp-bridge-relay_*.apk luci-i18n-*.apk; do
+            [ -f "${apk_file}" ] || continue
+            echo "Checking ${apk_file}..."
+            listing=$(tar tzf "${apk_file}" 2>/dev/null)
+            if echo "${listing}" | grep -q '\.PKGINFO'; then
+              echo "  .PKGINFO: OK"
+            else
+              echo "  ERROR: .PKGINFO not found in control section"
+              exit 1
+            fi
+          done
 
       - name: Generate checksums
         working-directory: release
