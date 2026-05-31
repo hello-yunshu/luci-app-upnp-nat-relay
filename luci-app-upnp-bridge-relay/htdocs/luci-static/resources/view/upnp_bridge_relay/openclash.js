@@ -117,7 +117,7 @@ return view.extend({
 			var allowedPorts = uci.get('upnp_bridge_relay', 'main', 'allowed_external_ports') || '40000-65535';
 			var remark = uci.get('upnp_bridge_relay', 'main', 'openclash_rule_remark') || 'UPnP Bridge Relay Auto RETURN';
 
-			return '<div style="padding:1em;background:#f5f5f5;border:1px solid #ddd;border-radius:4px;font-family:monospace">' +
+			return '<div class="cbi-section" style="font-family:monospace">' +
 				'<b>' + _('Internal Address:') + '</b> ' + downstreamWanIp + '<br>' +
 				'<b>' + _('Internal Ports:') + '</b> ' + allowedPorts + '<br>' +
 				'<b>' + _('Protocol:') + '</b> TCP/UDP<br>' +
@@ -136,8 +136,8 @@ return view.extend({
 		o.value('auto', _('Auto - Automatically write rules'));
 
 		o = s.option(form.ListValue, 'openclash_return_strategy', _('RETURN Strategy'),
-		_('Strategy for generating RETURN rules.'));
-	o.value('port_pool', _('Port Pool RETURN (recommended)'));
+			_('Strategy for generating RETURN rules.'));
+		o.value('port_pool', _('Port Pool RETURN (recommended)'));
 
 		o = s.option(form.Value, 'openclash_rule_remark', _('Rule Remark'),
 			_('Remark text for the OpenClash RETURN rule.'));
@@ -177,7 +177,7 @@ return view.extend({
 				'Action: RETURN\n' +
 				'Remark: ' + remark;
 
-			ui.addNotification(null, E('pre', { 'style': 'white-space:pre-wrap;padding:1em;background:#f5f5f5;border:1px solid #ddd' }, ruleText), 'info');
+			ui.addNotification(null, E('pre', { 'style': 'white-space:pre-wrap;padding:1em;background:var(--background-color-a,#f5f5f5);border:1px solid var(--border-color,#ddd)' }, ruleText), 'info');
 		};
 
 		o = s.option(form.Button, '_write_oc', _('Write to OpenClash'));
@@ -201,7 +201,6 @@ return view.extend({
 					msg = _('OpenClash rule written. You need to restart OpenClash for changes to take effect.');
 				}
 				ui.addNotification(null, E('p', msg), 'info');
-				window.location.reload();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Failed to write OpenClash rule: ') + e.message), 'error');
 			});
@@ -213,7 +212,6 @@ return view.extend({
 		o.onclick = function() {
 			return callRemoveOpenclashRule().then(function(result) {
 				ui.addNotification(null, E('p', _('Plugin rule removed from OpenClash.')), 'info');
-				window.location.reload();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Failed to remove rule: ') + e.message), 'error');
 			});
@@ -240,7 +238,6 @@ return view.extend({
 				} else {
 					ui.addNotification(null, E('p', _('Plugin rules removed from OpenClash via UCI.')), 'info');
 				}
-				window.location.reload();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Restore failed: ') + e.message), 'error');
 			});

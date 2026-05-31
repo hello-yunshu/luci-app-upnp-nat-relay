@@ -57,6 +57,51 @@ function callInitAction(action) {
 	})('upnp_bridge_relay', action);
 }
 
+var css = `
+	.ubr-wizard-progress {
+		display: flex; align-items: center; gap: 0; margin-bottom: 1.5em;
+	}
+	.ubr-wizard-dot {
+		display: flex; align-items: center; justify-content: center;
+		width: 28px; height: 28px; border-radius: 50%;
+		font-size: 0.8em; font-weight: bold; color: #fff;
+		background: #ddd; transition: all 0.2s;
+	}
+	.ubr-wizard-dot.done { background: #5cb85c; }
+	.ubr-wizard-dot.active { background: #337ab7; box-shadow: 0 0 0 3px rgba(51,122,183,0.3); }
+	.ubr-wizard-line {
+		flex: 1; height: 3px; background: #ddd;
+	}
+	.ubr-wizard-line.done { background: #5cb85c; }
+	.ubr-wizard-step-card {
+		padding: 1.2em; border-radius: 8px;
+		background: var(--background-color-a, #f5f5f5);
+		border: 1px solid var(--border-color, #ddd);
+	}
+	.ubr-wizard-step-card h3 {
+		margin: 0 0 0.8em 0; padding-bottom: 0.5em;
+		border-bottom: 1px solid var(--border-color, #ddd);
+	}
+	.ubr-wizard-nav {
+		display: flex; gap: 1em; margin-top: 1.2em;
+		padding-top: 1em; border-top: 1px solid var(--border-color, #ddd);
+	}
+	.ubr-mode-bar {
+		display: flex; gap: 0; margin-bottom: 1.5em;
+		border-radius: 8px; overflow: hidden;
+		border: 1px solid var(--border-color, #ddd);
+	}
+	.ubr-mode-btn {
+		flex: 1; padding: 0.8em; text-align: center;
+		cursor: pointer; border: none; background: var(--background-color-a, #f5f5f5);
+		color: var(--text-color, #333); font-size: 0.95em;
+		transition: all 0.2s;
+	}
+	.ubr-mode-btn.active {
+		background: var(--main-color, #337ab7); color: #fff;
+	}
+`;
+
 return view.extend({
 	step: 1,
 	totalSteps: 10,
@@ -88,32 +133,29 @@ return view.extend({
 	render: function(data) {
 		var self = this;
 		var container = E('div', { 'class': 'cbi-map' });
+		container.appendChild(E('style', {}, css));
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Setup Wizard')));
 
-		var modeBar = E('div', { 'class': 'cbi-section', 'style': 'margin-bottom:1em' });
-		modeBar.appendChild(E('p', {}, _('Wizard Mode:')));
+		var modeBar = E('div', { 'class': 'ubr-mode-bar' });
 		var safeBtn = E('button', {
-			'class': 'cbi-button cbi-button-apply',
-			'style': 'margin-right:1em',
+			'class': 'ubr-mode-btn' + (self.wizardMode === 'safe' ? ' active' : ''),
 			'click': function() {
 				self.wizardMode = 'safe';
-				safeBtn.classList.add('cbi-button-apply');
-				autoBtn.classList.remove('cbi-button-apply');
-				autoBtn.classList.add('cbi-button');
+				safeBtn.classList.add('active');
+				autoBtn.classList.remove('active');
 				self.renderStep(container);
 			}
-		}, _('Safe Mode (Detect Only)'));
+		}, '\u26A1 ' + _('Safe Mode (Detect Only)'));
 		var autoBtn = E('button', {
-			'class': 'cbi-button',
+			'class': 'ubr-mode-btn' + (self.wizardMode === 'auto' ? ' active' : ''),
 			'click': function() {
 				self.wizardMode = 'auto';
-				autoBtn.classList.add('cbi-button-apply');
-				safeBtn.classList.remove('cbi-button-apply');
-				safeBtn.classList.add('cbi-button');
+				autoBtn.classList.add('active');
+				safeBtn.classList.remove('active');
 				self.renderStep(container);
 			}
-		}, _('Auto Mode (Apply Changes)'));
+		}, '\u2699 ' + _('Auto Mode (Apply Changes)'));
 		modeBar.appendChild(safeBtn);
 		modeBar.appendChild(autoBtn);
 		container.appendChild(modeBar);
@@ -126,6 +168,47 @@ return view.extend({
 		return container;
 	},
 
+	createField: function(label, inputEl, description) {
+		var row = E('div', { 'class': 'cbi-value' });
+		row.appendChild(E('label', { 'class': 'cbi-value-title' }, label));
+		var fieldDiv = E('div', { 'class': 'cbi-value-field' });
+		fieldDiv.appendChild(inputEl);
+		if (description) {
+			fieldDiv.appendChild(E('div', { 'class': 'cbi-value-description' }, description));
+		}
+		row.appendChild(fieldDiv);
+		return row;
+	},
+
+	createDetectButton: function(self, ipInput) {
+		var detectBtn = E('button', {
+			'class': 'cbi-button cbi-button-apply',
+			'style': 'margin-left:0.5em',
+			'click': function() {
+				var btn = this;
+				self.collectStepData();
+				btn.disabled = true;
+				btn.textContent = _('Detecting...');
+				self.applyTempUci().then(function() {
+					return callCheckNetwork();
+				}).then(function(result) {
+					if (result && result.bind_ip) {
+						ipInput.value = result.bind_ip;
+						self.wizardData.bind_ip = result.bind_ip;
+					} else {
+						ui.addNotification(null, E('p', _('Could not auto-detect IP.')), 'warning');
+					}
+				}).catch(function(e) {
+					ui.addNotification(null, E('p', _('Auto-detect failed: ') + (e.message || e)), 'error');
+				}).finally(function() {
+					btn.disabled = false;
+					btn.textContent = _('Auto Detect');
+				});
+			}
+		}, _('Auto Detect'));
+		return detectBtn;
+	},
+
 	renderStep: function(container) {
 		var stepContainer = container.querySelector('#wizard-step');
 		if (!stepContainer) return;
@@ -134,15 +217,19 @@ return view.extend({
 			stepContainer.removeChild(stepContainer.firstChild);
 
 		var self = this;
-		var s = E('div', { 'class': 'cbi-section' });
+		var s = E('div', { 'class': 'ubr-wizard-step-card' });
 
-		var progressBar = E('div', { 'style': 'margin-bottom:1em;display:flex;gap:4px' });
+		var progressBar = E('div', { 'class': 'ubr-wizard-progress' });
 		for (var i = 1; i <= this.totalSteps; i++) {
-			var dot = E('span', {
-				'style': 'display:inline-block;width:30px;height:8px;border-radius:4px;background:' +
-					(i < self.step ? '#5cb85c' : i === self.step ? '#337ab7' : '#ddd')
-			});
-			progressBar.appendChild(dot);
+			var dotClass = 'ubr-wizard-dot';
+			if (i < self.step) dotClass += ' done';
+			else if (i === self.step) dotClass += ' active';
+			progressBar.appendChild(E('span', { 'class': dotClass }, String(i)));
+			if (i < this.totalSteps) {
+				var lineClass = 'ubr-wizard-line';
+				if (i < self.step) lineClass += ' done';
+				progressBar.appendChild(E('span', { 'class': lineClass }));
+			}
 		}
 		s.appendChild(progressBar);
 
@@ -168,119 +255,167 @@ return view.extend({
 				}
 			});
 
-			s.appendChild(E('label', { 'class': 'cbi-value-title' }, _('Interface: ')));
-			s.appendChild(ifSelect);
+			s.appendChild(self.createField(
+				_('Interface: '),
+				ifSelect,
+				_('The network interface connected to the downstream router LAN side, used only for reading UPnP mappings.')
+			));
 
 		} else if (self.step === 2) {
 			s.appendChild(E('p', {}, _('Enter or auto-detect the IP address on the selected interface.')));
 
-			s.appendChild(E('label', { 'class': 'cbi-value-title' }, _('Bind IP: ')));
 			var ipInput = E('input', {
 				'type': 'text',
 				'class': 'cbi-input-text',
 				'id': 'wiz-bind-ip',
 				'value': self.wizardData.bind_ip,
-				'placeholder': 'e.g. 192.168.3.50'
+				'placeholder': _('e.g. 192.168.3.50')
 			});
-			s.appendChild(ipInput);
+			var ipFieldWrap = E('div', { 'style': 'display:flex;align-items:center' });
+			ipFieldWrap.appendChild(ipInput);
+			ipFieldWrap.appendChild(self.createDetectButton(self, ipInput));
 
-			var detectBtn = E('button', {
-				'class': 'cbi-button cbi-button-apply',
-				'style': 'margin-left:1em',
-				'click': function() {
-					self.collectStepData();
-					self.applyTempUci().then(function() {
-						return callCheckNetwork();
-					}).then(function(result) {
-						if (result && result.bind_ip) {
-							ipInput.value = result.bind_ip;
-							self.wizardData.bind_ip = result.bind_ip;
-						} else {
-							ui.addNotification(null, E('p', _('Could not auto-detect IP.')), 'warning');
-						}
-					});
-				}
-			}, _('Auto Detect'));
-			s.appendChild(detectBtn);
+			s.appendChild(self.createField(
+				_('Bind IP: '),
+				ipFieldWrap,
+				_('IP address on the read interface. Must be on the same subnet as the downstream router LAN.')
+			));
 
 		} else if (self.step === 3) {
 			s.appendChild(E('p', {}, _('Enter the downstream router LAN gateway IP address.')));
 
-			s.appendChild(E('label', { 'class': 'cbi-value-title' }, _('Downstream LAN Gateway: ')));
-			s.appendChild(E('input', {
+			var gwInput = E('input', {
 				'type': 'text',
 				'class': 'cbi-input-text',
 				'id': 'wiz-lan-gw',
 				'value': self.wizardData.downstream_lan_gateway,
-				'placeholder': 'e.g. 192.168.3.1'
-			}));
+				'placeholder': _('e.g. 192.168.3.1')
+			});
+			s.appendChild(self.createField(
+				_('Downstream LAN Gateway: '),
+				gwInput,
+				_('The LAN-side gateway IP address of the downstream router.')
+			));
 
-			s.appendChild(E('label', { 'class': 'cbi-value-title', 'style': 'display:block;margin-top:0.5em' }, _('Downstream LAN Subnet: ')));
-			s.appendChild(E('input', {
+			var subnetInput = E('input', {
 				'type': 'text',
 				'class': 'cbi-input-text',
 				'id': 'wiz-lan-subnet',
 				'value': self.wizardData.downstream_lan_subnet,
-				'placeholder': 'e.g. 192.168.3.0/24'
-			}));
+				'placeholder': _('e.g. 192.168.3.0/24')
+			});
+			s.appendChild(self.createField(
+				_('Downstream LAN Subnet: '),
+				subnetInput,
+				_('Downstream router LAN subnet in CIDR format, used for source filtering.')
+			));
 
 		} else if (self.step === 4) {
 			s.appendChild(E('p', {}, _('Testing ping to downstream LAN gateway...')));
 
+			if (self.wizardMode === 'auto') {
+				s.appendChild(E('p', { 'style': 'color:var(--text-color-disabled,gray)' },
+					_('Auto mode: interface and firewall will be configured before testing.')));
+			} else {
+				s.appendChild(E('p', { 'style': 'color:var(--text-color-disabled,gray)' },
+					_('Safe mode: testing with current network state. If the interface is not configured yet, tests may fail.')));
+			}
+
 			var pingResultDiv = E('div', { 'id': 'wiz-ping-result', 'style': 'margin-top:1em' });
+			pingResultDiv.innerHTML = '<span style="color:var(--text-color-disabled,gray)">' + _('Testing...') + '</span>';
 			s.appendChild(pingResultDiv);
 
 			self.applyTempUci().then(function() {
+				if (self.wizardMode === 'auto') {
+					return callSetupInterface().then(function() {
+						return callFixZone();
+					});
+				}
+			}).then(function() {
 				return callCheckNetwork();
 			}).then(function(result) {
 				self.pingResult = result;
+				if (result && result.error) {
+					pingResultDiv.innerHTML = '<span style="color:red">&#10008; ' + _('Network check error: ') + result.error + '</span>';
+					return;
+				}
 				if (result && result.gateway_reachable === 1) {
 					pingResultDiv.innerHTML = '<span style="color:green">&#10004; ' + _('Ping to gateway successful') + '</span>';
 				} else {
+					var detail = '';
+					if (result && result.iface_exists === 0) {
+						detail += '<br><span style="color:orange">' + _('Interface does not exist. Check the interface name.') + '</span>';
+					} else if (result && result.bind_ip_configured === 0) {
+						detail += '<br><span style="color:orange">' + _('Bind IP is not configured on the interface. Use Auto mode or configure the interface manually.') + '</span>';
+					} else {
+						detail += '<br><span style="color:orange">' + _('Check that the interface is connected and the firewall zone allows output.') + '</span>';
+					}
 					pingResultDiv.innerHTML = '<span style="color:red">&#10008; ' + _('Ping to gateway failed') + '</span>' +
-						'<p style="color:orange">' + _('Check that the interface is connected and the firewall zone allows output.') + '</p>';
+						'<p>' + detail + '</p>';
 				}
-			}).catch(function() {
-				pingResultDiv.innerHTML = '<span style="color:red">' + _('Network check failed') + '</span>';
+			}).catch(function(e) {
+				pingResultDiv.innerHTML = '<span style="color:red">&#10008; ' + _('Network check failed') + '</span>' +
+					'<p style="color:orange">' + _('Error: ') + (e.message || e || _('Unknown error')) + '</p>';
 			});
 
 		} else if (self.step === 5) {
 			s.appendChild(E('p', {}, _('Testing UPnP IGD discovery via upnpc...')));
 
 			var upnpcResultDiv = E('div', { 'id': 'wiz-upnpc-result', 'style': 'margin-top:1em' });
+			upnpcResultDiv.innerHTML = '<span style="color:var(--text-color-disabled,gray)">' + _('Testing...') + '</span>';
 			s.appendChild(upnpcResultDiv);
 
 			self.applyTempUci().then(function() {
+				if (self.wizardMode === 'auto') {
+					return callSetupInterface().then(function() {
+						return callFixZone();
+					});
+				}
+			}).then(function() {
 				return callCheckNetwork();
 			}).then(function(result) {
 				self.upnpcResult = result;
+				if (result && result.error) {
+					upnpcResultDiv.innerHTML = '<span style="color:red">&#10008; ' + _('UPnP check error: ') + result.error + '</span>';
+					return;
+				}
 				if (result && result.upnpc_readable === 1) {
 					var count = result.upnpc_mapping_count || 0;
 					upnpcResultDiv.innerHTML = '<span style="color:green">&#10004; ' + _('UPnP IGD discovered, %d mapping(s) found').format(count) + '</span>';
 				} else {
+					var detail = '';
+					if (result && result.bind_ip_configured === 0) {
+						detail += '<br><span style="color:orange">' + _('Bind IP is not configured on the interface. UPnP discovery requires a valid bind IP.') + '</span>';
+					} else {
+						detail += '<br><span style="color:orange">' + _('Ensure the downstream router has UPnP enabled and the bind IP is on its LAN side.') + '</span>';
+					}
 					upnpcResultDiv.innerHTML = '<span style="color:red">&#10008; ' + _('UPnP IGD discovery failed') + '</span>' +
-						'<p style="color:orange">' + _('Ensure the downstream router has UPnP enabled and the bind IP is on its LAN side.') + '</p>';
+						'<p>' + detail + '</p>';
 				}
-			}).catch(function() {
-				upnpcResultDiv.innerHTML = '<span style="color:red">' + _('UPnP check failed') + '</span>';
+			}).catch(function(e) {
+				upnpcResultDiv.innerHTML = '<span style="color:red">&#10008; ' + _('UPnP check failed') + '</span>' +
+					'<p style="color:orange">' + _('Error: ') + (e.message || e || _('Unknown error')) + '</p>';
 			});
 
 		} else if (self.step === 6) {
 			s.appendChild(E('p', {}, _('Enter the downstream router WAN IP address (used as DNAT target).')));
 
-			s.appendChild(E('label', { 'class': 'cbi-value-title' }, _('Downstream WAN IP: ')));
-			s.appendChild(E('input', {
+			var wanIpInput = E('input', {
 				'type': 'text',
 				'class': 'cbi-input-text',
 				'id': 'wiz-wan-ip',
 				'value': self.wizardData.downstream_wan_ip,
-				'placeholder': 'e.g. 192.168.2.2'
-			}));
+				'placeholder': _('e.g. 192.168.2.2')
+			});
+			s.appendChild(self.createField(
+				_('Downstream WAN IP: '),
+				wanIpInput,
+				_('Downstream router WAN IP address, used as the DNAT rule target.')
+			));
 
 		} else if (self.step === 7) {
 			s.appendChild(E('p', {}, _('Select the upstream WAN interface for DNAT rules.')));
 
-			s.appendChild(E('label', { 'class': 'cbi-value-title' }, _('Upstream WAN Interface: ')));
 			var wanSelect = E('select', { 'class': 'cbi-input-select', 'id': 'wiz-wan-if' });
 			network.getDevices().then(function(devices) {
 				for (var i = 0; i < devices.length; i++) {
@@ -295,26 +430,33 @@ return view.extend({
 				}
 			});
 
-			s.appendChild(wanSelect);
+			s.appendChild(self.createField(
+				_('Upstream WAN Interface: '),
+				wanSelect,
+				_('The upstream WAN interface where DNAT rules will be created.')
+			));
 
 		} else if (self.step === 8) {
 			s.appendChild(E('p', {}, _('Set the allowed external port range for synchronization.')));
 			s.appendChild(E('p', { 'style': 'color:orange' },
 				_('It is NOT recommended to use 1-65535 as the allowed range.')));
 
-			s.appendChild(E('label', { 'class': 'cbi-value-title' }, _('Allowed External Ports: ')));
-			s.appendChild(E('input', {
+			var portInput = E('input', {
 				'type': 'text',
 				'class': 'cbi-input-text',
 				'id': 'wiz-port-range',
 				'value': self.wizardData.allowed_external_ports,
-				'placeholder': 'e.g. 40000-65535'
-			}));
+				'placeholder': _('e.g. 40000-65535')
+			});
+			s.appendChild(self.createField(
+				_('Allowed External Ports: '),
+				portInput,
+				_('Port range allowed for synchronization. Using 1-65535 is NOT recommended as it effectively creates a DMZ.')
+			));
 
 		} else if (self.step === 9) {
 			s.appendChild(E('p', {}, _('Configure OpenClash RETURN rule for bypassing transparent proxy on forwarded ports.')));
 
-			s.appendChild(E('label', { 'class': 'cbi-value-title' }, _('OpenClash Mode: ')));
 			var ocSelect = E('select', { 'class': 'cbi-input-select', 'id': 'wiz-oc-mode' });
 			var modes = [
 				{ value: 'off', text: _('Off (Do not handle OpenClash)') },
@@ -327,17 +469,21 @@ return view.extend({
 					opt.selected = true;
 				ocSelect.appendChild(opt);
 			}
-			s.appendChild(ocSelect);
+			s.appendChild(self.createField(
+				_('OpenClash Mode: '),
+				ocSelect,
+				_('Control how OpenClash transparent proxy affects forwarded ports. "Off" ignores OpenClash, "Prompt" shows suggested rules, "Auto" writes rules automatically.')
+			));
 
 			if (self.wizardMode === 'auto') {
-				s.appendChild(E('div', { 'style': 'margin-top:1em;padding:0.5em;background:#fff3cd;border:1px solid #ffc107;border-radius:4px' },
+				s.appendChild(E('div', { 'class': 'alert-message warning' },
 					E('p', {}, _('Auto mode will write RETURN rules to OpenClash configuration. A backup will be created before any changes.'))));
 			}
 
 		} else if (self.step === 10) {
 			s.appendChild(E('p', {}, _('Review your configuration and enable the service.')));
 
-			var summary = E('div', { 'style': 'margin:1em 0;padding:1em;background:#f5f5f5;border:1px solid #ddd;border-radius:4px' });
+			var summary = E('div', { 'class': 'cbi-section' });
 			summary.innerHTML = '<table style="width:100%">' +
 				'<tr><td><b>' + _('Interface') + '</b></td><td>' + (self.wizardData.bind_ifname || '-') + '</td></tr>' +
 				'<tr><td><b>' + _('Bind IP') + '</b></td><td>' + (self.wizardData.bind_ip || '-') + '</td></tr>' +
@@ -351,7 +497,7 @@ return view.extend({
 			s.appendChild(summary);
 
 			if (self.wizardMode === 'auto') {
-				var uciPreview = E('div', { 'style': 'margin:1em 0;padding:1em;background:#fff3cd;border:1px solid #ffc107;border-radius:4px' });
+				var uciPreview = E('div', { 'class': 'alert-message warning' });
 				uciPreview.innerHTML = '<h4>' + _('UCI Changes Preview') + '</h4>' +
 					'<pre style="white-space:pre-wrap;font-size:0.9em">' +
 					'uci set upnp_bridge_relay.main.bind_ifname=' + (self.wizardData.bind_ifname || '') + '\n' +
@@ -368,17 +514,20 @@ return view.extend({
 				s.appendChild(uciPreview);
 			}
 
-			s.appendChild(E('label', { 'class': 'cbi-value-title' }, _('Enable Service: ')));
 			var enableSelect = E('select', { 'class': 'cbi-input-select', 'id': 'wiz-enable' });
 			var optYes = E('option', { 'value': '1' }, _('Yes'));
 			var optNo = E('option', { 'value': '0' }, _('No'));
 			optYes.selected = true;
 			enableSelect.appendChild(optYes);
 			enableSelect.appendChild(optNo);
-			s.appendChild(enableSelect);
+			s.appendChild(self.createField(
+				_('Enable Service: '),
+				enableSelect,
+				_('Enable the UPnP Bridge Relay service after saving configuration.')
+			));
 		}
 
-		var navBar = E('div', { 'style': 'margin-top:1em;display:flex;gap:1em' });
+		var navBar = E('div', { 'class': 'ubr-wizard-nav' });
 
 		if (self.step > 1) {
 			navBar.appendChild(E('button', {
@@ -396,22 +545,7 @@ return view.extend({
 				'class': 'cbi-button cbi-button-apply',
 				'click': function() {
 					self.collectStepData();
-					if (self.step === 2 && !self.validateIp(self.wizardData.bind_ip)) {
-						ui.addNotification(null, E('p', _('Invalid IP address format. Please enter a valid IPv4 address (e.g. 192.168.3.50).')), 'warning');
-						return;
-					}
-					if (self.step === 3 && !self.validateIp(self.wizardData.downstream_lan_gateway)) {
-						ui.addNotification(null, E('p', _('Invalid gateway IP address format.')), 'warning');
-						return;
-					}
-					if (self.step === 6 && !self.validateIp(self.wizardData.downstream_wan_ip)) {
-						ui.addNotification(null, E('p', _('Invalid WAN IP address format.')), 'warning');
-						return;
-					}
-					if (self.step === 8 && !self.validatePortRange(self.wizardData.allowed_external_ports)) {
-						ui.addNotification(null, E('p', _('Invalid port range format. Use format like 40000-65535.')), 'warning');
-						return;
-					}
+					if (!self.validateCurrentStep()) return;
 					self.step++;
 					self.renderStep(container);
 				}
@@ -424,6 +558,7 @@ return view.extend({
 				'class': 'cbi-button cbi-button-apply',
 				'click': function() {
 					self.collectStepData();
+					if (!self.validateAllSteps()) return;
 					self.applyWizard();
 				}
 			}, applyLabel));
@@ -431,6 +566,111 @@ return view.extend({
 
 		s.appendChild(navBar);
 		stepContainer.appendChild(s);
+	},
+
+	validateCurrentStep: function() {
+		var self = this;
+
+		if (self.step === 1) {
+			if (!self.wizardData.bind_ifname) {
+				ui.addNotification(null, E('p', _('Please select an interface.')), 'warning');
+				return false;
+			}
+		} else if (self.step === 2) {
+			if (!self.wizardData.bind_ip) {
+				ui.addNotification(null, E('p', _('Bind IP is required.')), 'warning');
+				return false;
+			}
+			if (!self.validateIp(self.wizardData.bind_ip)) {
+				ui.addNotification(null, E('p', _('Invalid IP address format. Please enter a valid IPv4 address (e.g. 192.168.3.50).')), 'warning');
+				return false;
+			}
+		} else if (self.step === 3) {
+			if (!self.wizardData.downstream_lan_gateway) {
+				ui.addNotification(null, E('p', _('Downstream LAN Gateway is required.')), 'warning');
+				return false;
+			}
+			if (!self.validateIp(self.wizardData.downstream_lan_gateway)) {
+				ui.addNotification(null, E('p', _('Invalid gateway IP address format.')), 'warning');
+				return false;
+			}
+			if (!self.wizardData.downstream_lan_subnet) {
+				ui.addNotification(null, E('p', _('Downstream LAN Subnet is required.')), 'warning');
+				return false;
+			}
+			if (!self.validateSubnet(self.wizardData.downstream_lan_subnet)) {
+				ui.addNotification(null, E('p', _('Invalid subnet format. Please use CIDR notation (e.g. 192.168.3.0/24).')), 'warning');
+				return false;
+			}
+		} else if (self.step === 6) {
+			if (!self.wizardData.downstream_wan_ip) {
+				ui.addNotification(null, E('p', _('Downstream WAN IP is required.')), 'warning');
+				return false;
+			}
+			if (!self.validateIp(self.wizardData.downstream_wan_ip)) {
+				ui.addNotification(null, E('p', _('Invalid WAN IP address format.')), 'warning');
+				return false;
+			}
+		} else if (self.step === 7) {
+			if (!self.wizardData.upstream_wan_if) {
+				ui.addNotification(null, E('p', _('Please select an upstream WAN interface.')), 'warning');
+				return false;
+			}
+		} else if (self.step === 8) {
+			if (!self.wizardData.allowed_external_ports) {
+				ui.addNotification(null, E('p', _('Allowed external ports is required.')), 'warning');
+				return false;
+			}
+			if (!self.validatePortRange(self.wizardData.allowed_external_ports)) {
+				ui.addNotification(null, E('p', _('Invalid port range format. Use format like 40000-65535.')), 'warning');
+				return false;
+			}
+		}
+
+		return true;
+	},
+
+	validateAllSteps: function() {
+		var self = this;
+		var requiredFields = [
+			{ key: 'bind_ifname', label: _('Interface') },
+			{ key: 'bind_ip', label: _('Bind IP') },
+			{ key: 'downstream_lan_gateway', label: _('Downstream LAN Gateway') },
+			{ key: 'downstream_lan_subnet', label: _('Downstream LAN Subnet') },
+			{ key: 'downstream_wan_ip', label: _('Downstream WAN IP') },
+			{ key: 'upstream_wan_if', label: _('Upstream WAN Interface') },
+			{ key: 'allowed_external_ports', label: _('Allowed External Ports') }
+		];
+
+		for (var i = 0; i < requiredFields.length; i++) {
+			if (!self.wizardData[requiredFields[i].key]) {
+				ui.addNotification(null, E('p', _('%s is required.').format(requiredFields[i].label)), 'warning');
+				return false;
+			}
+		}
+
+		if (!self.validateIp(self.wizardData.bind_ip)) {
+			ui.addNotification(null, E('p', _('Invalid Bind IP address format.')), 'warning');
+			return false;
+		}
+		if (!self.validateIp(self.wizardData.downstream_lan_gateway)) {
+			ui.addNotification(null, E('p', _('Invalid gateway IP address format.')), 'warning');
+			return false;
+		}
+		if (!self.validateSubnet(self.wizardData.downstream_lan_subnet)) {
+			ui.addNotification(null, E('p', _('Invalid subnet format.')), 'warning');
+			return false;
+		}
+		if (!self.validateIp(self.wizardData.downstream_wan_ip)) {
+			ui.addNotification(null, E('p', _('Invalid WAN IP address format.')), 'warning');
+			return false;
+		}
+		if (!self.validatePortRange(self.wizardData.allowed_external_ports)) {
+			ui.addNotification(null, E('p', _('Invalid port range format.')), 'warning');
+			return false;
+		}
+
+		return true;
 	},
 
 	collectStepData: function() {
@@ -505,13 +745,23 @@ return view.extend({
 	},
 
 	validateIp: function(value) {
-		if (!value) return true;
+		if (!value) return false;
 		return /^(\d{1,3}\.){3}\d{1,3}$/.test(value) &&
 			value.split('.').every(function(octet) { return parseInt(octet, 10) <= 255; });
 	},
 
+	validateSubnet: function(value) {
+		if (!value) return false;
+		var parts = value.split('/');
+		if (parts.length !== 2) return false;
+		if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(parts[0])) return false;
+		if (!parts[0].split('.').every(function(octet) { return parseInt(octet, 10) <= 255; })) return false;
+		var mask = parseInt(parts[1], 10);
+		return mask >= 0 && mask <= 32;
+	},
+
 	validatePortRange: function(value) {
-		if (!value) return true;
+		if (!value) return false;
 		return /^\d+-\d+$/.test(value) && parseInt(value.split('-')[0], 10) <= parseInt(value.split('-')[1], 10);
 	},
 

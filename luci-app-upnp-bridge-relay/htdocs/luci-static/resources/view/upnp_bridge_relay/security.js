@@ -22,6 +22,7 @@ return view.extend({
 			_('Port range allowed for synchronization (e.g. 40000-65535).'));
 		o.datatype = 'string';
 		o.placeholder = '40000-65535';
+		o.rmempty = false;
 
 		o = s.option(form.MultiValue, 'protocols', _('Allowed Protocols'),
 			_('Select which protocols to allow for synchronization.'));
@@ -96,7 +97,7 @@ return view.extend({
 		o = s.option(form.DummyValue, '_warn1', _('Low Port Warning'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			return '<div style="padding:0.5em;background:#f2dede;border:1px solid #ebccd1;border-radius:4px">' +
+			return '<div class="alert-message danger">' +
 				_('It is NOT recommended to synchronize ports 0-1023. These are privileged ports and should not be exposed via UPnP.') +
 				'</div>';
 		};
@@ -104,7 +105,7 @@ return view.extend({
 		o = s.option(form.DummyValue, '_warn2', _('Sensitive Port Warning'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			return '<div style="padding:0.5em;background:#f2dede;border:1px solid #ebccd1;border-radius:4px">' +
+			return '<div class="alert-message danger">' +
 				_('It is NOT recommended to synchronize sensitive ports such as 80, 443, 22, 53, 445, 3389. ' +
 					'These are commonly used for web servers, SSH, DNS, file sharing, and remote desktop.') +
 				'</div>';
@@ -113,7 +114,7 @@ return view.extend({
 		o = s.option(form.DummyValue, '_warn3', _('Wide Range Warning'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			return '<div style="padding:0.5em;background:#f2dede;border:1px solid #ebccd1;border-radius:4px">' +
+			return '<div class="alert-message danger">' +
 				_('It is NOT recommended to use 1-65535 as the allowed port range. ' +
 					'This would effectively create a DMZ, which defeats the purpose of this plugin.') +
 				'</div>';
