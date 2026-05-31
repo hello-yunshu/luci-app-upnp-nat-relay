@@ -28,14 +28,11 @@ return view.extend({
 		return Promise.all([
 			uci.load('upnp_bridge_relay'),
 			uci.load('network'),
-			uci.load('firewall'),
-			callCheckNetwork()
-		]).then(function(results) {
-			return results[3];
-		});
+			uci.load('firewall')
+		]);
 	},
 
-	render: function(netCheck) {
+	render: function() {
 		var m, s, o;
 
 		m = new form.Map('upnp_bridge_relay', _('UPnP Bridge Relay - Network & Firewall'));
@@ -45,46 +42,67 @@ return view.extend({
 		s.tab('status', _('Status'));
 		s.tab('config', _('Configuration'));
 
-		s.taboption('config', form.Value, 'bind_ifname', _('Read Interface'),
+		o = s.taboption('config', form.Value, 'bind_ifname', _('Read Interface'),
 			_('The interface connected to the downstream router LAN side.'));
+		o.rmempty = false;
 
-		s.taboption('config', form.Value, 'bind_ip', _('Interface IP'),
+		o = s.taboption('config', form.Value, 'bind_ip', _('Interface IP'),
 			_('IP address on the read interface.'));
+		o.rmempty = false;
+		o.datatype = 'ip4addr';
 
-		s.taboption('config', form.Value, 'downstream_lan_gateway', _('Downstream LAN Gateway'),
+		o = s.taboption('config', form.Value, 'downstream_lan_gateway', _('Downstream LAN Gateway'),
 			_('Downstream router LAN gateway IP.'));
+		o.rmempty = false;
+		o.datatype = 'ip4addr';
 
-		s.taboption('config', form.Value, 'downstream_lan_subnet', _('Downstream LAN Subnet'),
+		o = s.taboption('config', form.Value, 'downstream_lan_subnet', _('Downstream LAN Subnet'),
 			_('Downstream router LAN subnet (CIDR).'));
+		o.rmempty = false;
+		o.datatype = 'cidr4';
 
-		s.taboption('config', form.Value, 'downstream_wan_ip', _('Downstream WAN IP'),
+		o = s.taboption('config', form.Value, 'downstream_wan_ip', _('Downstream WAN IP'),
 			_('Downstream router WAN IP (DNAT target).'));
+		o.rmempty = false;
+		o.datatype = 'ip4addr';
 
-		s.taboption('config', form.Value, 'upstream_wan_if', _('Upstream WAN Interface'),
+		o = s.taboption('config', form.Value, 'upstream_wan_if', _('Upstream WAN Interface'),
 			_('The WAN interface for DNAT rules.'));
+		o.rmempty = false;
+
+		var netCheckData = null;
 
 		o = s.taboption('status', form.DummyValue, '_if_status', _('Interface Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (netCheck && netCheck.iface_exists === 1) {
+			if (netCheckData && netCheckData.iface_exists === 1) {
 				return '<span style="color:green">&#10004; ' + _('Interface exists') + '</span>';
 			}
-			return '<span style="color:red">&#10008; ' + _('Interface not found') + '</span>';
+			if (netCheckData) {
+				return '<span style="color:red">&#10008; ' + _('Interface not found') + '</span>';
+			}
+			return '<span style="color:var(--text-color-disabled,gray)">' + _('Click "Detect" to check status.') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_ip_status', _('IP Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (netCheck && netCheck.bind_ip_configured === 1) {
+			if (netCheckData && netCheckData.bind_ip_configured === 1) {
 				return '<span style="color:green">&#10004; ' + _('IP configured') + '</span>';
 			}
-			return '<span style="color:red">&#10008; ' + _('IP not configured') + '</span>';
+			if (netCheckData) {
+				return '<span style="color:red">&#10008; ' + _('IP not configured') + '</span>';
+			}
+			return '<span style="color:var(--text-color-disabled,gray)">' + _('Click "Detect" to check status.') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_default_route', _('Default Route Risk'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (netCheck && netCheck.default_route_on_bind === 1) {
+			if (!netCheckData) {
+				return '<span style="color:var(--text-color-disabled,gray)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.default_route_on_bind === 1) {
 				return '<span style="color:red;font-weight:bold">&#9888; ' + _('Default route points to read interface!') + '</span>' +
 					'<p style="color:orange">' + _('The read interface should NOT be a default gateway.') + '</p>';
 			}
@@ -115,7 +133,10 @@ return view.extend({
 		o = s.taboption('status', form.DummyValue, '_forwarding', _('Extra Forwarding'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (netCheck && netCheck.bad_forwarding === 1) {
+			if (!netCheckData) {
+				return '<span style="color:var(--text-color-disabled,gray)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.bad_forwarding === 1) {
 				return '<span style="color:orange">&#9888; ' + _('Unnecessary forwarding detected') + '</span>';
 			}
 			return '<span style="color:green">&#10004; ' + _('No extra forwarding') + '</span>';
@@ -124,7 +145,7 @@ return view.extend({
 		o = s.taboption('status', form.DummyValue, '_hint', _('Hint'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			return '<div style="padding:0.5em;background:#fff3cd;border:1px solid #ffc107;border-radius:4px">' +
+			return '<div class="alert-message warning">' +
 				_('The read interface is only for reading UPnP mappings from the downstream router. ' +
 					'It should NOT have a default gateway, DNS, or be bridged with the main LAN.') +
 				'</div>';
@@ -137,11 +158,21 @@ return view.extend({
 		o.inputtitle = _('Detect');
 		o.inputstyle = 'apply';
 		o.onclick = function() {
+			var btn = this;
+			if (btn.node) {
+				btn.node.disabled = true;
+				btn.node.textContent = _('Detecting...');
+			}
 			return callCheckNetwork().then(function(result) {
-				ui.addNotification(null, E('p', _('Network detection completed.')), 'info');
-				window.location.reload();
+				netCheckData = result;
+				ui.addNotification(null, E('p', _('Network detection completed. Click the Status tab to view results.')), 'info');
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Detection failed: ') + e.message), 'error');
+			}).finally(function() {
+				if (btn.node) {
+					btn.node.disabled = false;
+					btn.node.textContent = _('Detect');
+				}
 			});
 		};
 
@@ -149,11 +180,20 @@ return view.extend({
 		o.inputtitle = _('Auto Configure');
 		o.inputstyle = 'apply';
 		o.onclick = function() {
+			var btn = this;
+			if (btn.node) {
+				btn.node.disabled = true;
+				btn.node.textContent = _('Configuring...');
+			}
 			return callSetupInterface().then(function(result) {
-				ui.addNotification(null, E('p', _('Interface configured. Check the status tab for details.')), 'info');
-				window.location.reload();
+				ui.addNotification(null, E('p', _('Interface configured. Click the Status tab to view details.')), 'info');
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Interface configuration failed: ') + e.message), 'error');
+			}).finally(function() {
+				if (btn.node) {
+					btn.node.disabled = false;
+					btn.node.textContent = _('Auto Configure');
+				}
 			});
 		};
 
@@ -240,7 +280,7 @@ return view.extend({
 		o = s.taboption('zone_status', form.DummyValue, '_zone_recommendation', _('Recommendation'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			return '<div style="padding:0.5em;background:#d9edf7;border:1px solid #bce8f1;border-radius:4px">' +
+			return '<div class="alert-message info">' +
 				'<b>' + _('Recommended zone settings:') + '</b><br>' +
 				'input: ACCEPT, output: ACCEPT, forward: REJECT, masq: 0<br>' +
 				_('This allows the router to access the downstream LAN for UPnP reading while preventing unwanted forwarding.') +
@@ -257,11 +297,20 @@ return view.extend({
 		o.inputtitle = _('Fix Zone Settings');
 		o.inputstyle = 'apply';
 		o.onclick = function() {
+			var btn = this;
+			if (btn.node) {
+				btn.node.disabled = true;
+				btn.node.textContent = _('Applying...');
+			}
 			return callFixZone().then(function(result) {
 				ui.addNotification(null, E('p', _('Zone settings fixed.')), 'info');
-				window.location.reload();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Zone fix failed: ') + e.message), 'error');
+			}).finally(function() {
+				if (btn.node) {
+					btn.node.disabled = false;
+					btn.node.textContent = _('Fix Zone Settings');
+				}
 			});
 		};
 
@@ -279,11 +328,20 @@ return view.extend({
 				}
 			}
 
+			var btn = this;
+			if (btn.node) {
+				btn.node.disabled = true;
+				btn.node.textContent = _('Creating...');
+			}
 			return callFixZone().then(function(result) {
 				ui.addNotification(null, E('p', _('Zone created successfully.')), 'info');
-				window.location.reload();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Zone creation failed: ') + e.message), 'error');
+			}).finally(function() {
+				if (btn.node) {
+					btn.node.disabled = false;
+					btn.node.textContent = _('Create Zone');
+				}
 			});
 		};
 
