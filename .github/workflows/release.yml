@@ -222,15 +222,9 @@ jobs:
 
             ## Installation
             ```bash
-            # OpenWrt 23.05 (opkg)
             opkg install upnp-bridge-relay_*.ipk
             opkg install luci-app-upnp-bridge-relay_*.ipk
             opkg install luci-i18n-upnp-bridge-relay-zh_Hans_*.ipk
-
-            # OpenWrt 24.x+ (apk)
-            apk add --allow-untrusted upnp-bridge-relay_*.ipk
-            apk add --allow-untrusted luci-app-upnp-bridge-relay_*.ipk
-            apk add --allow-untrusted luci-i18n-upnp-bridge-relay-zh_Hans_*.ipk
             ```
 
             ## Upgrade
