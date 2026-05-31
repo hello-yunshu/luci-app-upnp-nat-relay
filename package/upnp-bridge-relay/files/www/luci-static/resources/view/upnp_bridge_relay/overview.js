@@ -38,46 +38,46 @@ var css = `
 		display: flex; align-items: center; gap: 1.2em;
 		padding: 1.5em; margin-bottom: 1.5em;
 		border-radius: 8px;
-		background: var(--background-color-a, #f5f5f5);
-		border: 1px solid var(--border-color, #ddd);
+		background: var(--background-color-a);
+		border: 1px solid var(--border-color);
 	}
-	.ubr-status-banner.running { border-left: 5px solid #5cb85c; }
-	.ubr-status-banner.stopped { border-left: 5px solid #d9534f; }
+	.ubr-status-banner.running { border-left: 5px solid var(--success-color, #5cb85c); }
+	.ubr-status-banner.stopped { border-left: 5px solid var(--danger-color, #d9534f); }
 	.ubr-status-icon { font-size: 2.5em; line-height: 1; }
-	.ubr-status-icon.running { color: #5cb85c; }
-	.ubr-status-icon.stopped { color: #d9534f; }
+	.ubr-status-icon.running { color: var(--success-color, #5cb85c); }
+	.ubr-status-icon.stopped { color: var(--danger-color, #d9534f); }
 	.ubr-status-text h3 { margin: 0 0 0.2em 0; font-size: 1.3em; }
-	.ubr-status-text p { margin: 0; color: var(--text-color-disabled, gray); font-size: 0.9em; }
+	.ubr-status-text p { margin: 0; color: var(--subtext-color); font-size: 0.9em; }
 	.ubr-stats-grid {
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 		gap: 1em; margin-bottom: 1.5em;
 	}
 	.ubr-stat-card {
 		padding: 1em 1.2em; border-radius: 8px;
-		background: var(--background-color-a, #f5f5f5);
-		border: 1px solid var(--border-color, #ddd);
+		background: var(--background-color-a);
+		border: 1px solid var(--border-color);
 		text-align: center;
 	}
 	.ubr-stat-card .ubr-stat-value {
 		font-size: 1.8em; font-weight: bold; line-height: 1.2;
-		color: var(--main-color, #337ab7);
+		color: var(--main-color);
 	}
-	.ubr-stat-card .ubr-stat-value.green { color: #5cb85c; }
-	.ubr-stat-card .ubr-stat-value.red { color: #d9534f; }
-	.ubr-stat-card .ubr-stat-value.orange { color: #f0ad4e; }
+	.ubr-stat-card .ubr-stat-value.green { color: var(--success-color, #5cb85c); }
+	.ubr-stat-card .ubr-stat-value.red { color: var(--danger-color, #d9534f); }
+	.ubr-stat-card .ubr-stat-value.orange { color: var(--warning-color, #f0ad4e); }
 	.ubr-stat-card .ubr-stat-label {
-		font-size: 0.85em; color: var(--text-color-disabled, gray);
+		font-size: 0.85em; color: var(--subtext-color);
 		margin-top: 0.3em;
 	}
 	.ubr-section {
 		margin-bottom: 1.5em; padding: 1.2em;
 		border-radius: 8px;
-		background: var(--background-color-a, #f5f5f5);
-		border: 1px solid var(--border-color, #ddd);
+		background: var(--background-color-a);
+		border: 1px solid var(--border-color);
 	}
 	.ubr-section h4 {
 		margin: 0 0 0.8em 0; padding-bottom: 0.5em;
-		border-bottom: 1px solid var(--border-color, #ddd);
+		border-bottom: 1px solid var(--border-color);
 		font-size: 1.05em;
 	}
 	.ubr-info-grid {
@@ -88,16 +88,16 @@ var css = `
 		display: flex; justify-content: space-between; align-items: center;
 		padding: 0.4em 0;
 	}
-	.ubr-info-label { color: var(--text-color-disabled, gray); font-size: 0.9em; }
+	.ubr-info-label { color: var(--subtext-color); font-size: 0.9em; }
 	.ubr-info-value { font-weight: 500; }
 	.ubr-badge {
 		display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
 		font-size: 0.85em; font-weight: 500;
 	}
-	.ubr-badge.green { background: rgba(92,184,92,0.15); color: #5cb85c; }
-	.ubr-badge.red { background: rgba(217,83,79,0.15); color: #d9534f; }
-	.ubr-badge.orange { background: rgba(240,173,78,0.15); color: #f0ad4e; }
-	.ubr-badge.gray { background: rgba(128,128,128,0.15); color: gray; }
+	.ubr-badge.green { background: color-mix(in srgb, var(--success-color, #5cb85c) 15%, transparent); color: var(--success-color, #5cb85c); }
+	.ubr-badge.red { background: color-mix(in srgb, var(--danger-color, #d9534f) 15%, transparent); color: var(--danger-color, #d9534f); }
+	.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color, #f0ad4e) 15%, transparent); color: var(--warning-color, #f0ad4e); }
+	.ubr-badge.gray { background: color-mix(in srgb, var(--subtext-color, gray) 15%, transparent); color: var(--subtext-color); }
 	.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
 `;
 
@@ -186,7 +186,7 @@ return view.extend({
 				'href': 'https://github.com/hello-yunshu/upnp-bridge-relay',
 				'target': '_blank',
 				'rel': 'noopener',
-				'style': 'color:var(--main-color,#337ab7);text-decoration:none'
+				'style': 'color:var(--main-color);text-decoration:none'
 			}, 'hello-yunshu/upnp-bridge-relay')
 		]));
 
@@ -335,9 +335,9 @@ return view.extend({
 		controlSection.appendChild(btnGroup);
 		container.appendChild(controlSection);
 
-		var footer = E('div', { 'style': 'margin-top:2em;padding:0.8em 0;text-align:center;color:var(--text-color-disabled,gray);font-size:0.85em;border-top:1px solid var(--border-color,#ddd)' });
+		var footer = E('div', { 'style': 'margin-top:2em;padding:0.8em 0;text-align:center;color:var(--subtext-color);font-size:0.85em;border-top:1px solid var(--border-color)' });
 		footer.innerHTML = 'UPnP Bridge Relay v' + version +
-			' &middot; <a href="https://github.com/hello-yunshu/upnp-bridge-relay" target="_blank" rel="noopener" style="color:var(--main-color,#337ab7);text-decoration:none">GitHub</a>';
+			' &middot; <a href="https://github.com/hello-yunshu/upnp-bridge-relay" target="_blank" rel="noopener" style="color:var(--main-color);text-decoration:none">GitHub</a>';
 		container.appendChild(footer);
 
 		return container;

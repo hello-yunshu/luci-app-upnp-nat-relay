@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=upnp-bridge-relay
 PKG_VERSION:=1.1.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_MAINTAINER:=yunshu
 PKG_LICENSE:=GPL-3.0
@@ -15,6 +15,8 @@ define Package/upnp-bridge-relay
 	TITLE:=UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT
 	DEPENDS:=+miniupnpc +nftables +uci +ubus +rpcd +luci-base
 	PKGARCH:=all
+	REPLACES:=luci-app-upnp-bridge-relay
+	PROVIDES:=luci-app-upnp-bridge-relay
 endef
 
 define Package/upnp-bridge-relay/description
@@ -52,8 +54,8 @@ define Package/upnp-bridge-relay/install
 	$(INSTALL_BIN) ./files/usr/libexec/rpcd/upnp_bridge_relay $(1)/usr/libexec/rpcd/
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/upnp_bridge_relay
 	$(INSTALL_DATA) ./files/www/luci-static/resources/view/upnp_bridge_relay/*.js $(1)/www/luci-static/resources/view/upnp_bridge_relay/
-	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d/luci-app-upnp-bridge-relay
-	$(INSTALL_DATA) ./files/usr/share/luci/menu.d/luci-app-upnp-bridge-relay.json $(1)/usr/share/luci/menu.d/luci-app-upnp-bridge-relay/
+	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
+	$(INSTALL_DATA) ./files/usr/share/luci/menu.d/luci-app-upnp-bridge-relay.json $(1)/usr/share/luci/menu.d/
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) ./files/usr/share/rpcd/acl.d/luci-app-upnp-bridge-relay.json $(1)/usr/share/rpcd/acl.d/
 	$(if $(wildcard $(PKG_BUILD_DIR)/lmo/*.lmo),\

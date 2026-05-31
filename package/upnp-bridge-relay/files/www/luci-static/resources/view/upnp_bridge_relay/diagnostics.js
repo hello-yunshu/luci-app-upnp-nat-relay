@@ -47,12 +47,12 @@ var css = `
 	.ubr-section {
 		margin-bottom: 1.5em; padding: 1.2em;
 		border-radius: 8px;
-		background: var(--background-color-a, #f5f5f5);
-		border: 1px solid var(--border-color, #ddd);
+		background: var(--background-color-a);
+		border: 1px solid var(--border-color);
 	}
 	.ubr-section h4 {
 		margin: 0 0 0.8em 0; padding-bottom: 0.5em;
-		border-bottom: 1px solid var(--border-color, #ddd);
+		border-bottom: 1px solid var(--border-color);
 		font-size: 1.05em;
 	}
 	.ubr-env-grid {
@@ -61,55 +61,55 @@ var css = `
 	}
 	.ubr-env-card {
 		padding: 0.8em 1em; border-radius: 6px;
-		background: var(--background-color-b, #fff);
-		border: 1px solid var(--border-color, #ddd);
+		background: var(--background-color-a);
+		border: 1px solid var(--border-color);
 		display: flex; justify-content: space-between; align-items: center;
 	}
-	.ubr-env-label { font-size: 0.9em; color: var(--text-color-disabled, gray); }
+	.ubr-env-label { font-size: 0.9em; color: var(--subtext-color); }
 	.ubr-badge {
 		display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
 		font-size: 0.85em; font-weight: 500;
 	}
-	.ubr-badge.green { background: rgba(92,184,92,0.15); color: #5cb85c; }
-	.ubr-badge.red { background: rgba(217,83,79,0.15); color: #d9534f; }
-	.ubr-badge.orange { background: rgba(240,173,78,0.15); color: #f0ad4e; }
-	.ubr-badge.gray { background: rgba(128,128,128,0.15); color: gray; }
+	.ubr-badge.green { background: color-mix(in srgb, var(--success-color, #5cb85c) 15%, transparent); color: var(--success-color, #5cb85c); }
+	.ubr-badge.red { background: color-mix(in srgb, var(--danger-color, #d9534f) 15%, transparent); color: var(--danger-color, #d9534f); }
+	.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color, #f0ad4e) 15%, transparent); color: var(--warning-color, #f0ad4e); }
+	.ubr-badge.gray { background: color-mix(in srgb, var(--subtext-color, gray) 15%, transparent); color: var(--subtext-color, gray); }
 	.ubr-check-grid {
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 		gap: 0.8em;
 	}
 	.ubr-check-card {
 		padding: 0.8em 1em; border-radius: 6px;
-		background: var(--background-color-b, #fff);
-		border: 1px solid var(--border-color, #ddd);
+		background: var(--background-color-a);
+		border: 1px solid var(--border-color);
 		display: flex; justify-content: space-between; align-items: center;
 	}
 	.ubr-check-label { font-size: 0.9em; }
 	.ubr-log-area {
 		max-height: 300px; overflow-y: auto; padding: 1em;
-		background: var(--background-color-b, #fff);
-		color: var(--text-color, #333);
+		background: var(--background-color-a);
+		color: var(--main-text-color);
 		font-size: 0.85em; border-radius: 6px;
-		border: 1px solid var(--border-color, #ddd);
+		border: 1px solid var(--border-color);
 		font-family: monospace;
 	}
 	.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
 	.ubr-danger-zone {
 		margin-bottom: 1.5em; padding: 1.2em;
 		border-radius: 8px;
-		background: var(--background-color-a, #f5f5f5);
-		border: 1px solid var(--border-color, #ddd);
-		border-left: 5px solid #d9534f;
+		background: var(--background-color-a);
+		border: 1px solid var(--border-color);
+		border-left: 5px solid var(--danger-color, #d9534f);
 	}
 	.ubr-danger-zone h4 {
 		margin: 0 0 0.8em 0; padding-bottom: 0.5em;
-		border-bottom: 1px solid var(--border-color, #ddd);
-		font-size: 1.05em; color: #d9534f;
+		border-bottom: 1px solid var(--border-color);
+		font-size: 1.05em; color: var(--danger-color, #d9534f);
 	}
 	.ubr-cmd-box {
 		padding: 0.8em 1em; border-radius: 6px;
-		background: var(--background-color-b, #fff);
-		border: 1px solid var(--border-color, #ddd);
+		background: var(--background-color-a);
+		border: 1px solid var(--border-color);
 		font-family: monospace; font-size: 0.9em;
 	}
 `;
@@ -189,7 +189,7 @@ return view.extend({
 		netGrid.appendChild(E('div', {
 			'class': 'ubr-check-card',
 			'style': 'grid-column: 1 / -1'
-		}, E('span', { 'style': 'color:var(--text-color-disabled,gray)' }, _('Click "Run Network Check" to detect network status.'))));
+		}, E('span', { 'style': 'color:var(--subtext-color)' }, _('Click "Run Network Check" to detect network status.'))));
 		netSection.appendChild(netGrid);
 
 		var netBtnBar = E('div', { 'class': 'ubr-btn-group', 'style': 'margin-top:1em' });
@@ -313,11 +313,11 @@ return view.extend({
 				'apk add --allow-untrusted ' + missingDeps.join(' ') :
 				'opkg install ' + missingDeps.join(' ');
 
-			depSection.appendChild(E('p', { 'style': 'color:#d9534f;margin-bottom:0.5em' },
+			depSection.appendChild(E('p', { 'style': 'color:var(--danger-color, #d9534f);margin-bottom:0.5em' },
 				'\u2718 ' + _('Missing dependencies: ') + missingDeps.join(', ')));
 			depSection.appendChild(E('div', { 'class': 'ubr-cmd-box' }, installCmd));
 		} else {
-			depSection.appendChild(E('p', { 'style': 'color:#5cb85c' },
+			depSection.appendChild(E('p', { 'style': 'color:var(--success-color, #5cb85c)' },
 				'\u2714 ' + _('All dependencies are installed.')));
 		}
 		container.appendChild(depSection);

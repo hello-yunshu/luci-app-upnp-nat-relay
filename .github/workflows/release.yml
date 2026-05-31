@@ -108,6 +108,11 @@ jobs:
           echo "CONFIG_PACKAGE_$REPO_NAME=y" >> .config
           make defconfig
 
+      - name: Install python3 for lmo compilation
+        working-directory: ${{ env.SDKDIR }}
+        run: |
+          command -v python3 >/dev/null 2>&1 || (apt-get update && apt-get install -y python3)
+
       - name: Build package
         working-directory: ${{ env.SDKDIR }}
         run: |
