@@ -214,19 +214,26 @@ jobs:
 
             ## Installation
             ```bash
+            # OpenWrt 23.05 (opkg)
             opkg install upnp-bridge-relay_*.ipk
             opkg install luci-app-upnp-bridge-relay_*.ipk
             opkg install luci-i18n-upnp-bridge-relay-zh_Hans_*.ipk
+
+            # OpenWrt 24.x+ (apk)
+            apk add --allow-untrusted upnp-bridge-relay_*.ipk
+            apk add --allow-untrusted luci-app-upnp-bridge-relay_*.ipk
+            apk add --allow-untrusted luci-i18n-upnp-bridge-relay-zh_Hans_*.ipk
             ```
 
             ## Upgrade
             ```bash
-            # Download new ipk files from Release, then:
-            opkg install upnp-bridge-relay_*.ipk
-            opkg install luci-app-upnp-bridge-relay_*.ipk
-            opkg install luci-i18n-upnp-bridge-relay-zh_Hans_*.ipk
-            # Clear browser cache (Ctrl+Shift+R) or clear LuCI cache:
+            # Download new ipk files from Release, then install the same way as above.
+            # opkg/apk will automatically detect and upgrade the existing version.
+            # Your UCI config (/etc/config/upnp_bridge_relay) is preserved.
+
+            # Clear LuCI cache after upgrade:
             rm -rf /tmp/luci-*
+            # Then force-refresh browser: Ctrl+Shift+R
             ```
 
             ## Requirements
