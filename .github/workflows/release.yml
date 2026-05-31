@@ -86,20 +86,13 @@ jobs:
         run: |
           cp -r $GITHUB_WORKSPACE/$REPO_NAME/package/$REPO_NAME ./package/
 
-      - name: Cache feeds
-        id: cache-feeds
-        uses: actions/cache@v4
+      - name: Cache SDK build
+        uses: HiGarfield/cachewrtbuild@main
         with:
-          path: |
-            ${{ env.SDKDIR }}/feeds
-            ${{ env.SDKDIR }}/tmp
-            ${{ env.SDKDIR }}/staging_dir
-          key: feeds-${{ matrix.branch }}-${{ hashFiles('feeds.conf.default') }}
-          restore-keys: |
-            feeds-${{ matrix.branch }}-
+          mixkey: ${{ matrix.branch }}
+          prefix: ${{ env.SDKDIR }}
 
       - name: Update feeds
-        if: steps.cache-feeds.outputs.cache-hit != 'true'
         working-directory: ${{ env.SDKDIR }}
         run: |
           mv feeds.conf.default feeds.conf
@@ -108,17 +101,6 @@ jobs:
           sed -i -e 's|luci.*\.git|luci https://github.com/openwrt/luci.git|' feeds.conf
           ./scripts/feeds update base packages luci
           ./scripts/feeds install -a
-
-      - name: Restore feeds config
-        if: steps.cache-feeds.outputs.cache-hit == 'true'
-        working-directory: ${{ env.SDKDIR }}
-        run: |
-          if [ ! -f feeds.conf ]; then
-            mv feeds.conf.default feeds.conf
-            sed -i -e 's|base.*\.git|base https://github.com/openwrt/openwrt.git|' feeds.conf
-            sed -i -e 's|packages.*\.git|packages https://github.com/openwrt/packages.git|' feeds.conf
-            sed -i -e 's|luci.*\.git|luci https://github.com/openwrt/luci.git|' feeds.conf
-          fi
 
       - name: Configure
         working-directory: ${{ env.SDKDIR }}
