@@ -36,7 +36,7 @@ make package/luci-app-upnp-bridge-relay/compile V=s
 
 **方式二：从 [Releases](https://github.com/yunshu/upnp-bridge-relay/releases) 下载预编译包**
 
-每次推送到 main 分支，CI 会自动构建 `.ipk` 包（apk 兼容安装）。
+每次推送到 main 分支，CI 会自动构建 `.ipk`（opkg）和 `.apk`（apk）两种格式的包。
 
 ### 安装
 
@@ -46,8 +46,8 @@ opkg install upnp-bridge-relay_*.ipk
 opkg install luci-app-upnp-bridge-relay_*.ipk
 
 # OpenWrt 25.12+ (apk)
-apk add --allow-untrusted ./upnp-bridge-relay_*.ipk
-apk add --allow-untrusted ./luci-app-upnp-bridge-relay_*.ipk
+apk add --allow-untrusted ./upnp-bridge-relay_*.apk
+apk add --allow-untrusted ./luci-app-upnp-bridge-relay_*.apk
 ```
 
 ### 使用

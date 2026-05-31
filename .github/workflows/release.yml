@@ -55,7 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Build ipk packages
+      - name: Build packages
         run: |
           set -euo pipefail
 
@@ -65,7 +65,7 @@ jobs:
           PKG_VERSION="${{ needs.check-version.outputs.version }}"
           PKG_RELEASE="${{ needs.check-version.outputs.release }}"
 
-          WORKDIR="/tmp/build-ipk"
+          WORKDIR="/tmp/build-pkg"
           rm -rf "${WORKDIR}"
           mkdir -p "${WORKDIR}"
 
@@ -74,7 +74,7 @@ jobs:
             local pkg_maintainer="$5" pkg_desc="$6" pkg_depends="$7"
             local src_dir="$8" conffiles="$9" postinst="${10:-}" prerm="${11:-}"
 
-            local pkg_dir="${WORKDIR}/${pkg_name}"
+            local pkg_dir="${WORKDIR}/ipk/${pkg_name}"
             local full_version="${pkg_version}-${pkg_release}"
             local ipk_filename="${pkg_name}_${full_version}_${pkg_arch}.ipk"
 
@@ -119,12 +119,72 @@ jobs:
             echo "Built: ${ipk_filename}"
           )
 
-          POSTINST_UPNP='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
+          build_apk() (
+            local pkg_name="$1" pkg_version="$2" pkg_release="$3" pkg_arch="$4"
+            local pkg_maintainer="$5" pkg_desc="$6" pkg_depends="$7"
+            local src_dir="$8" postinst="${9:-}" prerm="${10:-}"
+
+            local pkg_dir="${WORKDIR}/apk/${pkg_name}"
+            local full_version="${pkg_version}-r${pkg_release}"
+            local apk_filename="${pkg_name}_${full_version}_${pkg_arch}.apk"
+
+            echo "Building ${apk_filename}..."
+
+            mkdir -p "${pkg_dir}/data" "${pkg_dir}/control"
+            cp -a "${src_dir}"/* "${pkg_dir}/data/" 2>/dev/null || true
+
+            cd "${pkg_dir}/data"
+            tar czf "${pkg_dir}/data.tar.gz" .
+            local datahash=$(sha256sum "${pkg_dir}/data.tar.gz" | cut -d' ' -f1)
+            local data_size=$(du -sb . | cut -f1)
+
+            cat > "${pkg_dir}/control/.PKGINFO" << EOF
+          pkgname = ${pkg_name}
+          pkgver = ${full_version}
+          pkgdesc = ${pkg_desc}
+          url = ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}
+          builddate = $(date +%s)
+          packager = ${pkg_maintainer}
+          size = ${data_size}
+          arch = ${pkg_arch}
+          origin = ${pkg_name}
+          license = GPL-3.0-only
+          datahash = ${datahash}
+          EOF
+
+            for dep in ${pkg_depends//,/ }; do
+              dep=$(echo "$dep" | xargs)
+              [ -n "$dep" ] && echo "depend = ${dep}" >> "${pkg_dir}/control/.PKGINFO"
+            done
+
+            if [ -n "${postinst}" ]; then
+              printf '#!/bin/sh\n%s\nexit 0\n' "${postinst}" > "${pkg_dir}/control/.post-install"
+              chmod 0755 "${pkg_dir}/control/.post-install"
+            fi
+
+            if [ -n "${prerm}" ]; then
+              printf '#!/bin/sh\n%s\nexit 0\n' "${prerm}" > "${pkg_dir}/control/.pre-deinstall"
+              chmod 0755 "${pkg_dir}/control/.pre-deinstall"
+            fi
+
+            cd "${pkg_dir}/control"
+            tar czf "${pkg_dir}/control.tar.gz" .
+
+            cat "${pkg_dir}/control.tar.gz" "${pkg_dir}/data.tar.gz" > "${WORKDIR}/${apk_filename}"
+            echo "Built: ${apk_filename}"
+          )
+
+          POSTINST_UPNP_IPK='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
           [ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null'
 
-          PRERM_UPNP='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
+          PRERM_UPNP_IPK='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
           /etc/init.d/upnp_bridge_relay stop 2>/dev/null
           /etc/init.d/upnp_bridge_relay disable 2>/dev/null'
+
+          POSTINST_UPNP_APK='[ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null || true'
+
+          PRERM_UPNP_APK='/etc/init.d/upnp_bridge_relay stop 2>/dev/null || true
+          /etc/init.d/upnp_bridge_relay disable 2>/dev/null || true'
 
           build_ipk \
             "upnp-bridge-relay" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
@@ -133,7 +193,15 @@ jobs:
             "libc, miniupnpc, nftables, uci, ubus, rpcd" \
             "package/upnp-bridge-relay/files" \
             "/etc/config/upnp_bridge_relay" \
-            "${POSTINST_UPNP}" "${PRERM_UPNP}"
+            "${POSTINST_UPNP_IPK}" "${PRERM_UPNP_IPK}"
+
+          build_apk \
+            "upnp-bridge-relay" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
+            "yunshu" \
+            "UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT" \
+            "libc, miniupnpc, nftables, uci, ubus, rpcd" \
+            "package/upnp-bridge-relay/files" \
+            "${POSTINST_UPNP_APK}" "${PRERM_UPNP_APK}"
 
           LUCI_DIR="${WORKDIR}/luci-app-data"
           mkdir -p "${LUCI_DIR}"
@@ -146,6 +214,13 @@ jobs:
             "LuCI support for UPnP Bridge Relay" \
             "libc, upnp-bridge-relay, luci-base" \
             "${LUCI_DIR}" "" "" ""
+
+          build_apk \
+            "luci-app-upnp-bridge-relay" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
+            "yunshu" \
+            "LuCI support for UPnP Bridge Relay" \
+            "libc, upnp-bridge-relay, luci-base" \
+            "${LUCI_DIR}" "" ""
 
           for lang_dir in luci-app-upnp-bridge-relay/po/*/; do
             [ -d "${lang_dir}" ] || continue
@@ -167,36 +242,45 @@ jobs:
               "Translation (${lang}) for luci-app-upnp-bridge-relay" \
               "libc, luci-app-upnp-bridge-relay, luci-i18n-base-${lang}" \
               "${I18N_DATA}" "" "" ""
+
+            build_apk \
+              "luci-i18n-upnp-bridge-relay-${lang}" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
+              "yunshu" \
+              "Translation (${lang}) for luci-app-upnp-bridge-relay" \
+              "libc, luci-app-upnp-bridge-relay, luci-i18n-base-${lang}" \
+              "${I18N_DATA}" "" ""
           done
 
           mkdir -p release
-          cp "${WORKDIR}"/*.ipk release/
+          cp "${WORKDIR}"/*.ipk "${WORKDIR}"/*.apk release/
 
       - name: Verify build artifacts
         working-directory: release
         run: |
-          expected="upnp-bridge-relay luci-app-upnp-bridge-relay"
-          for pkg in $expected; do
-            if ! ls ${pkg}_*.ipk 1>/dev/null 2>&1; then
-              echo "ERROR: Expected package ${pkg}_*.ipk not found"
-              exit 1
+          for fmt in ipk apk; do
+            expected="upnp-bridge-relay luci-app-upnp-bridge-relay"
+            for pkg in $expected; do
+              if ! ls ${pkg}_*.${fmt} 1>/dev/null 2>&1; then
+                echo "ERROR: Expected package ${pkg}_*.${fmt} not found"
+                exit 1
+              fi
+            done
+
+            i18n_count=$(ls luci-i18n-upnp-bridge-relay-*.${fmt} 2>/dev/null | wc -l)
+            if [ "${i18n_count}" -eq 0 ]; then
+              echo "WARNING: No i18n ${fmt} packages found"
+            else
+              echo "Found ${i18n_count} i18n ${fmt} package(s)"
             fi
           done
 
-          i18n_count=$(ls luci-i18n-upnp-bridge-relay-*.ipk 2>/dev/null | wc -l)
-          if [ "${i18n_count}" -eq 0 ]; then
-            echo "WARNING: No i18n packages found"
-          else
-            echo "Found ${i18n_count} i18n package(s)"
-          fi
-
           echo "All expected packages found:"
-          ls -la *.ipk
+          ls -la *.ipk *.apk
 
       - name: Generate checksums
         working-directory: release
         run: |
-          sha256sum *.ipk > sha256sums.txt
+          sha256sum *.ipk *.apk > sha256sums.txt
           cat sha256sums.txt
 
       - name: Delete existing release (manual trigger)
@@ -220,16 +304,25 @@ jobs:
             - `luci-app-upnp-bridge-relay` - LuCI web interface
             - `luci-i18n-upnp-bridge-relay-*` - Language packs
 
-            ## Installation
+            Both `.ipk` (opkg) and `.apk` (apk) formats are provided.
+
+            ## Installation (opkg - OpenWrt 23.05 / 24.10)
             ```bash
             opkg install upnp-bridge-relay_*.ipk
             opkg install luci-app-upnp-bridge-relay_*.ipk
             opkg install luci-i18n-upnp-bridge-relay-zh_Hans_*.ipk
             ```
 
+            ## Installation (apk - OpenWrt 25.12+)
+            ```bash
+            apk add --allow-untrusted ./upnp-bridge-relay_*.apk
+            apk add --allow-untrusted ./luci-app-upnp-bridge-relay_*.apk
+            apk add --allow-untrusted ./luci-i18n-upnp-bridge-relay-zh_Hans_*.apk
+            ```
+
             ## Upgrade
             ```bash
-            # Download new ipk files from Release, then install the same way as above.
+            # Download new package files from Release, then install the same way as above.
             # opkg/apk will automatically detect and upgrade the existing version.
             # Your UCI config (/etc/config/upnp_bridge_relay) is preserved.
 
@@ -245,6 +338,9 @@ jobs:
             release/upnp-bridge-relay_*.ipk
             release/luci-app-upnp-bridge-relay_*.ipk
             release/luci-i18n-upnp-bridge-relay-*.ipk
+            release/upnp-bridge-relay_*.apk
+            release/luci-app-upnp-bridge-relay_*.apk
+            release/luci-i18n-upnp-bridge-relay-*.apk
 
       - name: Upload checksums
         uses: softprops/action-gh-release@v3
