@@ -28,6 +28,16 @@ define Package/upnp-bridge-relay/conffiles
 endef
 
 define Build/Compile
+	$(if $(wildcard ./files/po/po2lmo.py),\
+		@mkdir -p $(PKG_BUILD_DIR)/lmo;\
+		for po_dir in ./files/po/*/; do \
+			[ -d "$$$$po_dir" ] || continue; \
+			lang=$$$$(basename "$$$$po_dir"); \
+			[ "$$$$lang" = "templates" ] && continue; \
+			[ -f "$$$$po_dir/upnp-bridge-relay.po" ] || continue; \
+			python3 ./files/po/po2lmo.py "$$$$po_dir/upnp-bridge-relay.po" "$(PKG_BUILD_DIR)/lmo/upnp-bridge-relay.$$$$lang.lmo"; \
+		done \
+	)
 endef
 
 define Package/upnp-bridge-relay/install
@@ -46,6 +56,10 @@ define Package/upnp-bridge-relay/install
 	$(INSTALL_DATA) ./files/usr/share/luci/menu.d/luci-app-upnp-bridge-relay.json $(1)/usr/share/luci/menu.d/luci-app-upnp-bridge-relay/
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) ./files/usr/share/rpcd/acl.d/luci-app-upnp-bridge-relay.json $(1)/usr/share/rpcd/acl.d/
+	$(if $(wildcard $(PKG_BUILD_DIR)/lmo/*.lmo),\
+		$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n;\
+		$(INSTALL_DATA) $(PKG_BUILD_DIR)/lmo/*.lmo $(1)/usr/lib/lua/luci/i18n/;\
+	)
 endef
 
 define Package/upnp-bridge-relay/postinst

@@ -179,6 +179,18 @@ jobs:
           mkdir -p "${PKG_DATA_DIR}"
           cp -a "${PKG_SRC}"/etc "${PKG_SRC}"/usr "${PKG_SRC}"/www "${PKG_DATA_DIR}/"
 
+          mkdir -p "${PKG_DATA_DIR}/usr/lib/lua/luci/i18n"
+          for lang_dir in "${PKG_SRC}"/po/*/; do
+            [ -d "${lang_dir}" ] || continue
+            lang=$(basename "${lang_dir}")
+            [ "${lang}" = "templates" ] && continue
+            [ -f "${lang_dir}/upnp-bridge-relay.po" ] || continue
+            python3 "${PKG_SRC}/po/po2lmo.py" \
+              "${lang_dir}/upnp-bridge-relay.po" \
+              "${PKG_DATA_DIR}/usr/lib/lua/luci/i18n/upnp-bridge-relay.${lang}.lmo"
+            echo "Compiled translation: ${lang}"
+          done
+
           POSTINST_IPK='[ -n "${IPKG_NO_SCRIPT}" ] && exit 0
           [ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null
           exit 0'
@@ -210,35 +222,6 @@ jobs:
             "${PKG_DATA_DIR}" \
             "${POSTINST_APK}" "${PRERM_APK}"
 
-          for lang_dir in package/upnp-bridge-relay/files/po/*/; do
-            [ -d "${lang_dir}" ] || continue
-            lang=$(basename "${lang_dir}")
-            [ "${lang}" = "templates" ] && continue
-            [ -f "${lang_dir}/upnp-bridge-relay.po" ] || continue
-
-            echo "Building i18n package for ${lang}..."
-
-            I18N_DATA="${WORKDIR}/luci-i18n-${lang}-data"
-            mkdir -p "${I18N_DATA}/usr/lib/lua/luci/i18n"
-            python3 package/upnp-bridge-relay/files/po/po2lmo.py \
-              "${lang_dir}/upnp-bridge-relay.po" \
-              "${I18N_DATA}/usr/lib/lua/luci/i18n/upnp-bridge-relay.${lang}.lmo"
-
-            build_ipk \
-              "luci-i18n-upnp-bridge-relay-${lang}" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
-              "yunshu" \
-              "Translation (${lang}) for upnp-bridge-relay" \
-              "libc, upnp-bridge-relay, luci-i18n-base-${lang}" \
-              "${I18N_DATA}" "" "" ""
-
-            build_apk \
-              "luci-i18n-upnp-bridge-relay-${lang}" "${PKG_VERSION}" "${PKG_RELEASE}" "all" \
-              "yunshu" \
-              "Translation (${lang}) for upnp-bridge-relay" \
-              "libc, upnp-bridge-relay, luci-i18n-base-${lang}" \
-              "${I18N_DATA}" "" ""
-          done
-
           mkdir -p release
           cp "${WORKDIR}"/*.ipk "${WORKDIR}"/*.apk release/
 
@@ -251,13 +234,6 @@ jobs:
               exit 1
             fi
             echo "upnp-bridge-relay ${fmt}: OK"
-
-            i18n_count=$(ls luci-i18n-upnp-bridge-relay-*.${fmt} 2>/dev/null | wc -l)
-            if [ "${i18n_count}" -eq 0 ]; then
-              echo "WARNING: No i18n ${fmt} packages found"
-            else
-              echo "Found ${i18n_count} i18n ${fmt} package(s)"
-            fi
           done
 
           echo ""
@@ -309,27 +285,23 @@ jobs:
           body: |
             UPnP Bridge Relay v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
 
-            ## Packages
-            - `upnp-bridge-relay` - Main service + LuCI web interface (all-in-one)
-            - `luci-i18n-upnp-bridge-relay-*` - Language packs
+            All-in-one package: main service + LuCI web interface + translations.
 
             Both `.ipk` (opkg) and `.apk` (apk) formats are provided.
 
             ## Installation (opkg - OpenWrt 23.05 / 24.10)
             ```bash
             opkg install upnp-bridge-relay_*.ipk
-            opkg install luci-i18n-upnp-bridge-relay-zh_Hans_*.ipk
             ```
 
             ## Installation (apk - OpenWrt 25.12+)
             ```bash
             apk add --allow-untrusted ./upnp-bridge-relay_*.apk
-            apk add --allow-untrusted ./luci-i18n-upnp-bridge-relay-zh_Hans_*.apk
             ```
 
             ## Upgrade
             ```bash
-            # Download new package files from Release, then install the same way as above.
+            # Download new package from Release, then install the same way as above.
             # opkg/apk will automatically detect and upgrade the existing version.
             # Your UCI config (/etc/config/upnp_bridge_relay) is preserved.
 
@@ -344,8 +316,6 @@ jobs:
           files: |
             release/upnp-bridge-relay_*.ipk
             release/upnp-bridge-relay_*.apk
-            release/luci-i18n-upnp-bridge-relay-*.ipk
-            release/luci-i18n-upnp-bridge-relay-*.apk
 
       - name: Upload checksums
         uses: softprops/action-gh-release@v3
