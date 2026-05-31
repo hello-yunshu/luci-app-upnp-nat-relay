@@ -165,8 +165,7 @@ ip_in_subnet() {
     _pi_net_int="$(printf '%s' "$_pi_subnet" | awk -F'[/.]' '{printf "%.0f",$1*16777216+$2*65536+$3*256+$4}')"
     _pi_cidr="$(printf '%s' "$_pi_subnet" | sed 's/.*\///')"
     if [ -z "$_pi_cidr" ] || [ "$_pi_cidr" = "0" ]; then
-        [ "$_pi_ip_int" = "$_pi_net_int" ]
-        return $?
+        return 0
     fi
     _pi_mask=0
     _pi_i=0
@@ -626,7 +625,7 @@ parse_upnpc_to_file() {
             continue
         fi
 
-        printf 'MAPPING|%s|%s|%s|%s|%s\n' "$_pf_proto" "$_pf_ext_port" "$_pf_int_ip" "$_pf_int_port" "$_pf_desc_raw" >> "$_pf_outfile"
+        printf 'MAPPING|%s|%s|%s|%s|%s\n' "$_pf_proto" "$_pf_ext_port" "$_pf_int_ip" "$_pf_int_port" "$(printf '%s' "$_pf_desc_raw" | tr '|' '/')" >> "$_pf_outfile"
     done
     IFS="$_pf_old_ifs"
 }
@@ -727,7 +726,7 @@ do_check_network() {
     if command -v upnpc >/dev/null 2>&1; then
         if _cn_upnpc_out="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>/dev/null)" && [ -n "$_cn_upnpc_out" ]; then
             _cn_upnpc_ok=1
-            _cn_upnpc_count="$(echo "$_cn_upnpc_out" | grep -cE '^[0-9]+[[:space:]]+(TCP|UDP)')"
+            _cn_upnpc_count="$(echo "$_cn_upnpc_out" | grep -cE '^[[:space:]]*[0-9]+[[:space:]]+(TCP|UDP)')"
         fi
     fi
 
@@ -985,14 +984,29 @@ do_sync() {
     rm -f "$_s_accept_file" "$_s_reject_file"
 
     _s_failure_count=0
+    _s_sync_status="success"
     if [ "$_s_nft_fail" -gt 0 ]; then
         _s_last_error="nft_rule_add_failed: ${_s_nft_fail}"
+        _s_sync_status="partial"
     fi
-    write_status "true" "$_s_timestamp" "success" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" "$_s_last_error"
+    write_status "true" "$_s_timestamp" "$_s_sync_status" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" "$_s_last_error"
 
     log_info "Sync completed: read=${_s_read_count}, accepted=${_s_accepted_count}, rejected=${_s_rejected_count}"
 
     exec 9>&-
+
+    if [ "$_s_nft_fail" -gt 0 ]; then
+        printf '{"success":false,"error":"%s","timestamp":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"accepted":[%s],"rejected":[%s]}\n' \
+            "$(json_escape "$_s_last_error")" \
+            "$(json_escape "$_s_timestamp")" \
+            "$(json_escape "${cfg_backend}")" \
+            "$_s_read_count" \
+            "$_s_accepted_count" \
+            "$_s_rejected_count" \
+            "$_s_accepted_json" \
+            "$_s_rejected_json"
+        return 1
+    fi
 
     printf '{"success":true,"timestamp":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"accepted":[%s],"rejected":[%s]}\n' \
         "$(json_escape "$_s_timestamp")" \
@@ -1258,7 +1272,7 @@ cidr_to_netmask() {
         if [ "$_ctm_i" -lt "$_ctm_full" ]; then
             _ctm_octet=255
         elif [ "$_ctm_i" -eq "$_ctm_full" ]; then
-            _ctm_octet=$((256 - 2**(8 - _ctm_part)))
+            _ctm_octet=$((256 - (1 << (8 - _ctm_part))))
         else
             _ctm_octet=0
         fi

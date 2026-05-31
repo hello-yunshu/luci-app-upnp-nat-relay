@@ -10,7 +10,8 @@
 		},
 		"write": {
 			"ubus": {
-				"upnp_bridge_relay": [ "sync-now", "clear", "setup-interface", "fix-zone", "setup-openclash", "remove-openclash-rule", "rollback" ]
+				"upnp_bridge_relay": [ "sync-now", "clear", "setup-interface", "fix-zone", "setup-openclash", "remove-openclash-rule", "rollback" ],
+				"luci": [ "setInitAction" ]
 			},
 			"uci": [ "upnp_bridge_relay" ]
 		}

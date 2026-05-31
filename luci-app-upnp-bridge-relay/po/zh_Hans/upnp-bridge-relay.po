@@ -666,9 +666,6 @@ msgstr "活跃"
 msgid "No synced mappings."
 msgstr "无已同步映射。"
 
-msgid "Rejected Mappings"
-msgstr "已拒绝映射"
-
 msgid "Reject Reason"
 msgstr "拒绝原因"
 
@@ -878,9 +875,6 @@ msgstr "upnpc"
 
 msgid "LuCI"
 msgstr "LuCI"
-
-msgid "OpenClash"
-msgstr "OpenClash"
 
 msgid "Item"
 msgstr "项目"
