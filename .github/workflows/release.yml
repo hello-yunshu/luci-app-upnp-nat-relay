@@ -96,10 +96,11 @@ jobs:
       - name: Update feeds
         working-directory: ${{ env.SDKDIR }}
         run: |
-          mv feeds.conf.default feeds.conf
-          sed -i -e 's|base.*\.git|base https://github.com/openwrt/openwrt.git|' feeds.conf
-          sed -i -e 's|packages.*\.git|packages https://github.com/openwrt/packages.git|' feeds.conf
-          sed -i -e 's|luci.*\.git|luci https://github.com/openwrt/luci.git|' feeds.conf
+          cp feeds.conf.default feeds.conf
+          sed -i -e 's|git.openwrt.org/feed/base|github.com/openwrt/openwrt|' feeds.conf
+          sed -i -e 's|git.openwrt.org/feed/packages|github.com/openwrt/packages|' feeds.conf
+          sed -i -e 's|git.openwrt.org/project/luci|github.com/openwrt/luci|' feeds.conf
+          cat feeds.conf
           ./scripts/feeds update base packages luci
           ./scripts/feeds install -a
 
