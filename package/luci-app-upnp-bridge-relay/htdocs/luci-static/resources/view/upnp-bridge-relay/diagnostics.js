@@ -43,14 +43,10 @@ var callRemoveOpenclashRule = rpc.declare({
 });
 
 var css = `
-	.ubr-dashboard { max-width: 100%; }
-	.ubr-section {
-		margin-bottom: 1.5em; padding: 1.2em;
-		border-radius: 8px;
-		background: var(--background-color-a);
-		border: 1px solid var(--border-color);
-		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
-	}
+		.ubr-dashboard { max-width: 100%; }
+		.ubr-section {
+			margin-bottom: 1.5em;
+		}
 	.ubr-section h4 {
 		margin: 0 0 0.8em 0; padding: 0 0 0.5em 0.6em;
 		border-bottom: 1px solid var(--border-color);
@@ -61,12 +57,12 @@ var css = `
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 		gap: 0.8em;
 	}
-	.ubr-env-card {
-		padding: 0.8em 1em; border-radius: 6px;
-		background: color-mix(in srgb, var(--background-color-a) 85%, var(--main-color));
-		border: 1px solid var(--border-color);
-		display: flex; justify-content: space-between; align-items: center;
-	}
+		.ubr-env-card {
+			padding: 0.8em 1em; border-radius: 6px;
+			background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color)));
+			border: 1px solid var(--border-color);
+			display: flex; justify-content: space-between; align-items: center;
+		}
 	.ubr-env-label { font-size: 0.9em; color: var(--subtext-color); }
 	.ubr-badge {
 		display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
@@ -80,42 +76,38 @@ var css = `
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 		gap: 0.8em;
 	}
-	.ubr-check-card {
-		padding: 0.8em 1em; border-radius: 6px;
-		background: color-mix(in srgb, var(--background-color-a) 85%, var(--main-color));
-		border: 1px solid var(--border-color);
-		display: flex; justify-content: space-between; align-items: center;
-	}
+		.ubr-check-card {
+			padding: 0.8em 1em; border-radius: 6px;
+			background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color)));
+			border: 1px solid var(--border-color);
+			display: flex; justify-content: space-between; align-items: center;
+		}
 	.ubr-check-label { font-size: 0.9em; }
-	.ubr-log-area {
-		max-height: 300px; overflow-y: auto; padding: 1em;
-		background: color-mix(in srgb, var(--background-color-a) 85%, var(--main-color));
-		color: var(--main-text-color);
-		font-size: 0.85em; border-radius: 6px;
-		border: 1px solid var(--border-color);
-		font-family: monospace;
-	}
-	.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
-	.ubr-danger-zone {
-		margin-bottom: 1.5em; padding: 1.2em;
-		border-radius: 8px;
-		background: var(--background-color-a);
-		border: 1px solid var(--border-color);
-		border-left: 5px solid var(--danger-color);
-		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
-	}
+		.ubr-log-area {
+			max-height: 300px; overflow-y: auto; padding: 1em;
+			background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color)));
+			color: var(--main-text-color);
+			font-size: 0.85em; border-radius: 6px;
+			border: 1px solid var(--border-color);
+			font-family: monospace;
+		}
+		.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
+		.ubr-danger-zone {
+			margin-bottom: 1.5em;
+			border-left: 5px solid var(--danger-color);
+		}
 	.ubr-danger-zone h4 {
 		margin: 0 0 0.8em 0; padding-bottom: 0.5em;
 		border-bottom: 1px solid var(--border-color);
 		font-size: 1.05em; color: var(--danger-color);
 	}
-	.ubr-cmd-box {
-		padding: 0.8em 1em; border-radius: 6px;
-		background: color-mix(in srgb, var(--background-color-a) 85%, var(--main-color));
-		border: 1px solid var(--border-color);
-		font-family: monospace; font-size: 0.9em;
-	}
-`;
+			.ubr-cmd-box {
+				padding: 0.8em 1em; border-radius: 6px;
+				background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color)));
+				border: 1px solid var(--border-color);
+				font-family: monospace; font-size: 0.9em;
+			}
+	`;
 
 return view.extend({
 	load: function() {
@@ -140,7 +132,7 @@ return view.extend({
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Diagnostics & Rollback')));
 
-		var envSection = E('div', { 'class': 'ubr-section' });
+			var envSection = E('div', { 'class': 'cbi-section ubr-section' });
 		envSection.appendChild(E('h4', {}, '\u2699 ' + _('Environment Detection')));
 
 		var envGrid = E('div', { 'class': 'ubr-env-grid' });
@@ -185,7 +177,7 @@ return view.extend({
 		envSection.appendChild(envBtnBar);
 		container.appendChild(envSection);
 
-		var netSection = E('div', { 'class': 'ubr-section' });
+			var netSection = E('div', { 'class': 'cbi-section ubr-section' });
 		netSection.appendChild(E('h4', {}, '\u27A4 ' + _('Network Detection')));
 
 		var netGrid = E('div', { 'class': 'ubr-check-grid', 'id': 'network-check-grid' });
@@ -270,7 +262,7 @@ return view.extend({
 		netSection.appendChild(netBtnBar);
 		container.appendChild(netSection);
 
-		var logSection = E('div', { 'class': 'ubr-section' });
+			var logSection = E('div', { 'class': 'cbi-section ubr-section' });
 		logSection.appendChild(E('h4', {}, '\u2261 ' + _('Recent Logs')));
 
 		var logBtnBar = E('div', { 'class': 'ubr-btn-group', 'style': 'margin-bottom:1em' });
@@ -304,7 +296,7 @@ return view.extend({
 		}
 		container.appendChild(logSection);
 
-		var depSection = E('div', { 'class': 'ubr-section' });
+			var depSection = E('div', { 'class': 'cbi-section ubr-section' });
 		depSection.appendChild(E('h4', {}, '\u2757 ' + _('Missing Dependencies & Fix Commands')));
 		var missingDeps = [];
 		if (!env.nft) missingDeps.push('nftables');
@@ -325,7 +317,7 @@ return view.extend({
 		}
 		container.appendChild(depSection);
 
-		var rollbackSection = E('div', { 'class': 'ubr-danger-zone' });
+			var rollbackSection = E('div', { 'class': 'cbi-section ubr-danger-zone' });
 		rollbackSection.appendChild(E('h4', {}, '\u26A0 ' + _('Rollback & Cleanup')));
 
 		rollbackSection.appendChild(E('div', { 'class': 'alert-message warning', 'style': 'margin-bottom:1em' },
@@ -389,7 +381,7 @@ return view.extend({
 		rollbackSection.appendChild(rollbackBtnBar);
 		container.appendChild(rollbackSection);
 
-		var cleanupBar = E('div', { 'class': 'ubr-danger-zone' });
+			var cleanupBar = E('div', { 'class': 'cbi-section ubr-danger-zone' });
 		cleanupBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-remove',
 			'click': function() {

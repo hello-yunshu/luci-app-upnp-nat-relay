@@ -6,41 +6,11 @@
 'require form';
 
 var css = `
-	.cbi-dynlist {
-		display: flex !important;
-		flex-wrap: wrap !important;
-		gap: 0.4em !important;
-		align-items: center !important;
-	}
-	.cbi-dynlist > .item {
-		display: inline-flex !important;
-		align-items: center;
-		gap: 0.3em;
-		padding: 0.2em 0.6em !important;
-		margin: 0 !important;
-		border-radius: 4px;
-		background: color-mix(in srgb, var(--main-color) 12%, transparent);
-		color: var(--main-color);
-		font-size: 0.9em;
-		font-weight: 500;
+	.ubr-security textarea {
+		font-family: monospace;
 		line-height: 1.5;
-		white-space: nowrap;
-		border: 1px solid color-mix(in srgb, var(--main-color) 25%, transparent) !important;
-	}
-	.cbi-dynlist > .item > span {
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-	.cbi-dynlist > .item > .btn.cbi-button-remove {
-		padding: 0.1em 0.4em !important;
-		font-size: 0.85em !important;
-		line-height: 1 !important;
-		border-radius: 3px !important;
-		min-height: unset !important;
-	}
-	.cbi-dynlist > .add-item {
-		flex-basis: 100%;
-		margin-top: 0.3em;
+		min-height: 4.8em;
+		resize: vertical;
 	}
 `;
 
@@ -72,28 +42,42 @@ return view.extend({
 		s = m.section(form.TypedSection, 'service', _('Deny Rules'));
 		s.anonymous = true;
 
-		o = s.option(form.DynamicList, '_deny_ports', _('Denied Ports'),
-			_('List of specific ports to deny even if within the allowed range.'));
-		o.datatype = 'port';
+		o = s.option(form.TextValue, '_deny_ports', _('Denied Ports'),
+			_('Enter ports separated by spaces or commas, e.g. 22 23 80 443.'));
+		o.rows = 3;
+		o.placeholder = '22 23 25 53 80 110 143 443 445';
 
 		var denyPorts = uci.get('upnp_bridge_relay', 'default', 'port');
 		if (denyPorts) {
 			if (typeof denyPorts === 'string') {
 				o.cfgvalue = function() {
-					return [denyPorts];
+					return denyPorts;
 				};
 			} else if (Array.isArray(denyPorts)) {
 				o.cfgvalue = function() {
-					return denyPorts;
+					return denyPorts.join(' ');
 				};
 			}
 		}
-		o.write = function(section_id, value) {
-			if (Array.isArray(value)) {
-				uci.set('upnp_bridge_relay', 'default', 'port', value);
-			} else {
-				uci.set('upnp_bridge_relay', 'default', 'port', value ? [value] : []);
+		o.validate = function(section_id, value) {
+			var ports = (value || '').split(/[\s,]+/).filter(function(port) {
+				return port !== '';
+			});
+			for (var i = 0; i < ports.length; i++) {
+				var n = +ports[i];
+				if (!/^\d+$/.test(ports[i]) || n < 1 || n > 65535)
+					return _('Invalid denied port: %s').format(ports[i]);
 			}
+			return true;
+		};
+		o.write = function(section_id, value) {
+			var ports = (value || '').split(/[\s,]+/).filter(function(port) {
+				return port !== '';
+			});
+			if (ports.length > 0)
+				uci.set('upnp_bridge_relay', 'default', 'port', ports);
+			else
+				uci.unset('upnp_bridge_relay', 'default', 'port');
 		};
 
 		o = s.option(form.Flag, '_deny_low_ports', _('Deny Low Ports (0-1023)'),
@@ -160,6 +144,7 @@ return view.extend({
 		};
 
 		return m.render().then(function(node) {
+			node.classList.add('ubr-security');
 			node.insertBefore(E('style', {}, css), node.firstChild);
 			return node;
 		});

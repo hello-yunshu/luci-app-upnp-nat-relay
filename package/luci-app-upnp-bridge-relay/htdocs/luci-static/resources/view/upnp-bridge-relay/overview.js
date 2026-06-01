@@ -40,15 +40,11 @@ function callInitAction(action) {
 }
 
 var css = `
-	.ubr-dashboard { max-width: 100%; }
-	.ubr-status-banner {
-		display: flex; align-items: center; gap: 1.2em;
-		padding: 1.5em; margin-bottom: 1.5em;
-		border-radius: 8px;
-		background: var(--background-color-a);
-		border: 1px solid var(--border-color);
-		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 8%, transparent);
-	}
+		.ubr-dashboard { max-width: 100%; }
+		.ubr-status-banner {
+			display: flex; align-items: center; gap: 1.2em;
+			padding: 1.5em; margin-bottom: 1.5em;
+		}
 	.ubr-status-banner.running { border-left: 5px solid var(--success-color); }
 	.ubr-status-banner.stopped { border-left: 5px solid var(--danger-color); }
 	.ubr-status-icon { font-size: 2.5em; line-height: 1; }
@@ -60,18 +56,10 @@ var css = `
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 		gap: 1em; margin-bottom: 1.5em;
 	}
-	.ubr-stat-card {
-		padding: 1em 1.2em; border-radius: 8px;
-		background: var(--background-color-a);
-		border: 1px solid var(--border-color);
-		text-align: center;
-		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
-		transition: box-shadow 0.2s, transform 0.2s;
-	}
-	.ubr-stat-card:hover {
-		box-shadow: 0 3px 8px color-mix(in srgb, var(--main-text-color) 12%, transparent);
-		transform: translateY(-1px);
-	}
+		.ubr-stat-card {
+			padding: 1em 1.2em; border-radius: 8px;
+			text-align: center;
+		}
 	.ubr-stat-card .ubr-stat-value {
 		font-size: 1.8em; font-weight: bold; line-height: 1.2;
 		color: var(--main-color);
@@ -83,13 +71,9 @@ var css = `
 		font-size: 0.85em; color: var(--subtext-color);
 		margin-top: 0.3em;
 	}
-	.ubr-section {
-		margin-bottom: 1.5em; padding: 1.2em;
-		border-radius: 8px;
-		background: var(--background-color-a);
-		border: 1px solid var(--border-color);
-		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
-	}
+		.ubr-section {
+			margin-bottom: 1.5em;
+		}
 	.ubr-section h4 {
 		margin: 0 0 0.8em 0; padding: 0 0 0.5em 0.6em;
 		border-bottom: 1px solid var(--border-color);
@@ -112,10 +96,10 @@ var css = `
 	}
 	.ubr-badge.green { background: color-mix(in srgb, var(--success-color) 15%, transparent); color: var(--success-color); }
 	.ubr-badge.red { background: color-mix(in srgb, var(--danger-color) 15%, transparent); color: var(--danger-color); }
-	.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color) 15%, transparent); color: var(--warning-color); }
-	.ubr-badge.gray { background: color-mix(in srgb, var(--subtext-color) 15%, transparent); color: var(--subtext-color); }
-	.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
-`;
+		.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color) 15%, transparent); color: var(--warning-color); }
+		.ubr-badge.gray { background: color-mix(in srgb, var(--subtext-color) 15%, transparent); color: var(--subtext-color); }
+		.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
+	`;
 
 return view.extend({
 	load: function() {
@@ -145,9 +129,9 @@ return view.extend({
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Overview')));
 
-		var banner = E('div', {
-			'class': 'ubr-status-banner ' + (running ? 'running' : 'stopped')
-		});
+			var banner = E('div', {
+				'class': 'cbi-section ubr-status-banner ' + (running ? 'running' : 'stopped')
+			});
 		banner.appendChild(E('div', {
 			'class': 'ubr-status-icon ' + (running ? 'running' : 'stopped')
 		}, running ? '\u25CF' : '\u25CB'));
@@ -161,32 +145,32 @@ return view.extend({
 
 		var statsGrid = E('div', { 'class': 'ubr-stats-grid' });
 
-		statsGrid.appendChild(E('div', { 'class': 'ubr-stat-card' }, [
+		statsGrid.appendChild(E('div', { 'class': 'cbi-section ubr-stat-card' }, [
 			E('div', { 'class': 'ubr-stat-value' }, String(readCount)),
 			E('div', { 'class': 'ubr-stat-label' }, _('Read Mappings'))
 		]));
 
 		var acceptedClass = acceptedCount > 0 ? 'ubr-stat-value green' : 'ubr-stat-value';
-		statsGrid.appendChild(E('div', { 'class': 'ubr-stat-card' }, [
+		statsGrid.appendChild(E('div', { 'class': 'cbi-section ubr-stat-card' }, [
 			E('div', { 'class': acceptedClass }, String(acceptedCount)),
 			E('div', { 'class': 'ubr-stat-label' }, _('Synced Mappings'))
 		]));
 
 		var rejectedClass = rejectedCount > 0 ? 'ubr-stat-value orange' : 'ubr-stat-value';
-		statsGrid.appendChild(E('div', { 'class': 'ubr-stat-card' }, [
+		statsGrid.appendChild(E('div', { 'class': 'cbi-section ubr-stat-card' }, [
 			E('div', { 'class': rejectedClass }, String(rejectedCount)),
 			E('div', { 'class': 'ubr-stat-label' }, _('Rejected Mappings'))
 		]));
 
 		var failureClass = failureCount > 0 ? 'ubr-stat-value red' : 'ubr-stat-value';
-		statsGrid.appendChild(E('div', { 'class': 'ubr-stat-card' }, [
+		statsGrid.appendChild(E('div', { 'class': 'cbi-section ubr-stat-card' }, [
 			E('div', { 'class': failureClass }, String(failureCount)),
 			E('div', { 'class': 'ubr-stat-label' }, _('Consecutive Failures'))
 		]));
 
 		container.appendChild(statsGrid);
 
-		var controlSection = E('div', { 'class': 'ubr-section' });
+			var controlSection = E('div', { 'class': 'cbi-section ubr-section' });
 		controlSection.appendChild(E('h4', {}, _('Service Control')));
 
 		var btnGroup = E('div', { 'class': 'ubr-btn-group' });
@@ -275,7 +259,7 @@ return view.extend({
 		controlSection.appendChild(btnGroup);
 		container.appendChild(controlSection);
 
-		var infoSection = E('div', { 'class': 'ubr-section' });
+			var infoSection = E('div', { 'class': 'cbi-section ubr-section' });
 		infoSection.appendChild(E('h4', {}, _('Service Information')));
 
 		var infoGrid = E('div', { 'class': 'ubr-info-grid' });
