@@ -23,16 +23,29 @@ var callFixZone = rpc.declare({
 	expect: { '': {} }
 });
 
+function reloadSoon(delay) {
+	window.setTimeout(function() {
+		window.location.reload();
+	}, delay || 800);
+}
+
 return view.extend({
 	load: function() {
 		return Promise.all([
 			uci.load('upnp_bridge_relay'),
 			uci.load('network'),
-			uci.load('firewall')
-		]);
+			uci.load('firewall'),
+			callCheckNetwork().catch(function() {
+				return null;
+			})
+		]).then(function(results) {
+			return {
+				network: results[3]
+			};
+		});
 	},
 
-	render: function() {
+	render: function(data) {
 		var m, s, o;
 
 		m = new form.Map('upnp_bridge_relay', _('UPnP Bridge Relay - Network & Firewall'));
@@ -70,7 +83,7 @@ return view.extend({
 			_('The WAN interface for DNAT rules.'));
 		o.rmempty = false;
 
-		var netCheckData = null;
+		var netCheckData = data ? data.network : null;
 
 		o = s.taboption('status', form.DummyValue, '_if_status', _('Interface Status'));
 		o.rawhtml = true;
@@ -166,6 +179,7 @@ return view.extend({
 			return callCheckNetwork().then(function(result) {
 				netCheckData = result;
 				ui.addNotification(null, E('p', _('Network detection completed. Click the Status tab to view results.')), 'info');
+				reloadSoon();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Detection failed: ') + e.message), 'error');
 			}).finally(function() {
@@ -187,6 +201,7 @@ return view.extend({
 			}
 			return callSetupInterface().then(function(result) {
 				ui.addNotification(null, E('p', _('Interface configured. Click the Status tab to view details.')), 'info');
+				reloadSoon();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Interface configuration failed: ') + e.message), 'error');
 			}).finally(function() {
@@ -310,6 +325,7 @@ return view.extend({
 			}
 			return callFixZone().then(function(result) {
 				ui.addNotification(null, E('p', _('Zone settings fixed.')), 'info');
+				reloadSoon();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Zone fix failed: ') + e.message), 'error');
 			}).finally(function() {
@@ -341,6 +357,7 @@ return view.extend({
 			}
 			return callFixZone().then(function(result) {
 				ui.addNotification(null, E('p', _('Zone created successfully.')), 'info');
+				reloadSoon();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Zone creation failed: ') + e.message), 'error');
 			}).finally(function() {

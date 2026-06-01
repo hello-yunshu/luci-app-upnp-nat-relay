@@ -17,6 +17,28 @@ var callSyncNow = rpc.declare({
 	expect: { '': {} }
 });
 
+function setBusy(button, label) {
+	if (!button)
+		return;
+	button.disabled = true;
+	button.setAttribute('data-original-title', button.textContent);
+	button.textContent = label;
+}
+
+function resetBusy(button) {
+	if (!button)
+		return;
+	button.disabled = false;
+	button.textContent = button.getAttribute('data-original-title') || button.textContent;
+	button.removeAttribute('data-original-title');
+}
+
+function reloadSoon(delay) {
+	window.setTimeout(function() {
+		window.location.reload();
+	}, delay || 1200);
+}
+
 var css = `
 	.ubr-mappings { max-width: 100%; }
 	.ubr-mappings h3 {
@@ -53,6 +75,8 @@ return view.extend({
 		btnBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
 			'click': function() {
+				var btn = this;
+				setBusy(btn, _('Loading...'));
 				return callSyncNow().then(function(result) {
 					var msg;
 					var msgType = 'info';
@@ -76,9 +100,10 @@ return view.extend({
 						msg = _('Sync triggered.');
 					}
 					ui.addNotification(null, E('p', msg), msgType);
-					setTimeout(function() { window.location.reload(); }, 2500);
+					reloadSoon(2500);
 				}).catch(function(e) {
 					ui.addNotification(null, E('p', _('Sync failed: %s').format(e.message)), 'error');
+					resetBusy(btn);
 				});
 			}
 		}, _('Sync Now')));

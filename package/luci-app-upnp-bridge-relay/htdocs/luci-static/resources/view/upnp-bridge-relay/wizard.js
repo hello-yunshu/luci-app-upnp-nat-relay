@@ -124,7 +124,9 @@ var css = `
 			background: color-mix(in srgb, var(--main-color) 12%, transparent);
 			color: inherit;
 			font-weight: bold;
-			box-shadow: inset 0 -3px 0 var(--main-color);
+			box-shadow:
+				0 0 0 1px var(--main-color),
+				inset 0 -3px 0 var(--main-color);
 		}
 	`;
 
