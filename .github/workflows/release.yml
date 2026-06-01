@@ -100,13 +100,8 @@ jobs:
       - name: Update feeds
         working-directory: ${{ env.SDKDIR }}
         run: |
-          cp feeds.conf.default feeds.conf
-          sed -i -e 's|git.openwrt.org/feed/base|github.com/openwrt/openwrt|' feeds.conf
-          sed -i -e 's|git.openwrt.org/feed/packages|github.com/openwrt/packages|' feeds.conf
-          sed -i -e 's|git.openwrt.org/project/luci|github.com/openwrt/luci|' feeds.conf
-          cat feeds.conf
           ./scripts/feeds update base packages luci
-          ./scripts/feeds install -a
+          ./scripts/feeds install luci-base miniupnpc nftables
 
       - name: Configure
         working-directory: ${{ env.SDKDIR }}
