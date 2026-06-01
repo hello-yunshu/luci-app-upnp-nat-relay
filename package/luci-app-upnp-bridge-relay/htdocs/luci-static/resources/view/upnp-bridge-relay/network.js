@@ -206,7 +206,13 @@ return view.extend({
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			var zoneName = uci.get('upnp_bridge_relay', 'main', 'firewall_zone_name') || 'upnp_bridge';
-			return zoneName;
+			var zones = uci.sections('firewall', 'zone');
+			for (var i = 0; i < zones.length; i++) {
+				if (zones[i].name === zoneName) {
+					return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + zoneName + '</span>';
+				}
+			}
+			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + zoneName + ' (' + _('Zone not found') + ')</span>';
 		};
 
 		o = s.taboption('zone_status', form.DummyValue, '_zone_input', _('Input Policy'));

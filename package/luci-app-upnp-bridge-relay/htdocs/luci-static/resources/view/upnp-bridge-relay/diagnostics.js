@@ -230,8 +230,8 @@ return view.extend({
 								badgeClass = 'ubr-badge green';
 								badgeText = '\u2714 ' + _('OK');
 							} else {
-								badgeClass = 'ubr-badge gray';
-								badgeText = val || '-';
+								badgeClass = 'ubr-badge orange';
+								badgeText = '\u26A0 ' + (val || '-');
 							}
 						} else {
 							if (val === 1 || val === 'ok' || val === true) {
@@ -244,8 +244,8 @@ return view.extend({
 								badgeClass = 'ubr-badge orange';
 								badgeText = '\u26A0 ' + _('Warning');
 							} else {
-								badgeClass = 'ubr-badge gray';
-								badgeText = val || '-';
+								badgeClass = 'ubr-badge orange';
+								badgeText = '\u26A0 ' + (val || '-');
 							}
 						}
 
