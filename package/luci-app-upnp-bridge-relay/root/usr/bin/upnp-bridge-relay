@@ -693,12 +693,6 @@ openclash_apply() {
         return 1
     fi
 
-    _oa_first_type="$(uci -q get openclash.@access_control[0] 2>/dev/null)"
-    if [ -z "$_oa_first_type" ]; then
-        printf '{"success":false,"error":"unrecognized_config_structure","message":"Cannot recognize OpenClash access_control structure. Please add manually."}\n'
-        return 1
-    fi
-
     _oa_exact_found=0
     _oa_idx=0
     while true; do
@@ -933,12 +927,6 @@ openclash_sync_per_mapping() {
 
     if [ ! -f /etc/config/openclash ]; then
         printf '{"success":false,"error":"openclash_not_installed"}\n'
-        return 1
-    fi
-
-    _oa_first_type="$(uci -q get openclash.@access_control[0] 2>/dev/null)"
-    if [ -z "$_oa_first_type" ]; then
-        printf '{"success":false,"error":"unrecognized_config_structure"}\n'
         return 1
     fi
 
@@ -1662,7 +1650,6 @@ do_dry_run() {
             ja_append "\"$(json_escape "$(printf 'nft add rule inet %s %s iifname "\\"%s\\"" %s dport %s dnat ip to %s:%s' \
                 "${NFT_TABLE_NAME}" "${NFT_CHAIN}" "${cfg_upstream_wan_if}" "${_dr_proto_lower}" "${_dr_ext_port}" "${cfg_downstream_wan_ip}" "${_dr_ext_port}")")\""
         done < "$_dr_accept_file"
-        rm -f "$_dr_accept_file"
     fi
     _dr_nft_json="$_ja"
 
@@ -1692,6 +1679,8 @@ do_dry_run() {
             _dr_oc_suggestion="$(openclash_generate_return_rule)"
         fi
     fi
+
+    rm -f "$_dr_accept_file"
 
     printf '{"success":true,"read_mappings":[%s],"accepted":[%s],"rejected":[%s],"nft_commands":[%s],"openclash_suggestion":%s}\n' \
         "$_dr_read_json" \
@@ -1726,6 +1715,7 @@ do_full_status() {
         _dfs_base="$(printf '%s' "$_dfs_base" | sed 's/"running":true/"running":false/')"
     fi
 
+    do_refresh_env >/dev/null 2>&1
     _dfs_env="$(read_env_cache)"
     _dfs_env_inner="$(printf '%s' "$_dfs_env" | sed 's/^{//;s/}$//')"
     [ -z "$_dfs_env_inner" ] && _dfs_env_inner='"nft_table_status":"-","openclash_status":"-","version":"unknown","updated_at":""'
