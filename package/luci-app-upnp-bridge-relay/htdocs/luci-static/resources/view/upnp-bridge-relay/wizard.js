@@ -116,17 +116,17 @@ var css = `
 			transition: all 0.2s;
 		}
 		.ubr-mode-btn:hover {
-			border-color: var(--main-color);
-			background: color-mix(in srgb, var(--main-color) 8%, transparent);
+			border-color: var(--main-color, #0069d9);
+			background: color-mix(in srgb, var(--main-color, #0069d9) 8%, transparent);
 		}
 		.ubr-mode-btn.active {
-			border-color: var(--main-color);
-			background: color-mix(in srgb, var(--main-color) 12%, transparent);
+			border-color: var(--main-color, #0069d9);
+			background: color-mix(in srgb, var(--main-color, #0069d9) 16%, transparent);
 			color: inherit;
 			font-weight: bold;
 			box-shadow:
-				0 0 0 1px var(--main-color),
-				inset 0 -3px 0 var(--main-color);
+				0 0 0 1px var(--main-color, #0069d9),
+				inset 0 -3px 0 var(--main-color, #0069d9);
 		}
 	`;
 

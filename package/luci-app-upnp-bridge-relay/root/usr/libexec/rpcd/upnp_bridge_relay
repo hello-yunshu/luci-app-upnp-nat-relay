@@ -31,7 +31,7 @@ case "$1" in
 				"$UPNP_BRIDGE_RELAY_BIN" --status 2>/dev/null || echo '{"running":false,"last_sync":"","last_result":"unknown","backend":"","read_count":0,"accepted_count":0,"rejected_count":0,"failure_count":0,"accepted":[],"rejected":[],"last_error":"Status file not found"}'
 				;;
 			refresh-env)
-				"$UPNP_BRIDGE_RELAY_BIN" --refresh-env 2>/dev/null || echo '{"nft_table_status":"-","openclash_status":"-","updated_at":""}'
+				"$UPNP_BRIDGE_RELAY_BIN" --refresh-env 2>/dev/null || echo '{"nft_table_status":"-","openclash_status":"-","version":"-","openwrt_version":"","package_manager":"unknown","firewall":"unknown","fw4":0,"nft":0,"upnpc":0,"luci":0,"openclash_installed":0,"openclash_running":0,"openclash_has_access_control":0,"updated_at":""}'
 				;;
 			check-env)
 				"$UPNP_BRIDGE_RELAY_BIN" --check-env 2>/dev/null || echo '{"error":"check-env failed"}'
