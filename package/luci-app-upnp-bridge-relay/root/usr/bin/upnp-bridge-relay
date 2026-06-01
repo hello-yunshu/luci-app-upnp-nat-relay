@@ -1572,6 +1572,17 @@ do_daemon() {
     done
 }
 
+do_read_log() {
+    _rl_logread="$(command -v logread 2>/dev/null || true)"
+    if [ -z "$_rl_logread" ]; then
+        printf '{"success":false,"error":"logread_not_found","logs":""}\n'
+        return 0
+    fi
+
+    _rl_logs="$("$_rl_logread" 2>/dev/null | grep -E 'upnp-bridge-relay|upnp_bridge_relay' | tail -n 200)"
+    printf '{"success":true,"logs":"%s"}\n' "$(json_escape "$_rl_logs")"
+}
+
 case "$1" in
     --check-env)
         do_check_env
@@ -1609,11 +1620,14 @@ case "$1" in
     --rollback)
         do_rollback
         ;;
+    --read-log)
+        do_read_log
+        ;;
     --daemon)
         do_daemon
         ;;
     *)
-        printf 'Usage: %s {--check-env|--check-network|--sync|--dry-run|--clear|--status|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--remove-openclash-rule|--rollback|--daemon}\n' "$0"
+        printf 'Usage: %s {--check-env|--check-network|--sync|--dry-run|--clear|--status|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--remove-openclash-rule|--rollback|--read-log|--daemon}\n' "$0"
         exit 1
         ;;
 esac

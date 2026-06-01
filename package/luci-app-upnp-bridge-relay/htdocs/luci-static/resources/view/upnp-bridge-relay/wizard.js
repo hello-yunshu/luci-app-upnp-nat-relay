@@ -95,23 +95,36 @@ var css = `
 		padding-top: 1em; border-top: 1px solid var(--border-color);
 	}
 		.ubr-mode-bar {
-			display: flex; gap: 0; margin-bottom: 1.5em;
-			overflow: hidden;
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+			gap: 0.8em;
+			margin-bottom: 1.5em;
+			padding: 0.8em;
+			overflow: visible;
 		}
 		.ubr-mode-btn {
-			flex: 1; padding: 0.8em; text-align: center;
-			cursor: pointer; border: none; background: transparent;
-			color: var(--main-text-color, #222); font-size: 0.95em;
+			padding: 0.85em 1em;
+			text-align: center;
+			cursor: pointer;
+			border: 1px solid var(--border-color);
+			border-radius: 6px;
+			background: transparent;
+			color: inherit;
+			font: inherit;
+			font-size: 0.95em;
+			line-height: 1.4;
 			transition: all 0.2s;
 		}
 		.ubr-mode-btn:hover {
-			background: color-mix(in srgb, var(--main-color, #0069d9) 8%, transparent);
+			border-color: var(--main-color);
+			background: color-mix(in srgb, var(--main-color) 8%, transparent);
 		}
 		.ubr-mode-btn.active {
-			background: color-mix(in srgb, var(--main-color, #0069d9) 16%, transparent);
-			color: var(--main-text-color, #222);
+			border-color: var(--main-color);
+			background: color-mix(in srgb, var(--main-color) 12%, transparent);
+			color: inherit;
 			font-weight: bold;
-			box-shadow: inset 0 -3px 0 var(--main-color, #0069d9);
+			box-shadow: inset 0 -3px 0 var(--main-color);
 		}
 	`;
 
