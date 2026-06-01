@@ -184,12 +184,26 @@ ip_in_subnet() {
 
 protocol_allowed() {
     _pp_proto="$1"
-    _pp_lower="$(echo "$_pp_proto" | tr '[:upper:]' '[:lower:]')"
-    for _pp_ap in ${cfg_protocols}; do
-        _pp_ap_lower="$(echo "$_pp_ap" | tr '[:upper:]' '[:lower:]')"
-        if [ "$_pp_lower" = "$_pp_ap_lower" ]; then
-            return 0
-        fi
+    _pp_proto_tokens="$(printf '%s' "$_pp_proto" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/ /g')"
+    _pp_allowed_tokens="$(printf '%s' "${cfg_protocols}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/ /g')"
+
+    case " $_pp_proto_tokens " in
+        *" tcpudp "*|*" both "*|*" all "*)
+            _pp_proto_tokens="tcp udp"
+            ;;
+    esac
+    case " $_pp_allowed_tokens " in
+        *" tcpudp "*|*" both "*|*" all "*)
+            _pp_allowed_tokens="${_pp_allowed_tokens} tcp udp"
+            ;;
+    esac
+
+    for _pp_part in ${_pp_proto_tokens}; do
+        for _pp_ap in ${_pp_allowed_tokens}; do
+            if [ "$_pp_part" = "$_pp_ap" ]; then
+                return 0
+            fi
+        done
     done
     return 1
 }
