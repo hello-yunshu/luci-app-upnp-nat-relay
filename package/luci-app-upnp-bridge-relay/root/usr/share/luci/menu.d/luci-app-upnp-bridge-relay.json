@@ -60,7 +60,7 @@
 		}
 	},
 	"admin/services/upnp_bridge_relay/diagnostics": {
-		"title": "Diagnostics",
+		"title": "Logs & Maintenance",
 		"order": 70,
 		"action": {
 			"type": "view",

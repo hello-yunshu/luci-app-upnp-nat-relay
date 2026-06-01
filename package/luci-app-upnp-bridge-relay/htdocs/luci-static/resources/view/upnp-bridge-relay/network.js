@@ -109,6 +109,54 @@ return view.extend({
 			return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
 		};
 
+		o = s.taboption('status', form.DummyValue, '_gateway_reachable', _('Downstream LAN Gateway'));
+		o.rawhtml = true;
+		o.cfgvalue = function() {
+			if (!netCheckData) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.gateway_reachable === 1 || netCheckData.gateway_reachable === 'ok' || netCheckData.gateway_reachable === true) {
+				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Reachable') + '</span>';
+			}
+			return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Unreachable') + '</span>';
+		};
+
+		o = s.taboption('status', form.DummyValue, '_upnpc_readable', _('UPnP IGD Read'));
+		o.rawhtml = true;
+		o.cfgvalue = function() {
+			if (!netCheckData) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.upnpc_readable === 1 || netCheckData.upnpc_readable === 'ok' || netCheckData.upnpc_readable === true) {
+				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Readable') + '</span>';
+			}
+			return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Failed') + '</span>';
+		};
+
+		o = s.taboption('status', form.DummyValue, '_wan_ip_reachable', _('Downstream WAN IP'));
+		o.rawhtml = true;
+		o.cfgvalue = function() {
+			if (!netCheckData) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.wan_ip_reachable === 1 || netCheckData.wan_ip_reachable === 'ok' || netCheckData.wan_ip_reachable === true) {
+				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Reachable') + '</span>';
+			}
+			return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Unreachable') + '</span>';
+		};
+
+		o = s.taboption('status', form.DummyValue, '_upstream_wan', _('Upstream WAN Interface'));
+		o.rawhtml = true;
+		o.cfgvalue = function() {
+			if (!netCheckData) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.upstream_wan_exists === 1 || netCheckData.upstream_wan_exists === 'ok' || netCheckData.upstream_wan_exists === true) {
+				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Exists') + '</span>';
+			}
+			return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Not found') + '</span>';
+		};
+
 		o = s.taboption('status', form.DummyValue, '_default_route', _('Default Route Risk'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {

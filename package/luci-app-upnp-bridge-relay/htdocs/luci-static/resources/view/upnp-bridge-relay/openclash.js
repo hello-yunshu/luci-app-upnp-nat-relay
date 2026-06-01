@@ -160,7 +160,7 @@ return view.extend({
 		o = s.option(form.DummyValue, '_oc_backup_status', _('Backup Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			return '<span style="color:var(--subtext-color, #666)">' + _('Check via Diagnostics page') + '</span>';
+			return '<span style="color:var(--subtext-color, #666)">' + _('Check via Logs & Maintenance page') + '</span>';
 		};
 
 		s = m.section(form.TypedSection, 'service', _('OpenClash Actions'));

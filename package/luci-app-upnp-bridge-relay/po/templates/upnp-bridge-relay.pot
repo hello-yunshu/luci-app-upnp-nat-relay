@@ -784,7 +784,7 @@ msgstr ""
 msgid "Backup Status"
 msgstr ""
 
-msgid "Check via Diagnostics page"
+msgid "Check via Logs & Maintenance page"
 msgstr ""
 
 msgid "OpenClash Actions"
@@ -1187,4 +1187,40 @@ msgid "Enable the UPnP Bridge Relay service after saving configuration."
 msgstr ""
 
 msgid "Invalid port range format."
+msgstr ""
+
+msgid "Logs & Maintenance"
+msgstr ""
+
+msgid "UPnP Bridge Relay - Logs & Maintenance"
+msgstr ""
+
+msgid "Clear Logs"
+msgstr ""
+
+msgid "Clear system log buffer? This will clear ALL system logs, not just plugin logs."
+msgstr ""
+
+msgid "Clearing..."
+msgstr ""
+
+msgid "Log buffer cleared."
+msgstr ""
+
+msgid "Failed to clear logs: "
+msgstr ""
+
+msgid "Reachable"
+msgstr ""
+
+msgid "Unreachable"
+msgstr ""
+
+msgid "Readable"
+msgstr ""
+
+msgid "Exists"
+msgstr ""
+
+msgid "Not found"
 msgstr ""

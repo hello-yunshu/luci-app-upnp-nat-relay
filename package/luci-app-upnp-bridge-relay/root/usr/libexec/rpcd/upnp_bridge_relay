@@ -9,10 +9,12 @@ case "$1" in
 	list)
 		echo '{'
 		echo '"status": {},'
+		echo '"refresh-env": {},'
 		echo '"check-env": {},'
 		echo '"check-network": {},'
 		echo '"dry-run": {},'
 		echo '"read-log": {},'
+		echo '"clear-log": {},'
 		echo '"sync-now": {},'
 		echo '"clear": {},'
 		echo '"setup-interface": {},'
@@ -28,6 +30,9 @@ case "$1" in
 			status)
 				"$UPNP_BRIDGE_RELAY_BIN" --status 2>/dev/null || echo '{"running":false,"last_sync":"","last_result":"unknown","backend":"","read_count":0,"accepted_count":0,"rejected_count":0,"failure_count":0,"accepted":[],"rejected":[],"last_error":"Status file not found"}'
 				;;
+			refresh-env)
+				"$UPNP_BRIDGE_RELAY_BIN" --refresh-env 2>/dev/null || echo '{"nft_table_status":"-","openclash_status":"-","updated_at":""}'
+				;;
 			check-env)
 				"$UPNP_BRIDGE_RELAY_BIN" --check-env 2>/dev/null || echo '{"error":"check-env failed"}'
 				;;
@@ -39,6 +44,9 @@ case "$1" in
 				;;
 			read-log)
 				"$UPNP_BRIDGE_RELAY_BIN" --read-log 2>/dev/null || echo '{"success":false,"error":"read-log failed","logs":""}'
+				;;
+			clear-log)
+				"$UPNP_BRIDGE_RELAY_BIN" --clear-log 2>/dev/null || echo '{"success":false,"error":"clear-log failed"}'
 				;;
 			sync-now)
 				"$UPNP_BRIDGE_RELAY_BIN" --sync 2>/dev/null || echo '{"success":false,"error":"sync_failed"}'
