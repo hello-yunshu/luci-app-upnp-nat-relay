@@ -38,16 +38,23 @@ var callClear = rpc.declare({
 	expect: { '': {} }
 });
 
-var callInitAction = rpc.declare({
-	object: 'luci',
-	method: 'setInitAction',
-	params: ['name', 'action'],
-	expect: { result: false }
+var callServiceStart = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'start',
+	expect: { '': {} }
 });
 
-function initAction(action) {
-	return callInitAction('upnp_bridge_relay', action);
-}
+var callServiceStop = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'stop',
+	expect: { '': {} }
+});
+
+var callServiceRestart = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'restart',
+	expect: { '': {} }
+});
 
 function setBusy(button, label) {
 	if (!button)
@@ -69,6 +76,12 @@ function reloadSoon(delay) {
 	window.setTimeout(function() {
 		window.location.reload();
 	}, delay || 1200);
+}
+
+function requireSuccess(result) {
+	if (result && result.success === false)
+		throw new Error(result.error || _('service action failed'));
+	return result || {};
 }
 
 function makeNftBadge(status) {
@@ -248,18 +261,7 @@ return view.extend({
 				'click': function() {
 					var btn = this;
 					setBusy(btn, _('Loading...'));
-					var enabled = uci.get('upnp_bridge_relay', 'main', 'enabled');
-					var chain = L.resolve();
-					if (enabled !== '1') {
-						uci.set('upnp_bridge_relay', 'main', 'enabled', '1');
-						chain = chain.then(function() { return uci.save(); })
-							.then(function() { return safeApply(); });
-					}
-					return chain.then(function() {
-						return initAction('enable');
-					}).then(function() {
-						return initAction('start');
-					}).then(function() {
+					return callServiceStart().then(requireSuccess).then(function() {
 						ui.addNotification(null, E('p', _('Service started.')), 'info');
 						reloadSoon();
 					}).catch(function(e) {
@@ -276,7 +278,7 @@ return view.extend({
 				'click': function() {
 					var btn = this;
 					setBusy(btn, _('Loading...'));
-					return initAction('stop').then(function() {
+					return callServiceStop().then(requireSuccess).then(function() {
 						ui.addNotification(null, E('p', _('Service stopped.')), 'info');
 						reloadSoon();
 					}).catch(function(e) {
@@ -292,7 +294,7 @@ return view.extend({
 			'click': function() {
 				var btn = this;
 				setBusy(btn, _('Loading...'));
-				return initAction('restart').then(function() {
+				return callServiceRestart().then(requireSuccess).then(function() {
 					ui.addNotification(null, E('p', _('Service restarted.')), 'info');
 					reloadSoon();
 				}).catch(function(e) {

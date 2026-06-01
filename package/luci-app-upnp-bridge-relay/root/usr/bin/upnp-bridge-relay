@@ -7,6 +7,7 @@ NFT_CHAIN="prerouting"
 STATUS_DIR="/tmp/upnp_bridge_relay"
 STATUS_FILE="${STATUS_DIR}/status.json"
 ENV_CACHE_FILE="${STATUS_DIR}/env_cache.json"
+NETWORK_CACHE_FILE="${STATUS_DIR}/network_cache.json"
 RESOURCES_DIR="/etc/upnp_bridge_relay"
 RESOURCES_FILE="${RESOURCES_DIR}/resources.txt"
 LOCK_FILE="/tmp/upnp_bridge_relay.lock"
@@ -649,6 +650,14 @@ read_env_cache() {
     fi
 }
 
+read_network_cache() {
+    if [ -f "${NETWORK_CACHE_FILE}" ]; then
+        cat "${NETWORK_CACHE_FILE}"
+    else
+        printf '{"cached":0,"updated_at":""}\n'
+    fi
+}
+
 openclash_has_plugin_rule() {
     _oh_prefix="${cfg_openclash_rule_remark} ["
     _oh_idx=0
@@ -1208,7 +1217,40 @@ do_check_network() {
         _cn_fwd_idx=$((_cn_fwd_idx + 1))
     done
 
-    printf '{"bind_ifname":"%s","bind_ip":"%s","downstream_lan_gateway":"%s","downstream_wan_ip":"%s","upstream_wan_if":"%s","iface_exists":%d,"bind_ip_configured":%d,"gateway_reachable":%d,"upnpc_readable":%d,"upnpc_mapping_count":%d,"wan_ip_reachable":%d,"upstream_wan_exists":%d,"default_route_on_bind":%d,"bad_forwarding":%d}\n' \
+    _cn_gateway_value="$(uci -q get network.upnp_bridge_lan.gateway 2>/dev/null)"
+    _cn_gateway_set=0
+    [ -n "$_cn_gateway_value" ] && _cn_gateway_set=1
+
+    _cn_dns_value="$(uci -q get network.upnp_bridge_lan.dns 2>/dev/null)"
+    _cn_dns_set=0
+    [ -n "$_cn_dns_value" ] && _cn_dns_set=1
+
+    _cn_zone_exists=0
+    _cn_zone_input=""
+    _cn_zone_output=""
+    _cn_zone_forward=""
+    _cn_zone_masq=""
+    _cn_zone_idx=0
+    while true; do
+        _cn_zone_name="$(uci -q get firewall.@zone[${_cn_zone_idx}].name 2>/dev/null)"
+        if [ -z "$_cn_zone_name" ]; then
+            break
+        fi
+        if [ "$_cn_zone_name" = "${cfg_firewall_zone_name}" ]; then
+            _cn_zone_exists=1
+            _cn_zone_input="$(uci -q get firewall.@zone[${_cn_zone_idx}].input 2>/dev/null)"
+            _cn_zone_output="$(uci -q get firewall.@zone[${_cn_zone_idx}].output 2>/dev/null)"
+            _cn_zone_forward="$(uci -q get firewall.@zone[${_cn_zone_idx}].forward 2>/dev/null)"
+            _cn_zone_masq="$(uci -q get firewall.@zone[${_cn_zone_idx}].masq 2>/dev/null)"
+            break
+        fi
+        _cn_zone_idx=$((_cn_zone_idx + 1))
+    done
+
+    _cn_updated_at="$(get_timestamp)"
+
+    _cn_json="$(printf '{"cached":1,"updated_at":"%s","bind_ifname":"%s","bind_ip":"%s","downstream_lan_gateway":"%s","downstream_wan_ip":"%s","upstream_wan_if":"%s","iface_exists":%d,"bind_ip_configured":%d,"gateway_reachable":%d,"upnpc_readable":%d,"upnpc_mapping_count":%d,"wan_ip_reachable":%d,"upstream_wan_exists":%d,"default_route_on_bind":%d,"bad_forwarding":%d,"gateway_set":%d,"gateway_value":"%s","dns_set":%d,"dns_value":"%s","zone_name":"%s","zone_exists":%d,"zone_input":"%s","zone_output":"%s","zone_forward":"%s","zone_masq":"%s"}\n' \
+        "$(json_escape "$_cn_updated_at")" \
         "$(json_escape "${cfg_bind_ifname}")" \
         "$(json_escape "${cfg_bind_ip}")" \
         "$(json_escape "${cfg_downstream_lan_gateway}")" \
@@ -1222,7 +1264,21 @@ do_check_network() {
         "$_cn_wan_ip_ok" \
         "$_cn_upstream_wan_ok" \
         "$_cn_def_route" \
-        "$_cn_bad_fwd"
+        "$_cn_bad_fwd" \
+        "$_cn_gateway_set" \
+        "$(json_escape "$_cn_gateway_value")" \
+        "$_cn_dns_set" \
+        "$(json_escape "$_cn_dns_value")" \
+        "$(json_escape "${cfg_firewall_zone_name}")" \
+        "$_cn_zone_exists" \
+        "$(json_escape "$_cn_zone_input")" \
+        "$(json_escape "$_cn_zone_output")" \
+        "$(json_escape "$_cn_zone_forward")" \
+        "$(json_escape "$_cn_zone_masq")")"
+
+    ensure_dirs
+    printf '%s' "$_cn_json" > "${NETWORK_CACHE_FILE}"
+    printf '%s' "$_cn_json"
 }
 
 do_sync() {
@@ -2063,6 +2119,9 @@ case "$1" in
     --check-network)
         do_check_network
         ;;
+    --network-cache)
+        read_network_cache
+        ;;
     --sync)
         do_sync
         ;;
@@ -2107,7 +2166,7 @@ case "$1" in
         do_daemon
         ;;
     *)
-        printf 'Usage: %s {--check-env|--check-network|--sync|--dry-run|--clear|--status|--refresh-env|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--remove-openclash-rule|--rollback|--read-log|--clear-log|--daemon}\n' "$0"
+        printf 'Usage: %s {--check-env|--check-network|--network-cache|--sync|--dry-run|--clear|--status|--refresh-env|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--remove-openclash-rule|--rollback|--read-log|--clear-log|--daemon}\n' "$0"
         exit 1
         ;;
 esac

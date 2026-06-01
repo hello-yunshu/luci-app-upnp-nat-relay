@@ -1290,6 +1290,57 @@ msgstr "重置"
 msgid "UPnP Bridge Relay - Settings"
 msgstr "UPnP Bridge Relay - 设置"
 
+msgid "Service & Sync"
+msgstr "服务与同步"
+
+msgid "Enable Automatic Sync"
+msgstr "启用自动同步"
+
+msgid "Run the background service and periodically synchronize accepted UPnP mappings."
+msgstr "运行后台服务，并定期同步已接受的 UPnP 映射。"
+
+msgid "How often the background service checks the downstream router."
+msgstr "后台服务检查下游路由器的间隔。"
+
+msgid "Command used to read UPnP mappings from the downstream router."
+msgstr "用于从下游路由器读取 UPnP 映射的命令。"
+
+msgid "Custom"
+msgstr "自定义"
+
+msgid "Read and filter mappings without creating DNAT rules."
+msgstr "只读取并过滤映射，不创建 DNAT 规则。"
+
+msgid "Remove dynamic DNAT rules when the service stops."
+msgstr "服务停止时移除动态 DNAT 规则。"
+
+msgid "Clear rules after this many consecutive sync failures. Set to 0 to never clear because of failures."
+msgstr "连续同步失败达到此次数后清除规则。设为 0 则不会因失败自动清除。"
+
+msgid "Automation"
+msgstr "自动化"
+
+msgid "Auto Configure Network"
+msgstr "自动配置网络"
+
+msgid "Allow automatic setup flows to create or repair the read interface before testing."
+msgstr "允许自动设置流程在测试前创建或修复读取接口。"
+
+msgid "Auto Configure Firewall Zone"
+msgstr "自动配置防火墙区域"
+
+msgid "Allow automatic setup flows to create or repair the independent firewall zone before testing."
+msgstr "允许自动设置流程在测试前创建或修复独立防火墙区域。"
+
+msgid "Restart OpenClash automatically after writing RETURN rules."
+msgstr "写入 RETURN 规则后自动重启 OpenClash。"
+
+msgid "Controls the verbosity of system log output."
+msgstr "控制系统日志输出的详细程度。"
+
+msgid "service action failed"
+msgstr "服务操作失败"
+
 msgid "Sync Behavior"
 msgstr "同步行为"
 
