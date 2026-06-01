@@ -105,7 +105,7 @@ jobs:
         run: |
           ./scripts/feeds update base packages luci custom
           ./scripts/feeds install luci-base miniupnpc nftables
-          ./scripts/feeds install -p custom "$PKG_NAME"
+          ./scripts/feeds install "$PKG_NAME"
 
       - name: Configure
         working-directory: ${{ env.SDKDIR }}
