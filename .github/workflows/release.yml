@@ -36,9 +36,11 @@ jobs:
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "Manual trigger, proceeding with build"
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
-            echo "release=${PKG_RELEASE}" >> "$GITHUB_OUTPUT"
+            {
+              echo "changed=true"
+              echo "version=${PKG_VERSION}"
+              echo "release=${PKG_RELEASE}"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -49,9 +51,11 @@ jobs:
           fi
 
           echo "New version detected: ${TAG}"
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-          echo "version=${PKG_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "release=${PKG_RELEASE}" >> "$GITHUB_OUTPUT"
+          {
+            echo "changed=true"
+            echo "version=${PKG_VERSION}"
+            echo "release=${PKG_RELEASE}"
+          } >> "$GITHUB_OUTPUT"
 
   build:
     needs: check-version
@@ -78,14 +82,14 @@ jobs:
 
       - name: Fix SDK paths
         run: |
-          mkdir -p $SDKDIR/shared-workdir
-          rm -rf $SDKDIR/shared-workdir/build
-          ln -sf $SDKDIR $SDKDIR/shared-workdir/build
+          mkdir -p "$SDKDIR/shared-workdir"
+          rm -rf "$SDKDIR/shared-workdir/build"
+          ln -sf "$SDKDIR" "$SDKDIR/shared-workdir/build"
 
       - name: Prepare package source
         working-directory: ${{ env.SDKDIR }}
         run: |
-          cp -r $GITHUB_WORKSPACE/$REPO_NAME/package/$PKG_NAME ./package/
+          cp -r "$GITHUB_WORKSPACE/$REPO_NAME/package/$PKG_NAME" ./package/
 
       - name: Cache SDK build
         uses: HiGarfield/cachewrtbuild@main
@@ -107,21 +111,21 @@ jobs:
       - name: Configure
         working-directory: ${{ env.SDKDIR }}
         run: |
-          echo "CONFIG_PACKAGE_luci_app_upnp_bridge_relay=y" >> .config
+          echo "CONFIG_PACKAGE_${PKG_NAME}=y" >> .config
           make defconfig
 
       - name: Build package
         working-directory: ${{ env.SDKDIR }}
         run: |
-          make package/$PKG_NAME/compile V=sc
+          make "package/$PKG_NAME/compile" V=sc
 
       - name: Collect package
         working-directory: ${{ env.SDKDIR }}
         run: |
-          mkdir -p $GITHUB_WORKSPACE/output
-          find ./bin/ -name "${PKG_NAME}*.${{ matrix.pkgtype }}" -exec cp {} $GITHUB_WORKSPACE/output/ \;
-          find ./bin/ -name "luci-i18n-upnp-bridge-relay*.${{ matrix.pkgtype }}" -exec cp {} $GITHUB_WORKSPACE/output/ \;
-          ls -la $GITHUB_WORKSPACE/output/
+          mkdir -p "$GITHUB_WORKSPACE/output"
+          find ./bin/ -name "${PKG_NAME}*.${{ matrix.pkgtype }}" -exec cp {} "$GITHUB_WORKSPACE/output/" \;
+          find ./bin/ -name "luci-i18n-upnp-bridge-relay*.${{ matrix.pkgtype }}" -exec cp {} "$GITHUB_WORKSPACE/output/" \;
+          ls -la "$GITHUB_WORKSPACE/output/"
 
       - name: Upload artifact
         uses: actions/upload-artifact@main
