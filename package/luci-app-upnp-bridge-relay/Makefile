@@ -35,8 +35,8 @@ define Package/luci-app-upnp-bridge-relay/prerm
 }
 endef
 
-include $(TOPDIR)/feeds/luci/luci.mk
-
-define Build/Compile
+define Build/Prepare/luci-app-upnp-bridge-relay
 	$(SED) 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/bin/upnp-bridge-relay
 endef
+
+include $(TOPDIR)/feeds/luci/luci.mk
