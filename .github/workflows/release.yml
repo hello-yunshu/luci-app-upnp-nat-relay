@@ -107,14 +107,7 @@ jobs:
         working-directory: ${{ env.SDKDIR }}
         run: |
           echo "CONFIG_PACKAGE_${PKG_NAME}=y" >> .config
-          make olddefconfig 2>/dev/null || make defconfig
-          grep -E "CONFIG_PACKAGE_luci_app_upnp_bridge_relay" .config || echo "WARNING: Package not found in .config"
-
-      - name: Debug package scan
-        working-directory: ${{ env.SDKDIR }}
-        run: |
-          ls -la package/luci-app-upnp-bridge-relay/ 2>/dev/null || echo "Package directory not found"
-          ls -la package/feeds/ 2>/dev/null || echo "No feeds packages"
+          make defconfig
 
       - name: Build package
         working-directory: ${{ env.SDKDIR }}
@@ -126,7 +119,6 @@ jobs:
         run: |
           mkdir -p "$GITHUB_WORKSPACE/output"
           find ./bin/ -name "${PKG_NAME}*.${{ matrix.pkgtype }}" -exec cp {} "$GITHUB_WORKSPACE/output/" \;
-          find ./bin/ -name "luci-i18n-upnp-bridge-relay*.${{ matrix.pkgtype }}" -exec cp {} "$GITHUB_WORKSPACE/output/" \;
           ls -la "$GITHUB_WORKSPACE/output/"
 
       - name: Upload artifact
@@ -168,21 +160,18 @@ jobs:
           body: |
             UPnP Bridge Relay v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
 
-            Main package: `luci-app-upnp-bridge-relay` (LuCI web interface + service)
-            Translation packages: `luci-i18n-upnp-bridge-relay-zh-cn` (Simplified Chinese)
+            Main package: `luci-app-upnp-bridge-relay` (LuCI web interface + service, includes Chinese and English translations)
 
             Both `.ipk` (opkg) and `.apk` (apk) formats are provided.
 
             ## Installation (opkg - OpenWrt 23.05 / 24.10)
             ```bash
             opkg install luci-app-upnp-bridge-relay_*.ipk
-            opkg install luci-i18n-upnp-bridge-relay-zh-cn_*.ipk
             ```
 
             ## Installation (apk - OpenWrt 25.12+)
             ```bash
             apk add --allow-untrusted ./luci-app-upnp-bridge-relay*.apk
-            apk add --allow-untrusted ./luci-i18n-upnp-bridge-relay-zh-cn*.apk
             ```
 
             ## Upgrade
