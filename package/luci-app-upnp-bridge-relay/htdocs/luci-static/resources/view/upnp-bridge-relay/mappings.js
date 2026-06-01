@@ -25,22 +25,13 @@ var css = `
 		padding-left: 0.6em;
 		border-left: 3px solid var(--main-color);
 	}
-	.ubr-mappings .cbi-section {
-		margin-bottom: 1.5em; padding: 1.2em;
-		border-radius: 8px;
-		background: var(--background-color-a);
-		border: 1px solid var(--border-color);
-		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
-	}
-	.ubr-btn-bar {
-		margin-bottom: 1.5em; padding: 1.2em;
-		border-radius: 8px;
-		background: var(--background-color-a);
-		border: 1px solid var(--border-color);
-		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
-		display: flex; gap: 1em;
-	}
-`;
+		.ubr-mappings .cbi-section {
+			margin-bottom: 1.5em;
+		}
+		.ubr-btn-bar {
+			display: flex; gap: 1em;
+		}
+	`;
 
 return view.extend({
 	load: function() {
@@ -58,7 +49,7 @@ return view.extend({
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Mappings')));
 
-		var btnBar = E('div', { 'class': 'ubr-btn-bar' });
+			var btnBar = E('div', { 'class': 'cbi-section ubr-btn-bar' });
 		btnBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
 			'click': function() {

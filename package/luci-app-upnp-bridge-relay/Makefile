@@ -39,8 +39,10 @@ define Build/Compile
 		lang=$$$$(basename "$$$$po_dir"); \
 		[ "$$$$lang" = "templates" ] && continue; \
 		[ -f "$$$$po_dir/upnp-bridge-relay.po" ] || continue; \
+		lmo_lang="$$$$lang"; \
+		[ "$$$$lmo_lang" = "zh_Hans" ] && lmo_lang="zh-cn"; \
 		if [ -x "$(STAGING_DIR_HOSTPKG)/bin/po2lmo" ]; then \
-			"$(STAGING_DIR_HOSTPKG)/bin/po2lmo" "$$$$po_dir/upnp-bridge-relay.po" "$(PKG_BUILD_DIR)/lmo/upnp-bridge-relay.$$$$lang.lmo"; \
+			"$(STAGING_DIR_HOSTPKG)/bin/po2lmo" "$$$$po_dir/upnp-bridge-relay.po" "$(PKG_BUILD_DIR)/lmo/upnp-bridge-relay.$$$$lmo_lang.lmo"; \
 		fi; \
 	done; \
 	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/bin/upnp-bridge-relay
@@ -72,6 +74,8 @@ define Package/luci-app-upnp-bridge-relay/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || { \
 	[ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay enable 2>/dev/null; \
+	uci -q get luci.languages.zh_cn >/dev/null || uci -q set luci.languages.zh_cn='简体中文'; \
+	uci -q commit luci; \
 	rm -f /tmp/luci-indexcache.*; \
 	rm -rf /tmp/luci-modulecache/; \
 	/etc/init.d/rpcd reload 2>/dev/null; \

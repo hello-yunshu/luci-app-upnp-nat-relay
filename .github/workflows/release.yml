@@ -86,11 +86,6 @@ jobs:
           rm -rf "$SDKDIR/shared-workdir/build"
           ln -sf "$SDKDIR" "$SDKDIR/shared-workdir/build"
 
-      - name: Prepare package source
-        working-directory: ${{ env.SDKDIR }}
-        run: |
-          cp -r "$GITHUB_WORKSPACE/$REPO_NAME/package/$PKG_NAME" ./package/
-
       - name: Cache SDK build
         uses: HiGarfield/cachewrtbuild@main
         with:
@@ -101,7 +96,12 @@ jobs:
         working-directory: ${{ env.SDKDIR }}
         run: |
           ./scripts/feeds update base packages luci
-          ./scripts/feeds install -a
+          ./scripts/feeds install luci-base miniupnpc nftables
+
+      - name: Prepare package source
+        working-directory: ${{ env.SDKDIR }}
+        run: |
+          cp -r "$GITHUB_WORKSPACE/$REPO_NAME/package/$PKG_NAME" ./package/
 
       - name: Configure
         working-directory: ${{ env.SDKDIR }}
@@ -118,7 +118,15 @@ jobs:
         working-directory: ${{ env.SDKDIR }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/output"
-          find ./bin/ -name "${PKG_NAME}*.${{ matrix.pkgtype }}" -exec cp {} "$GITHUB_WORKSPACE/output/" \;
+          package_files="$(find ./bin/ -type f -name "${PKG_NAME}*.${{ matrix.pkgtype }}")"
+          if [ -z "$package_files" ]; then
+            echo "::error::No ${PKG_NAME} .${{ matrix.pkgtype }} package was produced"
+            find ./bin/ -type f -name "*.${{ matrix.pkgtype }}" -print
+            exit 1
+          fi
+          printf '%s\n' "$package_files" | while IFS= read -r file; do
+            cp "$file" "$GITHUB_WORKSPACE/output/"
+          done
           ls -la "$GITHUB_WORKSPACE/output/"
 
       - name: Upload artifact

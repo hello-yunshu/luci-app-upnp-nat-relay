@@ -42,11 +42,9 @@ make package/luci-app-upnp-bridge-relay/compile V=s
 ```sh
 # OpenWrt 24.10 / 23.05 (opkg)
 opkg install luci-app-upnp-bridge-relay_*.ipk
-opkg install luci-i18n-upnp-bridge-relay-zh-cn_*.ipk
 
 # OpenWrt 25.12+ (apk)
 apk add --allow-untrusted ./luci-app-upnp-bridge-relay*.apk
-apk add --allow-untrusted ./luci-i18n-upnp-bridge-relay-zh-cn*.apk
 ```
 
 ### 使用

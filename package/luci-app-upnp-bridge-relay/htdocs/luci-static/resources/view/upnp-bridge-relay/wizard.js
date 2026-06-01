@@ -80,12 +80,9 @@ var css = `
 		flex: 1; height: 3px; background: var(--border-color);
 	}
 	.ubr-wizard-line.done { background: var(--success-color); }
-	.ubr-wizard-step-card {
-		padding: 1.2em; border-radius: 8px;
-		background: var(--background-color-a);
-		border: 1px solid var(--border-color);
-		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
-	}
+		.ubr-wizard-step-card {
+			padding: 1.2em;
+		}
 	.ubr-wizard-step-card h3 {
 		margin: 0 0 0.8em 0; padding: 0 0 0.5em 0.6em;
 		border-bottom: 1px solid var(--border-color);
@@ -95,25 +92,23 @@ var css = `
 		display: flex; gap: 1em; margin-top: 1.2em;
 		padding-top: 1em; border-top: 1px solid var(--border-color);
 	}
-	.ubr-mode-bar {
-		display: flex; gap: 0; margin-bottom: 1.5em;
-		border-radius: 8px; overflow: hidden;
-		border: 1px solid var(--border-color);
-		box-shadow: 0 1px 3px color-mix(in srgb, var(--main-text-color) 6%, transparent);
-	}
-	.ubr-mode-btn {
-		flex: 1; padding: 0.8em; text-align: center;
-		cursor: pointer; border: none; background: var(--background-color-a);
-		color: var(--main-text-color); font-size: 0.95em;
-		transition: all 0.2s;
-	}
-	.ubr-mode-btn:hover {
-		background: color-mix(in srgb, var(--background-color-a) 85%, var(--main-color));
-	}
-	.ubr-mode-btn.active {
-		background: var(--main-color); color: #fff;
-	}
-`;
+		.ubr-mode-bar {
+			display: flex; gap: 0; margin-bottom: 1.5em;
+			overflow: hidden;
+		}
+		.ubr-mode-btn {
+			flex: 1; padding: 0.8em; text-align: center;
+			cursor: pointer; border: none; background: transparent;
+			color: var(--main-text-color); font-size: 0.95em;
+			transition: all 0.2s;
+		}
+		.ubr-mode-btn:hover {
+			background: color-mix(in srgb, var(--main-color) 8%, transparent);
+		}
+		.ubr-mode-btn.active {
+			background: var(--main-color); color: #fff;
+		}
+	`;
 
 return view.extend({
 	step: 1,
@@ -150,7 +145,7 @@ return view.extend({
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Setup Wizard')));
 
-		var modeBar = E('div', { 'class': 'ubr-mode-bar' });
+		var modeBar = E('div', { 'class': 'cbi-section ubr-mode-bar' });
 		var safeBtn = E('button', {
 			'class': 'ubr-mode-btn' + (self.wizardMode === 'safe' ? ' active' : ''),
 			'click': function() {
@@ -229,8 +224,8 @@ return view.extend({
 		while (stepContainer.firstChild)
 			stepContainer.removeChild(stepContainer.firstChild);
 
-		var self = this;
-		var s = E('div', { 'class': 'ubr-wizard-step-card' });
+			var self = this;
+			var s = E('div', { 'class': 'cbi-section ubr-wizard-step-card' });
 
 		var progressBar = E('div', { 'class': 'ubr-wizard-progress' });
 		for (var i = 1; i <= this.totalSteps; i++) {
