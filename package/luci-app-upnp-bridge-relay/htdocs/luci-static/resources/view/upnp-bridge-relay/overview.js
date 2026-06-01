@@ -4,21 +4,13 @@
 'require rpc';
 'require uci';
 'require form';
+'require upnp-bridge-relay/utils';
 
 var callStatus = rpc.declare({
 	object: 'upnp_bridge_relay',
 	method: 'status',
 	expect: { '': {} }
 });
-
-function safeApply() {
-	return uci.apply().catch(function(e) {
-		var message = e && e.message ? e.message : String(e);
-		if (e === 5 || /\bubus code 5\b/.test(message) || /No data|未收到数据/.test(message))
-			return;
-		throw e;
-	});
-}
 
 var callSyncNow = rpc.declare({
 	object: 'upnp_bridge_relay',
@@ -55,28 +47,6 @@ var callServiceRestart = rpc.declare({
 	method: 'restart',
 	expect: { '': {} }
 });
-
-function setBusy(button, label) {
-	if (!button)
-		return;
-	button.disabled = true;
-	button.setAttribute('data-original-title', button.textContent);
-	button.textContent = label;
-}
-
-function resetBusy(button) {
-	if (!button)
-		return;
-	button.disabled = false;
-	button.textContent = button.getAttribute('data-original-title') || button.textContent;
-	button.removeAttribute('data-original-title');
-}
-
-function reloadSoon(delay) {
-	window.setTimeout(function() {
-		window.location.reload();
-	}, delay || 1200);
-}
 
 function requireSuccess(result) {
 	if (result && result.success === false)
@@ -126,11 +96,10 @@ function buildDepSection(missingDeps, pkgManager) {
 }
 
 var css = `
-		.ubr-dashboard { max-width: 100%; }
-		.ubr-status-banner {
-			display: flex; align-items: center; gap: 1.2em;
-			padding: 1.5em; margin-bottom: 1.5em;
-		}
+	.ubr-status-banner {
+		display: flex; align-items: center; gap: 1.2em;
+		padding: 1.5em; margin-bottom: 1.5em;
+	}
 	.ubr-status-banner.running { border-left: 5px solid var(--success-color, #3aa657); }
 	.ubr-status-banner.stopped { border-left: 5px solid var(--warning-color, #d89b00); }
 	.ubr-status-icon { font-size: 2.5em; line-height: 1; }
@@ -144,10 +113,10 @@ var css = `
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 		gap: 1em; margin-bottom: 1.5em;
 	}
-		.ubr-stat-card {
-			padding: 1em 1.2em; border-radius: 8px;
-			text-align: center;
-		}
+	.ubr-stat-card {
+		padding: 1em 1.2em; border-radius: 8px;
+		text-align: center;
+	}
 	.ubr-stat-card .ubr-stat-value {
 		font-size: 1.8em; font-weight: bold; line-height: 1.2;
 		color: var(--main-color, #0069d9);
@@ -158,24 +127,6 @@ var css = `
 	.ubr-stat-card .ubr-stat-label {
 		font-size: 0.85em; color: var(--subtext-color, #666);
 		margin-top: 0.3em;
-	}
-		.ubr-section {
-			margin-bottom: 1.5em;
-		}
-	.ubr-badge {
-		display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
-		font-size: 0.85em; font-weight: 500;
-	}
-	.ubr-badge.green { background: color-mix(in srgb, var(--success-color, #3aa657) 15%, transparent); color: var(--success-color, #3aa657); }
-	.ubr-badge.red { background: color-mix(in srgb, var(--danger-color, #d94b4b) 15%, transparent); color: var(--danger-color, #d94b4b); }
-		.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color, #d89b00) 15%, transparent); color: var(--warning-color, #d89b00); }
-	.ubr-badge.gray { background: color-mix(in srgb, var(--warning-color, #d89b00) 15%, transparent); color: var(--warning-color, #d89b00); }
-		.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
-	.ubr-cmd-box {
-		padding: 0.8em 1em; border-radius: 6px;
-		background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color, #0069d9)));
-		border: 1px solid var(--border-color);
-		font-family: monospace; font-size: 0.9em;
 	}
 	`;
 
@@ -190,6 +141,7 @@ return view.extend({
 	},
 
 	render: function(status) {
+		utils.loadSharedCSS();
 		status = status || {};
 		var running = status.running || false;
 		var lastSync = status.last_sync || '-';
@@ -260,13 +212,13 @@ return view.extend({
 				'class': 'cbi-button cbi-button-apply',
 				'click': function() {
 					var btn = this;
-					setBusy(btn, _('Loading...'));
+					utils.setBusy(btn, _('Loading...'));
 					return callServiceStart().then(requireSuccess).then(function() {
 						ui.addNotification(null, E('p', _('Service started.')), 'info');
-						reloadSoon();
+						utils.reloadSoon();
 					}).catch(function(e) {
 						ui.addNotification(null, E('p', _('Failed to start service: ') + e.message), 'error');
-						resetBusy(btn);
+						utils.resetBusy(btn);
 					});
 				}
 			}, '\u25B6 ' + _('Start')));
@@ -277,13 +229,13 @@ return view.extend({
 				'class': 'cbi-button cbi-button-reset',
 				'click': function() {
 					var btn = this;
-					setBusy(btn, _('Loading...'));
+					utils.setBusy(btn, _('Loading...'));
 					return callServiceStop().then(requireSuccess).then(function() {
 						ui.addNotification(null, E('p', _('Service stopped.')), 'info');
-						reloadSoon();
+						utils.reloadSoon();
 					}).catch(function(e) {
 						ui.addNotification(null, E('p', _('Failed to stop service: ') + e.message), 'error');
-						resetBusy(btn);
+						utils.resetBusy(btn);
 					});
 				}
 			}, '\u25A0 ' + _('Stop')));
@@ -293,13 +245,13 @@ return view.extend({
 			'class': 'cbi-button cbi-button-apply',
 			'click': function() {
 				var btn = this;
-				setBusy(btn, _('Loading...'));
+				utils.setBusy(btn, _('Loading...'));
 				return callServiceRestart().then(requireSuccess).then(function() {
 					ui.addNotification(null, E('p', _('Service restarted.')), 'info');
-					reloadSoon();
+					utils.reloadSoon();
 				}).catch(function(e) {
 					ui.addNotification(null, E('p', _('Failed to restart service: ') + e.message), 'error');
-					resetBusy(btn);
+					utils.resetBusy(btn);
 				});
 			}
 		}, '\u21BB ' + _('Restart')));
@@ -309,7 +261,7 @@ return view.extend({
 				'class': 'cbi-button cbi-button-apply',
 				'click': function() {
 					var btn = this;
-					setBusy(btn, _('Loading...'));
+					utils.setBusy(btn, _('Loading...'));
 					return callSyncNow().then(function(result) {
 						var msg;
 						var msgType = 'info';
@@ -333,10 +285,10 @@ return view.extend({
 							msg = _('Sync triggered.');
 						}
 						ui.addNotification(null, E('p', msg), msgType);
-						reloadSoon(2500);
+						utils.reloadSoon(2500);
 					}).catch(function(e) {
 						ui.addNotification(null, E('p', _('Sync failed: %s').format(e.message)), 'error');
-						resetBusy(btn);
+						utils.resetBusy(btn);
 					});
 				}
 			}, '\u21C4 ' + _('Sync Now')));
@@ -345,13 +297,13 @@ return view.extend({
 				'class': 'cbi-button cbi-button-reset',
 				'click': function() {
 					var btn = this;
-					setBusy(btn, _('Loading...'));
+					utils.setBusy(btn, _('Loading...'));
 					return callClear().then(function(result) {
 						ui.addNotification(null, E('p', _('Dynamic rules cleared.')), 'info');
-						reloadSoon();
+						utils.reloadSoon();
 					}).catch(function(e) {
 						ui.addNotification(null, E('p', _('Failed to clear rules: ') + e.message), 'error');
-						resetBusy(btn);
+						utils.resetBusy(btn);
 					});
 				}
 			}, '\u2716 ' + _('Clear Rules')));
@@ -481,7 +433,7 @@ return view.extend({
 			'class': 'cbi-button cbi-button-apply',
 			'click': function() {
 				var btn = this;
-				setBusy(btn, _('Checking...'));
+				utils.setBusy(btn, _('Checking...'));
 				return callRefreshEnv().then(function(result) {
 					result = result || {};
 					for (var j = 0; j < envTds.length; j++) {
@@ -526,11 +478,11 @@ return view.extend({
 						depSection = newDepSection;
 					}
 
-					resetBusy(btn);
+					utils.resetBusy(btn);
 					ui.addNotification(null, E('p', _('Environment detection refreshed.')), 'info');
 				}).catch(function(e) {
 					ui.addNotification(null, E('p', _('Failed to refresh environment: ') + e.message), 'error');
-					resetBusy(btn);
+					utils.resetBusy(btn);
 				});
 			}
 		}, '\u21BB ' + _('Refresh Env')));

@@ -11,6 +11,11 @@ start_service() {
 
 	[ "$enabled" -eq 0 ] && return 0
 
+	if ! validate_upnp_bridge_relay 2>/dev/null; then
+		logger -t upnp_bridge_relay -p daemon.err "Configuration validation failed, refusing to start"
+		return 1
+	fi
+
 	mkdir -p /tmp/upnp_bridge_relay
 
 	procd_open_instance

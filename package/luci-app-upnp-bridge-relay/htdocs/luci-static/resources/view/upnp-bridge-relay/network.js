@@ -4,6 +4,7 @@
 'require rpc';
 'require uci';
 'require form';
+'require upnp-bridge-relay/utils';
 
 var callCheckNetwork = rpc.declare({
 	object: 'upnp_bridge_relay',
@@ -28,12 +29,6 @@ var callFixZone = rpc.declare({
 	method: 'fix-zone',
 	expect: { '': {} }
 });
-
-function reloadSoon(delay) {
-	window.setTimeout(function() {
-		window.location.reload();
-	}, delay || 800);
-}
 
 return view.extend({
 	load: function() {
@@ -245,7 +240,7 @@ return view.extend({
 			return callCheckNetwork().then(function(result) {
 				netCheckData = result;
 				ui.addNotification(null, E('p', _('Network detection completed. Click the Status tab to view results.')), 'info');
-				reloadSoon();
+				utils.reloadSoon();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Detection failed: ') + e.message), 'error');
 			}).finally(function() {
@@ -271,7 +266,7 @@ return view.extend({
 				});
 			}).then(function(result) {
 				ui.addNotification(null, E('p', _('Interface configured. Click the Status tab to view details.')), 'info');
-				reloadSoon();
+				utils.reloadSoon();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Interface configuration failed: ') + e.message), 'error');
 			}).finally(function() {
@@ -395,7 +390,7 @@ return view.extend({
 				});
 			}).then(function(result) {
 				ui.addNotification(null, E('p', _('Zone settings fixed.')), 'info');
-				reloadSoon();
+				utils.reloadSoon();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Zone fix failed: ') + e.message), 'error');
 			}).finally(function() {
@@ -427,7 +422,7 @@ return view.extend({
 				});
 			}).then(function(result) {
 				ui.addNotification(null, E('p', _('Zone created successfully.')), 'info');
-				reloadSoon();
+				utils.reloadSoon();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Zone creation failed: ') + e.message), 'error');
 			}).finally(function() {

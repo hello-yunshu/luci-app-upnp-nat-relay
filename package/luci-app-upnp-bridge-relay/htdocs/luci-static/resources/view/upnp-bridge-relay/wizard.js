@@ -5,6 +5,7 @@
 'require uci';
 'require form';
 'require network';
+'require upnp-bridge-relay/utils';
 
 var callStatus = rpc.declare({
 	object: 'upnp_bridge_relay',
@@ -23,15 +24,6 @@ var callCheckNetwork = rpc.declare({
 	method: 'check-network',
 	expect: { '': {} }
 });
-
-function safeApply() {
-	return uci.apply().catch(function(e) {
-		var message = e && e.message ? e.message : String(e);
-		if (e === 5 || /\bubus code 5\b/.test(message) || /No data|未收到数据/.test(message))
-			return;
-		throw e;
-	});
-}
 
 var callDryRun = rpc.declare({
 	object: 'upnp_bridge_relay',
@@ -746,7 +738,7 @@ return view.extend({
 		if (self.wizardData.upstream_wan_if)
 			uci.set('upnp_bridge_relay', 'main', 'upstream_wan_if', self.wizardData.upstream_wan_if);
 		return uci.save().then(function() {
-			return safeApply();
+			return utils.safeApply();
 		});
 	},
 
@@ -765,7 +757,7 @@ return view.extend({
 		if (self.wizardData.upstream_wan_if)
 			uci.set('upnp_bridge_relay', 'main', 'upstream_wan_if', self.wizardData.upstream_wan_if);
 		return uci.save().then(function() {
-			return safeApply();
+			return utils.safeApply();
 		});
 	},
 
@@ -805,7 +797,7 @@ return view.extend({
 
 		uci.save()
 			.then(function() {
-				return safeApply();
+				return utils.safeApply();
 			})
 			.then(function() {
 				if (self.wizardMode === 'auto') {
