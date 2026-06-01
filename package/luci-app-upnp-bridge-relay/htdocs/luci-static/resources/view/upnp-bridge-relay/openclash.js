@@ -116,12 +116,15 @@ return view.extend({
 			var downstreamWanIp = uci.get('upnp_bridge_relay', 'main', 'downstream_wan_ip') || '-';
 			var allowedPorts = uci.get('upnp_bridge_relay', 'main', 'allowed_external_ports') || '40000-65535';
 			var remark = uci.get('upnp_bridge_relay', 'main', 'openclash_rule_remark') || 'UPnP Bridge Relay Auto RETURN';
+			var downstreamWanIpText = downstreamWanIp === '-' ?
+				'<span style="color:var(--warning-color, #d89b00)">&#9888; -</span>' :
+				'<span style="color:var(--success-color, #3aa657)">' + downstreamWanIp + '</span>';
 
 			return '<div class="cbi-section" style="font-family:monospace">' +
-				'<b>' + _('Internal Address:') + '</b> ' + downstreamWanIp + '<br>' +
-				'<b>' + _('Internal Ports:') + '</b> ' + allowedPorts + '<br>' +
+				'<b>' + _('Internal Address:') + '</b> ' + downstreamWanIpText + '<br>' +
+				'<b>' + _('Internal Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + allowedPorts + '</span><br>' +
 				'<b>' + _('Protocol:') + '</b> TCP/UDP<br>' +
-				'<b>' + _('Action:') + '</b> RETURN<br>' +
+				'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">RETURN</span><br>' +
 				'<b>' + _('Remark:') + '</b> ' + remark +
 				'</div>';
 		};

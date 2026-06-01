@@ -107,7 +107,7 @@ return view.extend({
 				rawTable.appendChild(row);
 			}
 		} else {
-			rawTable.appendChild(E('tr', {}, E('td', { 'colspan': '6' }, _('No mappings found.'))));
+			rawTable.appendChild(E('tr', {}, E('td', { 'colspan': '6', 'style': 'color:var(--subtext-color, #666)' }, _('No mappings found.'))));
 		}
 		container.appendChild(E('div', { 'class': 'cbi-section' }, rawTable));
 
@@ -139,7 +139,7 @@ return view.extend({
 				syncTable.appendChild(row);
 			}
 		} else {
-			syncTable.appendChild(E('tr', {}, E('td', { 'colspan': '5' }, _('No synced mappings.'))));
+			syncTable.appendChild(E('tr', {}, E('td', { 'colspan': '5', 'style': 'color:var(--subtext-color, #666)' }, _('No synced mappings.'))));
 		}
 		container.appendChild(E('div', { 'class': 'cbi-section' }, syncTable));
 
@@ -168,7 +168,7 @@ return view.extend({
 				rejectTable.appendChild(row);
 			}
 		} else {
-			rejectTable.appendChild(E('tr', {}, E('td', { 'colspan': '5' }, _('No rejected mappings.'))));
+			rejectTable.appendChild(E('tr', {}, E('td', { 'colspan': '5', 'style': 'color:var(--success-color, #3aa657)' }, '\u2714 ' + _('No rejected mappings.'))));
 		}
 		container.appendChild(E('div', { 'class': 'cbi-section' }, rejectTable));
 

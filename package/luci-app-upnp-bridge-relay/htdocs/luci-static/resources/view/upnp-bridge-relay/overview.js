@@ -296,11 +296,11 @@ return view.extend({
 
 		var lastResultBadge;
 		if (lastResult === 'success') {
-			lastResultBadge = E('span', { 'class': 'ubr-badge green' }, lastResult);
+			lastResultBadge = E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + lastResult);
 		} else if (lastResult === '-') {
-			lastResultBadge = E('span', { 'class': 'ubr-info-value' }, '-');
+			lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + '-');
 		} else {
-			lastResultBadge = E('span', { 'class': 'ubr-badge red' }, lastResult);
+			lastResultBadge = E('span', { 'class': 'ubr-badge red' }, '\u2718 ' + lastResult);
 		}
 		infoGrid.appendChild(E('div', { 'class': 'ubr-info-row' }, [
 			E('span', { 'class': 'ubr-info-label' }, _('Last Sync Result')),
@@ -311,9 +311,9 @@ return view.extend({
 		if (nftStatus === 'present') {
 			nftBadge = E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + _('Present'));
 		} else if (nftStatus === '-') {
-			nftBadge = E('span', { 'class': 'ubr-info-value' }, '-');
+			nftBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + _('Missing'));
 		} else {
-			nftBadge = E('span', { 'class': 'ubr-badge orange' }, nftStatus);
+			nftBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + nftStatus);
 		}
 		infoGrid.appendChild(E('div', { 'class': 'ubr-info-row' }, [
 			E('span', { 'class': 'ubr-info-label' }, _('nftables Table')),
@@ -328,9 +328,9 @@ return view.extend({
 		} else if (openclashStatus === 'not_installed') {
 			ocBadge = E('span', { 'class': 'ubr-badge orange' }, '\u2718 ' + _('Not Installed'));
 		} else if (openclashStatus === '-') {
-			ocBadge = E('span', { 'class': 'ubr-info-value' }, '-');
+			ocBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + '-');
 		} else {
-			ocBadge = E('span', { 'class': 'ubr-badge orange' }, openclashStatus);
+			ocBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + openclashStatus);
 		}
 		infoGrid.appendChild(E('div', { 'class': 'ubr-info-row' }, [
 			E('span', { 'class': 'ubr-info-label' }, _('OpenClash')),
