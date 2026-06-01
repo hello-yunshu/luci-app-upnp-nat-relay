@@ -810,6 +810,15 @@ msgstr "生成规则"
 msgid "Generate RETURN Rule"
 msgstr "生成 RETURN 规则"
 
+msgid "Rule"
+msgstr "规则"
+
+msgid "Generating..."
+msgstr "正在生成..."
+
+msgid "Suggested RETURN rule refreshed."
+msgstr "建议 RETURN 规则已刷新。"
+
 msgid "Write to OpenClash"
 msgstr "写入 OpenClash"
 

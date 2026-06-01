@@ -808,6 +808,15 @@ msgstr ""
 msgid "Generate RETURN Rule"
 msgstr ""
 
+msgid "Rule"
+msgstr ""
+
+msgid "Generating..."
+msgstr ""
+
+msgid "Suggested RETURN rule refreshed."
+msgstr ""
+
 msgid "Write to OpenClash"
 msgstr ""
 

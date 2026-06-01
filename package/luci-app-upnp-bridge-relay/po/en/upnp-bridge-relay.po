@@ -804,6 +804,15 @@ msgstr "Generate Rule"
 msgid "Generate RETURN Rule"
 msgstr "Generate RETURN Rule"
 
+msgid "Rule"
+msgstr "Rule"
+
+msgid "Generating..."
+msgstr "Generating..."
+
+msgid "Suggested RETURN rule refreshed."
+msgstr "Suggested RETURN rule refreshed."
+
 msgid "Write to OpenClash"
 msgstr "Write to OpenClash"
 
