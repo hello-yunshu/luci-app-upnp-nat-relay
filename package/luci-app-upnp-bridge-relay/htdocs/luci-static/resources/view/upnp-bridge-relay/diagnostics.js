@@ -4,7 +4,6 @@
 'require rpc';
 'require uci';
 'require form';
-'require fs';
 
 var callStatus = rpc.declare({
 	object: 'upnp_bridge_relay',
@@ -42,6 +41,12 @@ var callRemoveOpenclashRule = rpc.declare({
 	expect: { '': {} }
 });
 
+var callReadLog = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'read-log',
+	expect: { '': {} }
+});
+
 var css = `
 		.ubr-dashboard { max-width: 100%; }
 		.ubr-section {
@@ -53,17 +58,6 @@ var css = `
 		border-left: 3px solid var(--main-color, #0069d9);
 		font-size: 1.05em;
 	}
-	.ubr-env-grid {
-		display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-		gap: 0.8em;
-	}
-		.ubr-env-card {
-			padding: 0.8em 1em; border-radius: 6px;
-			background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color, #0069d9)));
-			border: 1px solid var(--border-color);
-			display: flex; justify-content: space-between; align-items: center;
-		}
-	.ubr-env-label { font-size: 0.9em; color: var(--subtext-color, #666); }
 	.ubr-badge {
 		display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
 		font-size: 0.85em; font-weight: 500;
@@ -84,13 +78,18 @@ var css = `
 		}
 	.ubr-check-label { font-size: 0.9em; }
 		.ubr-log-area {
-			max-height: 300px; overflow-y: auto; padding: 1em;
-			background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color, #0069d9)));
-			color: var(--main-text-color, #222);
-			font-size: 0.85em; border-radius: 6px;
+			min-height: 16em; max-height: 26em; overflow: auto; padding: 1em;
+			background: var(--background-color-low);
+			color: inherit;
+			font-size: 0.85em; line-height: 1.45; border-radius: 6px;
 			border: 1px solid var(--border-color);
-			font-family: monospace;
+			font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+			white-space: pre;
+			tab-size: 4;
 		}
+	.ubr-log-area.is-empty,
+	.ubr-log-area.is-loading { color: var(--subtext-color); font-style: italic; }
+	.ubr-log-area.is-error { color: var(--danger-color); }
 		.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
 		.ubr-danger-zone {
 			margin-bottom: 1.5em;
@@ -135,7 +134,7 @@ return view.extend({
 			var envSection = E('div', { 'class': 'cbi-section ubr-section' });
 		envSection.appendChild(E('h4', {}, '\u2699 ' + _('Environment Detection')));
 
-		var envGrid = E('div', { 'class': 'ubr-env-grid' });
+		var envTable = E('table', { 'class': 'table' });
 
 		var envItems = [
 			{ label: _('OpenWrt Version'), value: env.openwrt_version || '-', status: env.package_manager === 'unknown' ? 'orange' : 'green' },
@@ -154,12 +153,12 @@ return view.extend({
 		for (var i = 0; i < envItems.length; i++) {
 			var item = envItems[i];
 			var badgeClass = 'ubr-badge ' + item.status;
-			envGrid.appendChild(E('div', { 'class': 'ubr-env-card' }, [
-				E('span', { 'class': 'ubr-env-label' }, item.label),
-				E('span', { 'class': badgeClass }, item.value)
+			envTable.appendChild(E('tr', { 'class': 'tr' }, [
+				E('th', { 'class': 'th' }, item.label),
+				E('td', { 'class': 'td' }, E('span', { 'class': badgeClass }, item.value))
 			]));
 		}
-		envSection.appendChild(envGrid);
+		envSection.appendChild(envTable);
 
 		var envBtnBar = E('div', { 'class': 'ubr-btn-group', 'style': 'margin-top:1em' });
 		envBtnBar.appendChild(E('button', {
@@ -266,8 +265,21 @@ return view.extend({
 		netSection.appendChild(netBtnBar);
 		container.appendChild(netSection);
 
-			var logSection = E('div', { 'class': 'cbi-section ubr-section' });
+		var logSection = E('div', { 'class': 'cbi-section ubr-section' });
 		logSection.appendChild(E('h4', {}, '\u2261 ' + _('Recent Logs')));
+
+		var setLogArea = function(text, state) {
+			var logArea = document.getElementById('log-area');
+			if (!logArea) return;
+
+			logArea.classList.remove('is-empty', 'is-loading', 'is-error');
+			if (state)
+				logArea.classList.add(state);
+
+			logArea.textContent = text;
+			if (!state)
+				logArea.scrollTop = logArea.scrollHeight;
+		};
 
 		var logBtnBar = E('div', { 'class': 'ubr-btn-group', 'style': 'margin-bottom:1em' });
 		logBtnBar.appendChild(E('button', {
@@ -276,12 +288,20 @@ return view.extend({
 				var btn = this;
 				btn.disabled = true;
 				btn.textContent = _('Loading...');
-				return fs.exec_direct('/usr/bin/logread', ['-e', 'upnp-bridge-relay']).then(function(logData) {
-					var logArea = document.getElementById('log-area');
-					if (logArea) logArea.textContent = logData || _('No logs found.');
+				setLogArea(_('Loading...'), 'is-loading');
+				return callReadLog().then(function(result) {
+					if (result && result.success === false) {
+						var msg = result.error === 'logread_not_found' ?
+							_('System log reader is not available on this device.') :
+							_('Failed to read logs: ') + (result.error || '');
+						setLogArea(msg, 'is-error');
+						return;
+					}
+
+					var logs = (result && result.logs) ? result.logs : '';
+					setLogArea(logs || _('No logs found.'), logs ? null : 'is-empty');
 				}).catch(function(e) {
-					var logArea = document.getElementById('log-area');
-					if (logArea) logArea.textContent = _('Failed to read logs: ') + e.message;
+					setLogArea(_('Failed to read logs: ') + (e.message || e), 'is-error');
 				}).finally(function() {
 					btn.disabled = false;
 					btn.textContent = '\u2261 ' + _('View Logs');
@@ -290,7 +310,7 @@ return view.extend({
 		}, '\u2261 ' + _('View Logs')));
 		logSection.appendChild(logBtnBar);
 
-		var logArea = E('pre', { 'class': 'ubr-log-area', 'id': 'log-area' },
+		var logArea = E('pre', { 'class': 'ubr-log-area is-empty', 'id': 'log-area' },
 			_('Click "View Logs" to load recent logs.'));
 		logSection.appendChild(logArea);
 
@@ -384,27 +404,6 @@ return view.extend({
 
 		rollbackSection.appendChild(rollbackBtnBar);
 		container.appendChild(rollbackSection);
-
-			var cleanupBar = E('div', { 'class': 'cbi-section ubr-danger-zone' });
-		cleanupBar.appendChild(E('button', {
-			'class': 'cbi-button cbi-button-remove',
-			'click': function() {
-				if (!confirm(_('WARNING: This will remove ALL plugin-created configurations, rules, and restore backups. Are you sure?')))
-					return;
-				var btn = this;
-				btn.disabled = true;
-				return callRollback().then(function() {
-					return callClear();
-				}).then(function() {
-					ui.addNotification(null, E('p', _('All plugin configurations and rules have been cleaned up.')), 'info');
-				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('Cleanup failed: ') + e.message), 'error');
-				}).finally(function() {
-					btn.disabled = false;
-				});
-			}
-		}, '\u2716 ' + _('Cleanup All')));
-		container.appendChild(cleanupBar);
 
 		return container;
 	}

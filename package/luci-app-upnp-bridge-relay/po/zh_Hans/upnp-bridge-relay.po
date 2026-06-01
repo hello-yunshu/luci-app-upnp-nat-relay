@@ -942,6 +942,9 @@ msgstr "未找到日志。"
 msgid "Failed to read logs: "
 msgstr "读取日志失败："
 
+msgid "System log reader is not available on this device."
+msgstr "此设备上没有可用的系统日志读取器。"
+
 msgid "Last Error: "
 msgstr "最近错误："
 
@@ -1164,8 +1167,8 @@ msgstr "允许的外部端口"
 msgid "Interface configured. Click the Status tab to view details."
 msgstr "接口已配置。点击状态选项卡查看详情。"
 
-msgid "Enter ports separated by commas, e.g. 22, 23, 80, 443."
-msgstr "输入以逗号分隔的端口，例如 22, 23, 80, 443。"
+msgid "Enter ports separated by commas, e.g. 22,23,80,443."
+msgstr "输入以逗号分隔的端口，例如 22,23,80,443。"
 
 msgid "Invalid denied port: %s"
 msgstr "无效的拒绝端口：%s"

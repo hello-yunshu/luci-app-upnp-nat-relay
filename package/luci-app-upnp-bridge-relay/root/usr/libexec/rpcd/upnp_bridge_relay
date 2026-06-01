@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. /lib/functions.sh
+[ -f /lib/functions.sh ] && . /lib/functions.sh
 
 UPNP_BRIDGE_RELAY_BIN="/usr/bin/upnp-bridge-relay"
 STATUS_FILE="/tmp/upnp_bridge_relay/status.json"
@@ -12,6 +12,7 @@ case "$1" in
 		echo '"check-env": {},'
 		echo '"check-network": {},'
 		echo '"dry-run": {},'
+		echo '"read-log": {},'
 		echo '"sync-now": {},'
 		echo '"clear": {},'
 		echo '"setup-interface": {},'
@@ -35,6 +36,9 @@ case "$1" in
 				;;
 			dry-run)
 				"$UPNP_BRIDGE_RELAY_BIN" --dry-run 2>/dev/null || echo '{"error":"dry-run failed"}'
+				;;
+			read-log)
+				"$UPNP_BRIDGE_RELAY_BIN" --read-log 2>/dev/null || echo '{"success":false,"error":"read-log failed","logs":""}'
 				;;
 			sync-now)
 				"$UPNP_BRIDGE_RELAY_BIN" --sync 2>/dev/null || echo '{"success":false,"error":"sync_failed"}'

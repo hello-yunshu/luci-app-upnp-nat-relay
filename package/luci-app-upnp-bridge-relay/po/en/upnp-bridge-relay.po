@@ -936,6 +936,9 @@ msgstr "No logs found."
 msgid "Failed to read logs: "
 msgstr "Failed to read logs: "
 
+msgid "System log reader is not available on this device."
+msgstr "System log reader is not available on this device."
+
 msgid "Last Error: "
 msgstr "Last Error: "
 

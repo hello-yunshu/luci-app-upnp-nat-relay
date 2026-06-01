@@ -3,10 +3,10 @@
 		"description": "Grant access to UPnP Bridge Relay",
 		"read": {
 			"ubus": {
-				"upnp_bridge_relay": [ "status", "check-env", "check-network", "dry-run" ]
+				"upnp_bridge_relay": [ "status", "check-env", "check-network", "dry-run", "read-log" ]
 			},
 			"uci": [ "upnp_bridge_relay" ],
-			"file": [ "/tmp/upnp_bridge_relay/*", "/usr/bin/logread" ]
+			"file": [ "/tmp/upnp_bridge_relay/*" ]
 		},
 		"write": {
 			"ubus": {

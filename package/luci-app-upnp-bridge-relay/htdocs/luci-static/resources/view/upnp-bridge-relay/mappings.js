@@ -53,11 +53,32 @@ return view.extend({
 		btnBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
 			'click': function() {
-				return callSyncNow().then(function() {
-					ui.addNotification(null, E('p', _('Sync triggered.')), 'info');
-					window.location.reload();
+				return callSyncNow().then(function(result) {
+					var msg;
+					var msgType = 'info';
+					if (result && result.success === true) {
+						var rc = result.read_count || 0;
+						var ac = result.accepted_count || 0;
+						var rj = result.rejected_count || 0;
+						if (ac > 0) {
+							msg = _('Sync completed: %d read, %d accepted, %d rejected.').format(rc, ac, rj);
+						} else if (rj > 0) {
+							msg = _('Sync completed: %d read, 0 accepted, %d rejected. Check rejected mappings for details.').format(rc, rj);
+							msgType = 'warning';
+						} else {
+							msg = _('Sync completed: 0 mappings read from downstream router. Ensure the downstream router has UPnP mappings.');
+							msgType = 'warning';
+						}
+					} else if (result && result.success === false) {
+						msg = _('Sync failed: %s').format(result.error || 'unknown');
+						msgType = 'error';
+					} else {
+						msg = _('Sync triggered.');
+					}
+					ui.addNotification(null, E('p', msg), msgType);
+					setTimeout(function() { window.location.reload(); }, 2500);
 				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('Sync failed: ') + e.message), 'error');
+					ui.addNotification(null, E('p', _('Sync failed: %s').format(e.message)), 'error');
 				});
 			}
 		}, _('Sync Now')));

@@ -84,16 +84,6 @@ var css = `
 		border-left: 3px solid var(--main-color, #0069d9);
 		font-size: 1.05em;
 	}
-	.ubr-info-grid {
-		display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-		gap: 0.6em 2em;
-	}
-	.ubr-info-row {
-		display: flex; justify-content: space-between; align-items: center;
-		padding: 0.4em 0;
-	}
-	.ubr-info-label { color: var(--subtext-color, #666); font-size: 0.9em; }
-	.ubr-info-value { font-weight: 500; }
 	.ubr-badge {
 		display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
 		font-size: 0.85em; font-weight: 500;
@@ -234,16 +224,31 @@ return view.extend({
 				'class': 'cbi-button cbi-button-apply',
 				'click': function() {
 					return callSyncNow().then(function(result) {
-						var msg = _('Sync triggered.');
+						var msg;
+						var msgType = 'info';
 						if (result && result.success === true) {
-							msg = _('Sync completed successfully.');
+							var rc = result.read_count || 0;
+							var ac = result.accepted_count || 0;
+							var rj = result.rejected_count || 0;
+							if (ac > 0) {
+								msg = _('Sync completed: %d read, %d accepted, %d rejected.').format(rc, ac, rj);
+							} else if (rj > 0) {
+								msg = _('Sync completed: %d read, 0 accepted, %d rejected. Check Mappings page for details.').format(rc, rj);
+								msgType = 'warning';
+							} else {
+								msg = _('Sync completed: 0 mappings read from downstream router. Ensure the downstream router has UPnP mappings.');
+								msgType = 'warning';
+							}
 						} else if (result && result.success === false) {
-							msg = _('Sync failed: ') + (result.error || 'unknown');
+							msg = _('Sync failed: %s').format(result.error || 'unknown');
+							msgType = 'error';
+						} else {
+							msg = _('Sync triggered.');
 						}
-						ui.addNotification(null, E('p', msg), result && result.success ? 'info' : 'warning');
-						window.location.reload();
+						ui.addNotification(null, E('p', msg), msgType);
+						setTimeout(function() { window.location.reload(); }, 2500);
 					}).catch(function(e) {
-						ui.addNotification(null, E('p', _('Sync failed: ') + e.message), 'error');
+						ui.addNotification(null, E('p', _('Sync failed: %s').format(e.message)), 'error');
 					});
 				}
 			}, '\u21C4 ' + _('Sync Now')));
@@ -267,44 +272,46 @@ return view.extend({
 			var infoSection = E('div', { 'class': 'cbi-section ubr-section' });
 		infoSection.appendChild(E('h4', {}, _('Service Information')));
 
-		var infoGrid = E('div', { 'class': 'ubr-info-grid' });
+		var infoTable = E('table', { 'class': 'table' });
 
-		infoGrid.appendChild(E('div', { 'class': 'ubr-info-row' }, [
-			E('span', { 'class': 'ubr-info-label' }, _('Plugin Version')),
-			E('span', { 'class': 'ubr-info-value' }, version)
+		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
+			E('th', { 'class': 'th' }, _('Plugin Version')),
+			E('td', { 'class': 'td' }, version)
 		]));
 
-		infoGrid.appendChild(E('div', { 'class': 'ubr-info-row' }, [
-			E('span', { 'class': 'ubr-info-label' }, _('GitHub')),
-			E('a', {
+		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
+			E('th', { 'class': 'th' }, _('GitHub')),
+			E('td', { 'class': 'td' }, E('a', {
 				'href': 'https://github.com/hello-yunshu/upnp-bridge-relay',
 				'target': '_blank',
 				'rel': 'noopener',
 				'style': 'color:var(--main-color, #0069d9);text-decoration:none'
-			}, 'hello-yunshu/upnp-bridge-relay')
+			}, 'hello-yunshu/upnp-bridge-relay'))
 		]));
 
-		infoGrid.appendChild(E('div', { 'class': 'ubr-info-row' }, [
-			E('span', { 'class': 'ubr-info-label' }, _('Current Backend')),
-			E('span', { 'class': 'ubr-info-value' }, backend)
+		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
+			E('th', { 'class': 'th' }, _('Current Backend')),
+			E('td', { 'class': 'td' }, backend)
 		]));
 
-		infoGrid.appendChild(E('div', { 'class': 'ubr-info-row' }, [
-			E('span', { 'class': 'ubr-info-label' }, _('Last Sync Time')),
-			E('span', { 'class': 'ubr-info-value' }, lastSync)
+		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
+			E('th', { 'class': 'th' }, _('Last Sync Time')),
+			E('td', { 'class': 'td' }, lastSync)
 		]));
 
 		var lastResultBadge;
-		if (lastResult === 'success') {
+		if (lastResult === 'success' || lastResult.indexOf('success') === 0) {
 			lastResultBadge = E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + lastResult);
 		} else if (lastResult === '-') {
 			lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + '-');
+		} else if (lastResult === 'partial') {
+			lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + lastResult);
 		} else {
 			lastResultBadge = E('span', { 'class': 'ubr-badge red' }, '\u2718 ' + lastResult);
 		}
-		infoGrid.appendChild(E('div', { 'class': 'ubr-info-row' }, [
-			E('span', { 'class': 'ubr-info-label' }, _('Last Sync Result')),
-			lastResultBadge
+		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
+			E('th', { 'class': 'th' }, _('Last Sync Result')),
+			E('td', { 'class': 'td' }, lastResultBadge)
 		]));
 
 		var nftBadge;
@@ -315,9 +322,9 @@ return view.extend({
 		} else {
 			nftBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + nftStatus);
 		}
-		infoGrid.appendChild(E('div', { 'class': 'ubr-info-row' }, [
-			E('span', { 'class': 'ubr-info-label' }, _('nftables Table')),
-			nftBadge
+		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
+			E('th', { 'class': 'th' }, _('nftables Table')),
+			E('td', { 'class': 'td' }, nftBadge)
 		]));
 
 		var ocBadge;
@@ -332,12 +339,12 @@ return view.extend({
 		} else {
 			ocBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + openclashStatus);
 		}
-		infoGrid.appendChild(E('div', { 'class': 'ubr-info-row' }, [
-			E('span', { 'class': 'ubr-info-label' }, _('OpenClash')),
-			ocBadge
+		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
+			E('th', { 'class': 'th' }, _('OpenClash')),
+			E('td', { 'class': 'td' }, ocBadge)
 		]));
 
-		infoSection.appendChild(infoGrid);
+		infoSection.appendChild(infoTable);
 		container.appendChild(infoSection);
 
 		var footer = E('div', { 'style': 'margin-top:2em;padding:0.8em 0;text-align:center;color:var(--subtext-color, #666);font-size:0.85em;border-top:1px solid var(--border-color)' });

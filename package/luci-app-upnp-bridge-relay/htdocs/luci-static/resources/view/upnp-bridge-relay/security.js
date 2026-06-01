@@ -43,9 +43,9 @@ return view.extend({
 		s.anonymous = true;
 
 		o = s.option(form.TextValue, '_deny_ports', _('Denied Ports'),
-			_('Enter ports separated by commas, e.g. 22, 23, 80, 443.'));
+			_('Enter ports separated by commas, e.g. 22,23,80,443.'));
 		o.rows = 3;
-		o.placeholder = '22, 23, 25, 53, 80, 110, 143, 443, 445';
+		o.placeholder = '22,23,25,53,80,110,143,443,445';
 
 		var denyPorts = uci.get('upnp_bridge_relay', 'default', 'port');
 		if (denyPorts) {
@@ -53,11 +53,11 @@ return view.extend({
 				o.cfgvalue = function() {
 					return denyPorts.split(/[\s,]+/).filter(function(port) {
 						return port !== '';
-					}).join(', ');
+					}).join(',');
 				};
 			} else if (Array.isArray(denyPorts)) {
 				o.cfgvalue = function() {
-					return denyPorts.join(', ');
+					return denyPorts.join(',');
 				};
 			}
 		}
