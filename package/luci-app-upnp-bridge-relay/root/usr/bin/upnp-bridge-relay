@@ -16,6 +16,13 @@ uci_get() {
     uci -q get "${UCI_CONFIG}.$1" 2>/dev/null
 }
 
+is_daemon_running() {
+    if [ -x /etc/init.d/upnp_bridge_relay ] && /etc/init.d/upnp_bridge_relay status >/dev/null 2>&1; then
+        return 0
+    fi
+    return 1
+}
+
 log_info() {
     logger -t upnp-bridge-relay -p daemon.info "$1"
 }
@@ -96,7 +103,7 @@ load_config() {
     [ -z "${cfg_dry_run}" ] && cfg_dry_run="0"
     [ -z "${cfg_log_level}" ] && cfg_log_level="info"
     [ -z "${cfg_openclash_mode}" ] && cfg_openclash_mode="prompt"
-    [ -z "${cfg_openclash_return_strategy}" ] && cfg_openclash_return_strategy="port_pool"
+    [ -z "${cfg_openclash_return_strategy}" ] && cfg_openclash_return_strategy="per_mapping"
     [ -z "${cfg_openclash_backup}" ] && cfg_openclash_backup="1"
     [ -z "${cfg_openclash_rule_remark}" ] && cfg_openclash_rule_remark="UPnP Bridge Relay Auto RETURN"
     [ -z "${cfg_openclash_auto_restart}" ] && cfg_openclash_auto_restart="0"
@@ -309,18 +316,37 @@ check_port_conflict_single() {
         case "$_cpc_line_lower" in
             *"dnat"*)
                 _cpc_has_proto=0
-                _cpc_has_port=0
                 case "$_cpc_line_lower" in
                     *"$_cpc_proto_lower"*)
                         _cpc_has_proto=1
                         ;;
                 esac
-                case "$_cpc_line_lower" in
-                    *"dport ${_cpc_ext_port} "*)
-                        _cpc_has_port=1
+                [ "$_cpc_has_proto" -eq 0 ] && continue
+                _cpc_after_dport="${_cpc_line_lower#*dport }"
+                [ "$_cpc_after_dport" = "$_cpc_line_lower" ] && continue
+                _cpc_dport="${_cpc_after_dport%% *}"
+                case "$_cpc_dport" in
+                    *[!0-9-]*)
+                        continue
                         ;;
                 esac
-                if [ "$_cpc_has_proto" -eq 1 ] && [ "$_cpc_has_port" -eq 1 ]; then
+                _cpc_has_port=0
+                case "$_cpc_dport" in
+                    *[-]*)
+                        _cpc_port_start="${_cpc_dport%%-*}"
+                        _cpc_port_end="${_cpc_dport##*-}"
+                        if [ "$_cpc_ext_port" -ge "$_cpc_port_start" ] 2>/dev/null && \
+                           [ "$_cpc_ext_port" -le "$_cpc_port_end" ] 2>/dev/null; then
+                            _cpc_has_port=1
+                        fi
+                        ;;
+                    *)
+                        if [ "$_cpc_dport" = "$_cpc_ext_port" ] 2>/dev/null; then
+                            _cpc_has_port=1
+                        fi
+                        ;;
+                esac
+                if [ "$_cpc_has_port" -eq 1 ]; then
                     _cpc_conflict_source="${_cpc_current_table}"
                     break
                 fi
@@ -624,6 +650,7 @@ read_env_cache() {
 }
 
 openclash_has_plugin_rule() {
+    _oh_prefix="${cfg_openclash_rule_remark} ["
     _oh_idx=0
     while true; do
         _oh_remark="$(uci -q get openclash.@access_control[${_oh_idx}].remark 2>/dev/null)"
@@ -633,13 +660,18 @@ openclash_has_plugin_rule() {
         if [ "$_oh_remark" = "${cfg_openclash_rule_remark}" ]; then
             return 0
         fi
+        case "$_oh_remark" in
+            "${_oh_prefix}"*)
+                return 0
+                ;;
+        esac
         _oh_idx=$((_oh_idx + 1))
     done
     return 1
 }
 
 openclash_generate_return_rule() {
-    printf '{"remark":"%s","internal_address":"%s","internal_ports":"%s","protocols":"%s","target":"RETURN"}\n' \
+    printf '{"strategy":"port_pool","remark":"%s","internal_address":"%s","internal_ports":"%s","protocols":"%s","target":"RETURN"}\n' \
         "$(json_escape "${cfg_openclash_rule_remark}")" \
         "$(json_escape "${cfg_downstream_wan_ip}")" \
         "$(json_escape "${cfg_allowed_external_ports}")" \
@@ -652,19 +684,54 @@ openclash_apply() {
         return 1
     fi
 
-    if openclash_has_plugin_rule; then
-        printf '{"success":true,"error":"","action":"already_exists"}\n'
-        return 0
-    fi
-
     _oa_first_type="$(uci -q get openclash.@access_control[0] 2>/dev/null)"
     if [ -z "$_oa_first_type" ]; then
         printf '{"success":false,"error":"unrecognized_config_structure","message":"Cannot recognize OpenClash access_control structure. Please add manually."}\n'
         return 1
     fi
 
-    if [ "${cfg_openclash_backup}" = "1" ]; then
+    _oa_exact_found=0
+    _oa_idx=0
+    while true; do
+        _oa_remark="$(uci -q get openclash.@access_control[${_oa_idx}].remark 2>/dev/null)"
+        if [ -z "$_oa_remark" ]; then
+            break
+        fi
+        if [ "$_oa_remark" = "${cfg_openclash_rule_remark}" ]; then
+            _oa_exact_found=1
+            break
+        fi
+        _oa_idx=$((_oa_idx + 1))
+    done
+
+    if [ "$_oa_exact_found" -eq 1 ]; then
+        printf '{"success":true,"error":"","action":"already_exists"}\n'
+        return 0
+    fi
+
+    _oa_prefix="${cfg_openclash_rule_remark} ["
+    _oa_pm_found=0
+    _oa_idx=0
+    while true; do
+        _oa_remark="$(uci -q get openclash.@access_control[${_oa_idx}].remark 2>/dev/null)"
+        if [ -z "$_oa_remark" ]; then
+            break
+        fi
+        case "$_oa_remark" in
+            "${_oa_prefix}"*)
+                _oa_pm_found=1
+                break
+                ;;
+        esac
+        _oa_idx=$((_oa_idx + 1))
+    done
+
+    if [ "${cfg_openclash_backup}" = "1" ] && [ ! -f "${OPENCLASH_BACKUP}" ]; then
         cp /etc/config/openclash "${OPENCLASH_BACKUP}" 2>/dev/null
+    fi
+
+    if [ "$_oa_pm_found" -eq 1 ]; then
+        openclash_remove_per_mapping_rules >/dev/null
     fi
 
     if ! uci add openclash access_control >/dev/null 2>&1; then
@@ -677,6 +744,8 @@ openclash_apply() {
     uci set "openclash.@access_control[-1].protocols=${cfg_protocols}"
     uci set "openclash.@access_control[-1].target=RETURN"
     uci commit openclash
+
+    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" 2>/dev/null
 
     write_resource "openclash_rule" "${cfg_openclash_rule_remark}"
 
@@ -693,10 +762,12 @@ openclash_rollback() {
     if [ -f "${OPENCLASH_BACKUP}" ]; then
         cp "${OPENCLASH_BACKUP}" /etc/config/openclash 2>/dev/null
         rm -f "${OPENCLASH_BACKUP}" 2>/dev/null
+        rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" 2>/dev/null
         printf '{"removed":1,"method":"backup_restored"}\n'
         return 0
     fi
 
+    _or_prefix="${cfg_openclash_rule_remark} ["
     _or_removed=0
     _or_idx=0
     while true; do
@@ -709,12 +780,21 @@ openclash_rollback() {
             _or_removed=1
             continue
         fi
+        case "$_or_remark" in
+            "${_or_prefix}"*)
+                uci delete "openclash.@access_control[${_or_idx}]" 2>/dev/null
+                _or_removed=$((_or_removed + 1))
+                continue
+                ;;
+        esac
         _or_idx=$((_or_idx + 1))
     done
 
-    if [ "$_or_removed" -eq 1 ]; then
+    if [ "$_or_removed" -ge 1 ]; then
         uci commit openclash 2>/dev/null
     fi
+
+    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" 2>/dev/null
 
     printf '{"removed":%d}\n' "$_or_removed"
 }
@@ -757,6 +837,194 @@ openclash_restart_service() {
     log_warn "OpenClash core not running after 30s (start_fail may have been triggered)"
     printf '{"restarted":false,"error":"core_not_running_after_restart"}\n'
     return 1
+}
+
+openclash_per_mapping_remark() {
+    printf '%s [%s]' "${cfg_openclash_rule_remark}" "$1"
+}
+
+openclash_collect_ports_by_proto() {
+    _ocp_file="$1"
+    _ocp_tcp_ports=""
+    _ocp_udp_ports=""
+    if [ -f "$_ocp_file" ]; then
+        while IFS='|' read -r _ocp_act _ocp_proto _ocp_ext_port _ocp_rest; do
+            [ "$_ocp_act" != "ACCEPT" ] && continue
+            _ocp_proto_lower="$(echo "$_ocp_proto" | tr 'A-Z' 'a-z')"
+            case "$_ocp_proto_lower" in
+                tcp)
+                    if [ -n "$_ocp_tcp_ports" ]; then
+                        _ocp_tcp_ports="${_ocp_tcp_ports},${_ocp_ext_port}"
+                    else
+                        _ocp_tcp_ports="$_ocp_ext_port"
+                    fi
+                    ;;
+                udp)
+                    if [ -n "$_ocp_udp_ports" ]; then
+                        _ocp_udp_ports="${_ocp_udp_ports},${_ocp_ext_port}"
+                    else
+                        _ocp_udp_ports="$_ocp_ext_port"
+                    fi
+                    ;;
+            esac
+        done < "$_ocp_file"
+    fi
+    printf 'tcp|%s\nudp|%s' "$_ocp_tcp_ports" "$_ocp_udp_ports"
+}
+
+openclash_remove_per_mapping_rules() {
+    _orm_prefix="${cfg_openclash_rule_remark} ["
+    _orm_removed=0
+    _orm_idx=0
+    while true; do
+        _orm_remark="$(uci -q get openclash.@access_control[${_orm_idx}].remark 2>/dev/null)"
+        if [ -z "$_orm_remark" ]; then
+            break
+        fi
+        case "$_orm_remark" in
+            "${_orm_prefix}"*)
+                uci delete "openclash.@access_control[${_orm_idx}]" 2>/dev/null
+                _orm_removed=$((_orm_removed + 1))
+                continue
+                ;;
+        esac
+        _orm_idx=$((_orm_idx + 1))
+    done
+    if [ "$_orm_removed" -gt 0 ]; then
+        uci commit openclash 2>/dev/null
+    fi
+    printf '%d' "$_orm_removed"
+}
+
+openclash_generate_per_mapping_rules() {
+    _ogpm_file="$1"
+    _ogpm_collected="$(openclash_collect_ports_by_proto "$_ogpm_file")"
+    _ogpm_tcp_ports="$(echo "$_ogpm_collected" | sed -n 's/^tcp|//p')"
+    _ogpm_udp_ports="$(echo "$_ogpm_collected" | sed -n 's/^udp|//p')"
+    ja_reset
+    if [ -n "$_ogpm_tcp_ports" ]; then
+        _ogpm_remark="$(openclash_per_mapping_remark "TCP")"
+        ja_append "$(printf '{"remark":"%s","internal_address":"%s","internal_ports":"%s","protocols":"tcp","target":"RETURN"}' \
+            "$(json_escape "$_ogpm_remark")" \
+            "$(json_escape "${cfg_downstream_wan_ip}")" \
+            "$(json_escape "$_ogpm_tcp_ports")")"
+    fi
+    if [ -n "$_ogpm_udp_ports" ]; then
+        _ogpm_remark="$(openclash_per_mapping_remark "UDP")"
+        ja_append "$(printf '{"remark":"%s","internal_address":"%s","internal_ports":"%s","protocols":"udp","target":"RETURN"}' \
+            "$(json_escape "$_ogpm_remark")" \
+            "$(json_escape "${cfg_downstream_wan_ip}")" \
+            "$(json_escape "$_ogpm_udp_ports")")"
+    fi
+    printf '{"strategy":"per_mapping","rules":[%s]}' "$_ja"
+}
+
+openclash_sync_per_mapping() {
+    _ospm_file="$1"
+
+    if [ ! -f /etc/config/openclash ]; then
+        printf '{"success":false,"error":"openclash_not_installed"}\n'
+        return 1
+    fi
+
+    _oa_first_type="$(uci -q get openclash.@access_control[0] 2>/dev/null)"
+    if [ -z "$_oa_first_type" ]; then
+        printf '{"success":false,"error":"unrecognized_config_structure"}\n'
+        return 1
+    fi
+
+    _ospm_new_fingerprint=""
+    if [ -f "$_ospm_file" ]; then
+        _ospm_new_fingerprint="$(while IFS='|' read -r _ospm_act _ospm_proto _ospm_ext_port _ospm_rest; do
+            [ "$_ospm_act" != "ACCEPT" ] && continue
+            printf '%s:%s\n' "$(echo "$_ospm_proto" | tr 'A-Z' 'a-z')" "$_ospm_ext_port"
+        done < "$_ospm_file" | sort)"
+    fi
+
+    _ospm_cache_file="${STATUS_DIR}/oc_per_mapping_cache.txt"
+    _ospm_old_fingerprint=""
+    if [ -f "$_ospm_cache_file" ]; then
+        _ospm_old_fingerprint="$(cat "$_ospm_cache_file")"
+    fi
+
+    _ospm_new_count=0
+    if [ -n "$_ospm_new_fingerprint" ]; then
+        _ospm_new_count="$(printf '%s\n' "$_ospm_new_fingerprint" | grep -c .)"
+    fi
+
+    if [ "$_ospm_new_fingerprint" = "$_ospm_old_fingerprint" ]; then
+        printf '{"success":true,"action":"unchanged","rules_count":%d}\n' "$_ospm_new_count"
+        return 0
+    fi
+
+    if [ "${cfg_openclash_backup}" = "1" ] && [ ! -f "${OPENCLASH_BACKUP}" ]; then
+        cp /etc/config/openclash "${OPENCLASH_BACKUP}" 2>/dev/null
+    fi
+
+    openclash_remove_per_mapping_rules >/dev/null
+
+    _ospm_pp_idx=0
+    while true; do
+        _ospm_pp_remark="$(uci -q get openclash.@access_control[${_ospm_pp_idx}].remark 2>/dev/null)"
+        if [ -z "$_ospm_pp_remark" ]; then
+            break
+        fi
+        if [ "$_ospm_pp_remark" = "${cfg_openclash_rule_remark}" ]; then
+            uci delete "openclash.@access_control[${_ospm_pp_idx}]" 2>/dev/null
+            break
+        fi
+        _ospm_pp_idx=$((_ospm_pp_idx + 1))
+    done
+
+    _ospm_count=0
+    if [ -f "$_ospm_file" ]; then
+        _ospm_collected="$(openclash_collect_ports_by_proto "$_ospm_file")"
+        _ospm_tcp_ports="$(echo "$_ospm_collected" | sed -n 's/^tcp|//p')"
+        _ospm_udp_ports="$(echo "$_ospm_collected" | sed -n 's/^udp|//p')"
+
+        if [ -n "$_ospm_tcp_ports" ]; then
+            _ospm_remark="$(openclash_per_mapping_remark "TCP")"
+            if uci add openclash access_control >/dev/null 2>&1; then
+                uci set "openclash.@access_control[-1].remark=${_ospm_remark}"
+                uci set "openclash.@access_control[-1].internal_address=${cfg_downstream_wan_ip}"
+                uci set "openclash.@access_control[-1].internal_ports=${_ospm_tcp_ports}"
+                uci set "openclash.@access_control[-1].protocols=tcp"
+                uci set "openclash.@access_control[-1].target=RETURN"
+                _ospm_count=$((_ospm_count + 1))
+            else
+                log_warn "Failed to add OpenClash access_control section for TCP"
+            fi
+        fi
+
+        if [ -n "$_ospm_udp_ports" ]; then
+            _ospm_remark="$(openclash_per_mapping_remark "UDP")"
+            if uci add openclash access_control >/dev/null 2>&1; then
+                uci set "openclash.@access_control[-1].remark=${_ospm_remark}"
+                uci set "openclash.@access_control[-1].internal_address=${cfg_downstream_wan_ip}"
+                uci set "openclash.@access_control[-1].internal_ports=${_ospm_udp_ports}"
+                uci set "openclash.@access_control[-1].protocols=udp"
+                uci set "openclash.@access_control[-1].target=RETURN"
+                _ospm_count=$((_ospm_count + 1))
+            else
+                log_warn "Failed to add OpenClash access_control section for UDP"
+            fi
+        fi
+    fi
+
+    uci commit openclash
+
+    printf '%s' "$_ospm_new_fingerprint" > "$_ospm_cache_file"
+
+    write_resource "openclash_rule" "${cfg_openclash_rule_remark}"
+
+    _ospm_restart_result="{}"
+    if [ "${cfg_openclash_auto_restart}" = "1" ] && [ "$_ospm_count" -gt 0 ]; then
+        _ospm_restart_result="$(openclash_restart_service)"
+    fi
+
+    log_info "OpenClash per-mapping rules updated: ${_ospm_count} rules"
+
+    printf '{"success":true,"action":"updated","rules_count":%d,"restart":%s}\n' "$_ospm_count" "$_ospm_restart_result"
 }
 
 parse_upnpc_to_file() {
@@ -983,7 +1251,7 @@ do_sync() {
     _s_last_error=""
     _s_failure_count=0
     _s_daemon_running="false"
-    if pidof upnp-bridge-relay >/dev/null 2>&1; then
+    if is_daemon_running; then
         _s_daemon_running="true"
     fi
 
@@ -1173,6 +1441,16 @@ do_sync() {
         done < "$_s_accept_file"
     fi
 
+    if [ "${cfg_openclash_mode}" = "auto" ] && [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
+        if [ -f /etc/config/openclash ]; then
+            _s_oc_result="$(openclash_sync_per_mapping "$_s_accept_file")"
+            _s_oc_action="$(echo "$_s_oc_result" | sed -n 's/.*"action":"\([^"]*\)".*/\1/p')"
+            if [ "$_s_oc_action" = "updated" ]; then
+                log_info "OpenClash per-mapping rules updated during sync"
+            fi
+        fi
+    fi
+
     rm -f "$_s_accept_file" "$_s_reject_file"
 
     _s_failure_count=0
@@ -1352,7 +1630,11 @@ do_dry_run() {
     _dr_oc_detect="$(openclash_detect)"
     _dr_oc_installed="$(echo "$_dr_oc_detect" | sed -n 's/.*"installed":\([0-9]*\).*/\1/p')"
     if [ "$_dr_oc_installed" = "1" ]; then
-        _dr_oc_suggestion="$(openclash_generate_return_rule)"
+        if [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
+            _dr_oc_suggestion="$(openclash_generate_per_mapping_rules "$_dr_accept_file")"
+        else
+            _dr_oc_suggestion="$(openclash_generate_return_rule)"
+        fi
     fi
 
     printf '{"success":true,"read_mappings":[%s],"accepted":[%s],"rejected":[%s],"nft_commands":[%s],"openclash_suggestion":%s}\n' \
@@ -1366,7 +1648,7 @@ do_dry_run() {
 do_clear() {
     if nft_delete_table; then
         log_info "Cleared nft table ${NFT_TABLE_NAME}"
-        if ! pidof upnp-bridge-relay >/dev/null 2>&1; then
+        if ! is_daemon_running; then
             write_status "false" "$(get_timestamp)" "cleared" "${cfg_backend:-unknown}" 0 0 0 0 "" "" ""
         fi
         printf '{"success":true}\n'
@@ -1384,7 +1666,7 @@ do_full_status() {
     load_config
     _dfs_base="$(read_status)"
 
-    if ! pidof upnp-bridge-relay >/dev/null 2>&1; then
+    if ! is_daemon_running; then
         _dfs_base="$(printf '%s' "$_dfs_base" | sed 's/"running":true/"running":false/')"
     fi
 
@@ -1573,14 +1855,86 @@ do_fix_zone() {
 
 do_setup_openclash() {
     load_config
-    _so_result="$(openclash_apply)"
-    printf '%s\n' "$_so_result"
 
-    _so_success="$(echo "$_so_result" | sed -n 's/.*"success":\([a-z]*\).*/\1/p')"
-    if [ "$_so_success" = "true" ]; then
-        log_info "OpenClash RETURN rule applied"
+    if [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
+        if [ -z "${cfg_bind_ip}" ]; then
+            printf '{"success":false,"error":"bind_ip not configured"}\n'
+            return 1
+        fi
+        if ! command -v upnpc >/dev/null 2>&1; then
+            printf '{"success":false,"error":"upnpc not found"}\n'
+            return 1
+        fi
+
+        _so_upnpc_output="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>&1)"
+        if [ -z "$_so_upnpc_output" ]; then
+            printf '{"success":false,"error":"upnpc_read_failed"}\n'
+            return 1
+        fi
+
+        ensure_dirs
+        _so_parsed_file="${STATUS_DIR}/_setup_oc_parsed.tmp"
+        _so_accept_file="${STATUS_DIR}/_setup_oc_accept.tmp"
+        : > "$_so_accept_file"
+
+        parse_upnpc_to_file "$_so_upnpc_output" "$_so_parsed_file"
+
+        _so_ruleset="$(nft list ruleset 2>/dev/null)"
+
+        while IFS='|' read -r _so_type _so_data1 _so_data2 _so_data3 _so_data4 _so_data5 _so_data6; do
+            if [ "$_so_type" != "MAPPING" ]; then
+                continue
+            fi
+            _so_proto="$_so_data1"
+            _so_ext_port="$_so_data2"
+            _so_int_ip="$_so_data3"
+            _so_int_port="$_so_data4"
+            _so_desc="$_so_data5"
+
+            _so_filter_result="$(filter_mapping "$_so_proto" "$_so_ext_port" "$_so_int_ip" "$_so_int_port" "$_so_desc")"
+            _so_action="$(echo "$_so_filter_result" | cut -d'|' -f1)"
+
+            if [ "$_so_action" = "accept" ]; then
+                _so_conflict="$(check_port_conflict_single "$_so_proto" "$_so_ext_port" "$_so_ruleset")"
+                if [ -n "$_so_conflict" ]; then
+                    _so_action="reject"
+                fi
+            fi
+
+            if [ "$_so_action" = "accept" ]; then
+                _so_uci_conflict="$(check_uci_redirect_conflict "$_so_proto" "$_so_ext_port")"
+                if [ -n "$_so_uci_conflict" ]; then
+                    _so_action="reject"
+                fi
+            fi
+
+            if [ "$_so_action" = "accept" ]; then
+                printf 'ACCEPT|%s|%s|%s|%s|%s\n' "$_so_proto" "$_so_ext_port" "$_so_int_ip" "$_so_int_port" "$_so_desc" >> "$_so_accept_file"
+            fi
+        done < "$_so_parsed_file"
+        rm -f "$_so_parsed_file"
+
+        _so_result="$(openclash_sync_per_mapping "$_so_accept_file")"
+        rm -f "$_so_accept_file"
+
+        printf '%s\n' "$_so_result"
+
+        _so_success="$(echo "$_so_result" | sed -n 's/.*"success":\([a-z]*\).*/\1/p')"
+        if [ "$_so_success" = "true" ]; then
+            log_info "OpenClash per-mapping RETURN rules applied"
+        else
+            log_warn "OpenClash per-mapping RETURN rules failed: $_so_result"
+        fi
     else
-        log_warn "OpenClash RETURN rule failed: $_so_result"
+        _so_result="$(openclash_apply)"
+        printf '%s\n' "$_so_result"
+
+        _so_success="$(echo "$_so_result" | sed -n 's/.*"success":\([a-z]*\).*/\1/p')"
+        if [ "$_so_success" = "true" ]; then
+            log_info "OpenClash RETURN rule applied"
+        else
+            log_warn "OpenClash RETURN rule failed: $_so_result"
+        fi
     fi
 }
 
@@ -1595,7 +1949,7 @@ do_rollback() {
     load_config
     _rb_errors=""
 
-    if /etc/init.d/upnp_bridge_relay running >/dev/null 2>&1; then
+    if is_daemon_running; then
         /etc/init.d/upnp_bridge_relay stop >/dev/null 2>&1
         log_info "Stopped running daemon before rollback"
     fi
@@ -1651,6 +2005,7 @@ do_rollback() {
 
     if [ -z "$_rb_errors" ]; then
         rm -f "${RESOURCES_FILE}" 2>/dev/null
+        rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" 2>/dev/null
         printf '{"success":true}\n'
     else
         printf '{"success":true,"warnings":"%s"}\n' "$(json_escape "$_rb_errors")"

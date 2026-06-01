@@ -130,6 +130,18 @@ msgstr ""
 msgid "Sync triggered."
 msgstr ""
 
+msgid "Sync completed: %d read, %d accepted, %d rejected."
+msgstr ""
+
+msgid "Sync completed: %d read, 0 accepted, %d rejected. Check rejected mappings for details."
+msgstr ""
+
+msgid "Sync completed: 0 mappings read from downstream router. Ensure the downstream router has UPnP mappings."
+msgstr ""
+
+msgid "Sync failed: %s"
+msgstr ""
+
 msgid "Sync completed successfully."
 msgstr ""
 
@@ -1223,4 +1235,121 @@ msgid "Exists"
 msgstr ""
 
 msgid "Not found"
+msgstr ""
+
+msgid "Sync Settings"
+msgstr ""
+
+msgid "Sync Interval (seconds)"
+msgstr ""
+
+msgid "UPnP Backend"
+msgstr ""
+
+msgid "Log Level"
+msgstr ""
+
+msgid "Failure Grace Count"
+msgstr ""
+
+msgid "Dry Run Mode"
+msgstr ""
+
+msgid "Clear Rules on Stop"
+msgstr ""
+
+msgid "Dry run mode reads UPnP mappings but does not create DNAT rules. Useful for verifying configuration before applying."
+msgstr ""
+
+msgid "Saving..."
+msgstr ""
+
+msgid "Settings saved and applied."
+msgstr ""
+
+msgid "Failed to save settings: %s"
+msgstr ""
+
+msgid "Save & Apply"
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "UPnP Bridge Relay - Settings"
+msgstr ""
+
+msgid "Sync Behavior"
+msgstr ""
+
+msgid "Failure grace count: the service will stop after this many consecutive sync failures. Set to 0 to never stop."
+msgstr ""
+
+msgid "Logging"
+msgstr ""
+
+msgid "Log level controls the verbosity of system log output. Debug produces the most detail."
+msgstr ""
+
+msgid "Sync completed: %d read, 0 accepted, %d rejected. Check Mappings page for details."
+msgstr ""
+
+msgid "Strategy:"
+msgstr ""
+
+msgid "Per-Mapping"
+msgstr ""
+
+msgid "Dynamic (comma-separated, grouped by protocol)"
+msgstr ""
+
+msgid "Per protocol (1 rule for TCP, 1 rule for UDP)"
+msgstr ""
+
+msgid "Port Pool"
+msgstr ""
+
+msgid "Strategy for generating RETURN rules. Per-Mapping creates one rule per UPnP port mapping (precise). Port Pool creates one rule covering the entire port range (broad)."
+msgstr ""
+
+msgid "Per-Mapping RETURN (recommended)"
+msgstr ""
+
+msgid "Port Pool RETURN"
+msgstr ""
+
+msgid "Per-mapping rules already exist in OpenClash."
+msgstr ""
+
+msgid "Per-mapping rules written (%d rules) and OpenClash restarted."
+msgstr ""
+
+msgid "Per-mapping rules written (%d rules). OpenClash is not running, so it was not restarted."
+msgstr ""
+
+msgid "Per-mapping rules written (%d rules). OpenClash is currently disabled, so it was not restarted."
+msgstr ""
+
+msgid "Per-mapping rules written (%d rules). You need to restart OpenClash for changes to take effect."
+msgstr ""
+
+msgid "Per-mapping rules are already up to date (%d rules)."
+msgstr ""
+
+msgid "Failed to write per-mapping rules: "
+msgstr ""
+
+msgid "Per-mapping rules written. You need to restart OpenClash for changes to take effect."
+msgstr ""
+
+msgid "Last Env Check"
+msgstr ""
+
+msgid "Refresh Env"
+msgstr ""
+
+msgid "Environment detection refreshed."
+msgstr ""
+
+msgid "Failed to refresh environment: "
 msgstr ""

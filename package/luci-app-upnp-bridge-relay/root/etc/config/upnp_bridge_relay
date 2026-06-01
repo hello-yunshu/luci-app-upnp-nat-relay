@@ -26,7 +26,7 @@ config service 'main'
 	option log_rejected '1'
 
 	option openclash_mode 'prompt'
-	option openclash_return_strategy 'port_pool'
+	option openclash_return_strategy 'per_mapping'
 	option openclash_backup '1'
 	option openclash_rule_remark 'UPnP Bridge Relay Auto RETURN'
 	option openclash_auto_restart '0'

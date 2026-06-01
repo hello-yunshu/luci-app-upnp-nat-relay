@@ -95,7 +95,7 @@ return view.extend({
 			var sections = uci.sections('openclash', 'access_control');
 			if (sections) {
 				for (var i = 0; i < sections.length; i++) {
-					if (sections[i].remark === remark) {
+					if (sections[i].remark === remark || sections[i].remark.indexOf(remark + ' [') === 0) {
 						found = true;
 						break;
 					}
@@ -113,6 +113,7 @@ return view.extend({
 		o = s.option(form.DummyValue, '_oc_suggested_rule', _('Suggested Rule'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
+			var strategy = uci.get('upnp_bridge_relay', 'main', 'openclash_return_strategy') || 'per_mapping';
 			var downstreamWanIp = uci.get('upnp_bridge_relay', 'main', 'downstream_wan_ip') || '-';
 			var allowedPorts = uci.get('upnp_bridge_relay', 'main', 'allowed_external_ports') || '40000-65535';
 			var remark = uci.get('upnp_bridge_relay', 'main', 'openclash_rule_remark') || 'UPnP Bridge Relay Auto RETURN';
@@ -120,7 +121,19 @@ return view.extend({
 				'<span style="color:var(--warning-color, #d89b00)">&#9888; -</span>' :
 				'<span style="color:var(--success-color, #3aa657)">' + downstreamWanIp + '</span>';
 
+			if (strategy === 'per_mapping') {
+				return '<div class="cbi-section" style="font-family:monospace">' +
+					'<b>' + _('Strategy:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Per-Mapping') + '</span><br>' +
+					'<b>' + _('Internal Address:') + '</b> ' + downstreamWanIpText + '<br>' +
+					'<b>' + _('Internal Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Dynamic (comma-separated, grouped by protocol)') + '</span><br>' +
+					'<b>' + _('Protocol:') + '</b> ' + _('Per protocol (1 rule for TCP, 1 rule for UDP)') + '<br>' +
+					'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">RETURN</span><br>' +
+					'<b>' + _('Remark:') + '</b> ' + remark + ' [TCP] / ' + remark + ' [UDP]' +
+					'</div>';
+			}
+
 			return '<div class="cbi-section" style="font-family:monospace">' +
+				'<b>' + _('Strategy:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Port Pool') + '</span><br>' +
 				'<b>' + _('Internal Address:') + '</b> ' + downstreamWanIpText + '<br>' +
 				'<b>' + _('Internal Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + allowedPorts + '</span><br>' +
 				'<b>' + _('Protocol:') + '</b> TCP/UDP<br>' +
@@ -139,8 +152,9 @@ return view.extend({
 		o.value('auto', _('Auto - Automatically write rules'));
 
 		o = s.option(form.ListValue, 'openclash_return_strategy', _('RETURN Strategy'),
-			_('Strategy for generating RETURN rules.'));
-		o.value('port_pool', _('Port Pool RETURN (recommended)'));
+			_('Strategy for generating RETURN rules. Per-Mapping creates one rule per UPnP port mapping (precise). Port Pool creates one rule covering the entire port range (broad).'));
+		o.value('per_mapping', _('Per-Mapping RETURN (recommended)'));
+		o.value('port_pool', _('Port Pool RETURN'));
 
 		o = s.option(form.Value, 'openclash_rule_remark', _('Rule Remark'),
 			_('Remark text for the OpenClash RETURN rule.'));
@@ -170,15 +184,30 @@ return view.extend({
 		o.inputtitle = _('Generate RETURN Rule');
 		o.inputstyle = 'apply';
 		o.onclick = function() {
+			var strategy = uci.get('upnp_bridge_relay', 'main', 'openclash_return_strategy') || 'per_mapping';
 			var downstreamWanIp = uci.get('upnp_bridge_relay', 'main', 'downstream_wan_ip') || '-';
 			var allowedPorts = uci.get('upnp_bridge_relay', 'main', 'allowed_external_ports') || '40000-65535';
 			var remark = uci.get('upnp_bridge_relay', 'main', 'openclash_rule_remark') || 'UPnP Bridge Relay Auto RETURN';
 
-			var ruleText = 'Internal Address: ' + downstreamWanIp + '\n' +
-				'Internal Ports: ' + allowedPorts + '\n' +
-				'Protocol: TCP/UDP\n' +
-				'Action: RETURN\n' +
-				'Remark: ' + remark;
+			var ruleText;
+			if (strategy === 'per_mapping') {
+				ruleText = 'Strategy: Per-Mapping\n' +
+					'Internal Address: ' + downstreamWanIp + '\n' +
+					'Internal Ports: <dynamic, comma-separated per protocol>\n' +
+					'Protocol: 1 rule for TCP, 1 rule for UDP\n' +
+					'Action: RETURN\n' +
+					'Remark: ' + remark + ' [TCP] / ' + remark + ' [UDP]\n\n' +
+					'Example (3 TCP + 2 UDP mappings):\n' +
+					'  Rule 1: ports=54321,54322,54323  proto=tcp  remark="' + remark + ' [TCP]"\n' +
+					'  Rule 2: ports=54324,54325        proto=udp  remark="' + remark + ' [UDP]"';
+			} else {
+				ruleText = 'Strategy: Port Pool\n' +
+					'Internal Address: ' + downstreamWanIp + '\n' +
+					'Internal Ports: ' + allowedPorts + '\n' +
+					'Protocol: TCP/UDP\n' +
+					'Action: RETURN\n' +
+					'Remark: ' + remark;
+			}
 
 			ui.addNotification(null, E('pre', { 'style': 'white-space:pre-wrap;padding:1em;background:var(--background-color-a);border:1px solid var(--border-color)' }, ruleText), 'info');
 		};
@@ -188,20 +217,43 @@ return view.extend({
 		o.inputstyle = 'apply';
 		o.onclick = function() {
 			return callSetupOpenclash().then(function(result) {
+				var strategy = uci.get('upnp_bridge_relay', 'main', 'openclash_return_strategy') || 'per_mapping';
 				var autoRestart = uci.get('upnp_bridge_relay', 'main', 'openclash_auto_restart');
 				var msg;
-				if (autoRestart === '1') {
-					if (result && result.restart && result.restart.restarted) {
-						msg = _('OpenClash rule written and service restarted. Changes are now active.');
-					} else if (result && result.restart && result.restart.error === 'not_running') {
-						msg = _('OpenClash rule written. OpenClash is not running, so it was not restarted. The rule will take effect when OpenClash starts.');
-					} else if (result && result.restart && result.restart.error === 'disabled_by_other_tool') {
-						msg = _('OpenClash rule written. OpenClash is currently disabled (possibly by another tool like CloudflareSpeedTest), so it was not restarted to avoid interference.');
+				if (strategy === 'per_mapping') {
+					if (result && result.action === 'already_exists') {
+						msg = _('Per-mapping rules already exist in OpenClash.');
+					} else if (result && result.action === 'updated') {
+						if (autoRestart === '1' && result.restart && result.restart.restarted) {
+							msg = _('Per-mapping rules written (%d rules) and OpenClash restarted.').format(result.rules_count || 0);
+						} else if (autoRestart === '1' && result.restart && result.restart.error === 'not_running') {
+							msg = _('Per-mapping rules written (%d rules). OpenClash is not running, so it was not restarted.').format(result.rules_count || 0);
+						} else if (autoRestart === '1' && result.restart && result.restart.error === 'disabled_by_other_tool') {
+							msg = _('Per-mapping rules written (%d rules). OpenClash is currently disabled, so it was not restarted.').format(result.rules_count || 0);
+						} else {
+							msg = _('Per-mapping rules written (%d rules). You need to restart OpenClash for changes to take effect.').format(result.rules_count || 0);
+						}
+					} else if (result && result.action === 'unchanged') {
+						msg = _('Per-mapping rules are already up to date (%d rules).').format(result.rules_count || 0);
+					} else if (result && result.success === false) {
+						msg = _('Failed to write per-mapping rules: ') + (result.error || 'unknown');
 					} else {
-						msg = _('OpenClash rule written, but restart may have failed. Please check OpenClash status manually.');
+						msg = _('Per-mapping rules written. You need to restart OpenClash for changes to take effect.');
 					}
 				} else {
-					msg = _('OpenClash rule written. You need to restart OpenClash for changes to take effect.');
+					if (autoRestart === '1') {
+						if (result && result.restart && result.restart.restarted) {
+							msg = _('OpenClash rule written and service restarted. Changes are now active.');
+						} else if (result && result.restart && result.restart.error === 'not_running') {
+							msg = _('OpenClash rule written. OpenClash is not running, so it was not restarted. The rule will take effect when OpenClash starts.');
+						} else if (result && result.restart && result.restart.error === 'disabled_by_other_tool') {
+							msg = _('OpenClash rule written. OpenClash is currently disabled (possibly by another tool like CloudflareSpeedTest), so it was not restarted to avoid interference.');
+						} else {
+							msg = _('OpenClash rule written, but restart may have failed. Please check OpenClash status manually.');
+						}
+					} else {
+						msg = _('OpenClash rule written. You need to restart OpenClash for changes to take effect.');
+					}
 				}
 				ui.addNotification(null, E('p', msg), 'info');
 			}).catch(function(e) {

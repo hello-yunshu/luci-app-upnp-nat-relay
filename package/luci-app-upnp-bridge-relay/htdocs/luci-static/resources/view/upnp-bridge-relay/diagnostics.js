@@ -44,12 +44,6 @@ var css = `
 	.ubr-section {
 		margin-bottom: 1.5em;
 	}
-	.ubr-section h4 {
-		margin: 0 0 0.8em 0; padding: 0 0 0.5em 0.6em;
-		border-bottom: 1px solid var(--border-color);
-		border-left: 3px solid var(--main-color, #0069d9);
-		font-size: 1.05em;
-	}
 	.ubr-log-area {
 		min-height: 16em; max-height: 26em; overflow: auto; padding: 1em;
 		background: var(--background-color-low);
@@ -67,11 +61,6 @@ var css = `
 	.ubr-danger-zone {
 		margin-bottom: 1.5em;
 		border-left: 5px solid var(--danger-color, #d94b4b);
-	}
-	.ubr-danger-zone h4 {
-		margin: 0 0 0.8em 0; padding-bottom: 0.5em;
-		border-bottom: 1px solid var(--border-color);
-		font-size: 1.05em; color: var(--danger-color, #d94b4b);
 	}
 `;
 
@@ -98,7 +87,7 @@ return view.extend({
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Logs & Maintenance')));
 
 		var logSection = E('div', { 'class': 'cbi-section ubr-section' });
-		logSection.appendChild(E('h4', {}, '\u2261 ' + _('Recent Logs')));
+		logSection.appendChild(E('h3', {}, _('Recent Logs')));
 
 		var setLogArea = function(text, state) {
 			var logArea = document.getElementById('log-area');
@@ -184,6 +173,13 @@ return view.extend({
 			initialLogText);
 		logSection.appendChild(logArea);
 
+		if (!initialLogState) {
+			requestAnimationFrame(function() {
+				var el = document.getElementById('log-area');
+				if (el) el.scrollTop = el.scrollHeight;
+			});
+		}
+
 		if (status.last_error) {
 			logSection.appendChild(E('div', { 'class': 'alert-message danger', 'style': 'margin-top:1em' },
 				E('p', {}, '\u2718 ' + _('Last Error: ') + status.last_error)));
@@ -191,7 +187,7 @@ return view.extend({
 		container.appendChild(logSection);
 
 		var rollbackSection = E('div', { 'class': 'cbi-section ubr-danger-zone' });
-		rollbackSection.appendChild(E('h4', {}, '\u26A0 ' + _('Rollback & Cleanup')));
+		rollbackSection.appendChild(E('h3', {}, _('Rollback & Cleanup')));
 
 		rollbackSection.appendChild(E('div', { 'class': 'alert-message warning', 'style': 'margin-bottom:1em' },
 			E('p', {}, _('Warning: Rollback operations will remove configurations created by this plugin. Proceed with caution.'))));
