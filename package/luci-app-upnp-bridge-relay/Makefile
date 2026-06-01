@@ -27,6 +27,11 @@ define Package/luci-app-upnp-bridge-relay/conffiles
 /etc/config/upnp_bridge_relay
 endef
 
+define Build/Prepare
+	mkdir -p $(PKG_BUILD_DIR)
+	$(CP) ./root ./htdocs $(PKG_BUILD_DIR)/
+endef
+
 define Build/Compile
 	mkdir -p $(PKG_BUILD_DIR)/lmo; \
 	for po_dir in $(CURDIR)/po/*/; do \
