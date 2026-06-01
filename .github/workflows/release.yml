@@ -92,6 +92,7 @@ jobs:
           mkdir -p /tmp/custom-feed
           cp -r "$GITHUB_WORKSPACE/$REPO_NAME/package/$PKG_NAME" /tmp/custom-feed/
           echo "src-link custom /tmp/custom-feed" >> feeds.conf.default
+          cp -r "$GITHUB_WORKSPACE/$REPO_NAME/package/$PKG_NAME" ./package/
 
       - name: Cache SDK build
         uses: HiGarfield/cachewrtbuild@main
@@ -103,13 +104,14 @@ jobs:
         working-directory: ${{ env.SDKDIR }}
         run: |
           ./scripts/feeds update base packages luci custom
-          ./scripts/feeds install "$PKG_NAME"
+          ./scripts/feeds install luci-base miniupnpc nftables
+          ./scripts/feeds install -p custom "$PKG_NAME"
 
       - name: Configure
         working-directory: ${{ env.SDKDIR }}
         run: |
           echo "CONFIG_PACKAGE_${PKG_NAME}=y" >> .config
-          make defconfig
+          make olddefconfig 2>/dev/null || make defconfig
 
       - name: Build package
         working-directory: ${{ env.SDKDIR }}
