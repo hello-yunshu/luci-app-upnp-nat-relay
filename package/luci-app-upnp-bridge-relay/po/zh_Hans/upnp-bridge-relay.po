@@ -741,6 +741,12 @@ msgstr "内部地址："
 msgid "Internal Ports:"
 msgstr "内部端口："
 
+msgid "Source Address:"
+msgstr "来源地址："
+
+msgid "Source Ports:"
+msgstr "来源端口："
+
 msgid "Protocol:"
 msgstr "协议："
 
