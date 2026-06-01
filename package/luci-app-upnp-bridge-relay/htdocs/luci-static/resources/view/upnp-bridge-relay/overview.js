@@ -32,6 +32,18 @@ var callClear = rpc.declare({
 	expect: { '': {} }
 });
 
+var callRefreshEnv = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'refresh-env',
+	expect: { '': {} }
+});
+
+var callCheckEnv = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'check-env',
+	expect: { '': {} }
+});
+
 function callInitAction(action) {
 	return rpc.declare({
 		object: 'luci',
@@ -61,6 +73,30 @@ function reloadSoon(delay) {
 	window.setTimeout(function() {
 		window.location.reload();
 	}, delay || 1200);
+}
+
+function makeNftBadge(status) {
+	if (status === 'present') {
+		return E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + _('Present'));
+	} else if (status === '-') {
+		return E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + _('Missing'));
+	} else {
+		return E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + status);
+	}
+}
+
+function makeOcBadge(status) {
+	if (status === 'running') {
+		return E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + _('Running'));
+	} else if (status === 'installed') {
+		return E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + _('Installed (Stopped)'));
+	} else if (status === 'not_installed') {
+		return E('span', { 'class': 'ubr-badge orange' }, '\u2718 ' + _('Not Installed'));
+	} else if (status === '-') {
+		return E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + '-');
+	} else {
+		return E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + status);
+	}
 }
 
 var css = `
@@ -115,19 +151,31 @@ var css = `
 		.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color, #d89b00) 15%, transparent); color: var(--warning-color, #d89b00); }
 	.ubr-badge.gray { background: color-mix(in srgb, var(--warning-color, #d89b00) 15%, transparent); color: var(--warning-color, #d89b00); }
 		.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
+	.ubr-cmd-box {
+		padding: 0.8em 1em; border-radius: 6px;
+		background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color, #0069d9)));
+		border: 1px solid var(--border-color);
+		font-family: monospace; font-size: 0.9em;
+	}
 	`;
 
 return view.extend({
 	load: function() {
 		return Promise.all([
 			callStatus(),
+			callCheckEnv().catch(function() { return {}; }),
 			uci.load('upnp_bridge_relay')
 		]).then(function(results) {
-			return results[0];
+			return {
+				status: results[0],
+				env: results[1]
+			};
 		});
 	},
 
-	render: function(status) {
+	render: function(data) {
+		var status = data.status || {};
+		var env = data.env || {};
 		var running = status.running || false;
 		var lastSync = status.last_sync || '-';
 		var lastResult = status.last_result || '-';
@@ -359,9 +407,10 @@ return view.extend({
 		} else {
 			nftBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + nftStatus);
 		}
+		var nftTd = E('td', { 'class': 'td' }, nftBadge);
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
 			E('th', { 'class': 'th' }, _('nftables Table')),
-			E('td', { 'class': 'td' }, nftBadge)
+			nftTd
 		]));
 
 		var ocBadge;
@@ -376,13 +425,122 @@ return view.extend({
 		} else {
 			ocBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + openclashStatus);
 		}
+		var ocTd = E('td', { 'class': 'td' }, ocBadge);
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
 			E('th', { 'class': 'th' }, _('OpenClash')),
-			E('td', { 'class': 'td' }, ocBadge)
+			ocTd
 		]));
+
+		var envUpdatedAt = status.env_updated_at || '';
+		var envTimeTd = E('td', { 'class': 'td' }, envUpdatedAt || '-');
+		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
+			E('th', { 'class': 'th' }, _('Last Env Check')),
+			envTimeTd
+		]));
+
+		var envBtnRow = E('tr', { 'class': 'tr' });
+		envBtnRow.appendChild(E('th', { 'class': 'th' }, ''));
+		var envBtnTd = E('td', { 'class': 'td' });
+		envBtnTd.appendChild(E('button', {
+			'class': 'cbi-button cbi-button-apply',
+			'style': 'font-size:0.85em;padding:0.3em 0.8em',
+			'click': function() {
+				var btn = this;
+				setBusy(btn, _('Checking...'));
+				return callRefreshEnv().then(function(result) {
+					var newNft = (result && result.nft_table_status) || '-';
+					var newOc = (result && result.openclash_status) || '-';
+					var newTime = (result && result.updated_at) || '';
+
+					while (nftTd.firstChild) nftTd.removeChild(nftTd.firstChild);
+					nftTd.appendChild(makeNftBadge(newNft));
+
+					while (ocTd.firstChild) ocTd.removeChild(ocTd.firstChild);
+					ocTd.appendChild(makeOcBadge(newOc));
+
+					envTimeTd.textContent = newTime || '-';
+
+					resetBusy(btn);
+					ui.addNotification(null, E('p', _('Environment detection refreshed.')), 'info');
+				}).catch(function(e) {
+					ui.addNotification(null, E('p', _('Failed to refresh environment: ') + e.message), 'error');
+					resetBusy(btn);
+				});
+			}
+		}, '\u21BB ' + _('Refresh Env')));
+		envBtnRow.appendChild(envBtnTd);
+		infoTable.appendChild(envBtnRow);
 
 		infoSection.appendChild(infoTable);
 		container.appendChild(infoSection);
+
+		var envSection = E('div', { 'class': 'cbi-section ubr-section' });
+		envSection.appendChild(E('h4', {}, '\u2699 ' + _('Environment Detection')));
+
+		var envTable = E('table', { 'class': 'table' });
+
+		var envItems = [
+			{ label: _('OpenWrt Version'), value: env.openwrt_version || '-', status: env.package_manager === 'unknown' ? 'orange' : 'green' },
+			{ label: _('Package Manager'), value: env.package_manager || '-', status: env.package_manager === 'unknown' ? 'orange' : 'green' },
+			{ label: _('Firewall'), value: env.firewall || '-', status: env.firewall !== 'fw4' ? 'orange' : 'green' },
+			{ label: _('nft'), value: env.nft ? '\u2714 ' + _('Installed') : '\u2718 ' + _('Missing'), status: env.nft ? 'green' : 'orange' },
+			{ label: _('upnpc'), value: env.upnpc ? '\u2714 ' + _('Installed') : '\u2718 ' + _('Missing'), status: env.upnpc ? 'green' : 'orange' },
+			{ label: _('LuCI'), value: env.luci ? '\u2714 ' + _('Installed') : '\u2718 ' + _('Missing'), status: env.luci ? 'green' : 'orange' },
+			{
+				label: _('OpenClash'),
+				value: env.openclash_installed ? (env.openclash_running ? '\u2714 ' + _('Running') : '\u26A0 ' + _('Installed (Stopped)')) : '\u2718 ' + _('Not Installed'),
+				status: env.openclash_installed && env.openclash_running ? 'green' : 'orange'
+			}
+		];
+
+		for (var i = 0; i < envItems.length; i++) {
+			var item = envItems[i];
+			var badgeClass = 'ubr-badge ' + item.status;
+			envTable.appendChild(E('tr', { 'class': 'tr' }, [
+				E('th', { 'class': 'th' }, item.label),
+				E('td', { 'class': 'td' }, E('span', { 'class': badgeClass }, item.value))
+			]));
+		}
+		envSection.appendChild(envTable);
+
+		var envBtnBar = E('div', { 'class': 'ubr-btn-group', 'style': 'margin-top:1em' });
+		envBtnBar.appendChild(E('button', {
+			'class': 'cbi-button cbi-button-apply',
+			'click': function() {
+				var btn = this;
+				setBusy(btn, _('Checking...'));
+				return callCheckEnv().then(function(result) {
+					ui.addNotification(null, E('p', _('Environment detection completed. Refresh page to see updated results.')), 'info');
+					reloadSoon();
+				}).catch(function(e) {
+					ui.addNotification(null, E('p', _('Detection failed: ') + e.message), 'error');
+					resetBusy(btn);
+				});
+			}
+		}, '\u21BB ' + _('Run Environment Check')));
+		envSection.appendChild(envBtnBar);
+		container.appendChild(envSection);
+
+		var depSection = E('div', { 'class': 'cbi-section ubr-section' });
+		depSection.appendChild(E('h4', {}, '\u2757 ' + _('Missing Dependencies & Fix Commands')));
+		var missingDeps = [];
+		if (!env.nft) missingDeps.push('nftables');
+		if (!env.upnpc) missingDeps.push('miniupnpc');
+
+		if (missingDeps.length > 0) {
+			var pkgMgr = env.package_manager || 'opkg';
+			var installCmd = pkgMgr === 'apk' ?
+				'apk add --allow-untrusted ' + missingDeps.join(' ') :
+				'opkg install ' + missingDeps.join(' ');
+
+			depSection.appendChild(E('p', { 'style': 'color:var(--warning-color, #d89b00);margin-bottom:0.5em' },
+				'\u2718 ' + _('Missing dependencies: ') + missingDeps.join(', ')));
+			depSection.appendChild(E('div', { 'class': 'ubr-cmd-box' }, installCmd));
+		} else {
+			depSection.appendChild(E('p', { 'style': 'color:var(--success-color, #3aa657)' },
+				'\u2714 ' + _('All dependencies are installed.')));
+		}
+		container.appendChild(depSection);
 
 		var footer = E('div', { 'style': 'margin-top:2em;padding:0.8em 0;text-align:center;color:var(--subtext-color, #666);font-size:0.85em;border-top:1px solid var(--border-color)' });
 		footer.innerHTML = 'UPnP Bridge Relay v' + version +

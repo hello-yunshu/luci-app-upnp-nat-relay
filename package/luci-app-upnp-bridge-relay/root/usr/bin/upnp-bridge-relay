@@ -6,6 +6,7 @@ NFT_TABLE_NAME="upnp_bridge_relay"
 NFT_CHAIN="prerouting"
 STATUS_DIR="/tmp/upnp_bridge_relay"
 STATUS_FILE="${STATUS_DIR}/status.json"
+ENV_CACHE_FILE="${STATUS_DIR}/env_cache.json"
 RESOURCES_DIR="/etc/upnp_bridge_relay"
 RESOURCES_FILE="${RESOURCES_DIR}/resources.txt"
 LOCK_FILE="/tmp/upnp_bridge_relay.lock"
@@ -28,7 +29,7 @@ log_err() {
 }
 
 json_escape() {
-    printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/\\t/g' -e 's/</\\u003c/g' -e 's/>/\\u003e/g' -e 's/&/\\u0026/g' -e ':a;N;$!ba;s/\n/\\n/g'
+    printf '%s\n' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/\\t/g' -e 's/</\\u003c/g' -e 's/>/\\u003e/g' -e 's/&/\\u0026/g' | awk 'BEGIN{ORS="\\n"}1' | sed 's/\\n$//'
 }
 
 _ja=""
@@ -184,8 +185,8 @@ ip_in_subnet() {
 
 protocol_allowed() {
     _pp_proto="$1"
-    _pp_proto_tokens="$(printf '%s' "$_pp_proto" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/ /g')"
-    _pp_allowed_tokens="$(printf '%s' "${cfg_protocols}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/ /g')"
+    _pp_proto_tokens="$(printf '%s' "$_pp_proto" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]/ /g')"
+    _pp_allowed_tokens="$(printf '%s' "${cfg_protocols}" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]/ /g')"
 
     case " $_pp_proto_tokens " in
         *" tcpudp "*|*" both "*|*" all "*)
@@ -215,7 +216,7 @@ filter_mapping() {
     _fm_int_port="$4"
     _fm_desc="$5"
 
-    _fm_proto_upper="$(echo "$_fm_proto" | tr '[:lower:]' '[:upper:]')"
+    _fm_proto_upper="$(echo "$_fm_proto" | tr 'a-z' 'A-Z')"
 
     if ! protocol_allowed "$_fm_proto_upper"; then
         printf 'reject|protocol_not_allowed'
@@ -286,7 +287,7 @@ check_port_conflict_single() {
         _cpc_ruleset="$(nft list ruleset 2>/dev/null)"
     fi
 
-    _cpc_proto_lower="$(echo "$_cpc_proto" | tr '[:upper:]' '[:lower:]')"
+    _cpc_proto_lower="$(echo "$_cpc_proto" | tr 'A-Z' 'a-z')"
     _cpc_conflict_source=""
     _cpc_current_table=""
     _cpc_old_ifs="$IFS"
@@ -299,7 +300,7 @@ check_port_conflict_single() {
                 _cpc_current_table="$(echo "$_cpc_line" | awk '{print $3}')"
                 ;;
         esac
-        _cpc_line_lower="$(echo "$_cpc_line" | tr '[:upper:]' '[:lower:]')"
+        _cpc_line_lower="$(echo "$_cpc_line" | tr 'A-Z' 'a-z') "
         case "$_cpc_line_lower" in
             *"upnp_bridge_relay"*)
                 continue
@@ -315,7 +316,7 @@ check_port_conflict_single() {
                         ;;
                 esac
                 case "$_cpc_line_lower" in
-                    *"dport ${_cpc_ext_port} "*|*"dport ${_cpc_ext_port}"$)
+                    *"dport ${_cpc_ext_port} "*)
                         _cpc_has_port=1
                         ;;
                 esac
@@ -341,7 +342,7 @@ check_uci_redirect_conflict() {
 
     command -v uci >/dev/null 2>&1 || return 1
 
-    _cur_proto_lower="$(echo "$_cur_proto" | tr '[:upper:]' '[:lower:]')"
+    _cur_proto_lower="$(echo "$_cur_proto" | tr 'A-Z' 'a-z')"
     _cur_idx=0
     while true; do
         _cur_target="$(uci -q get "firewall.@redirect[${_cur_idx}].target" 2>/dev/null)"
@@ -352,7 +353,7 @@ check_uci_redirect_conflict() {
         _cur_save_idx="$_cur_idx"
         _cur_idx=$((_cur_idx + 1))
         [ "$_cur_target" = "DNAT" ] || [ "$_cur_target" = "dnat" ] || continue
-        _cur_r_proto="$(uci -q get "firewall.@redirect[${_cur_save_idx}].proto" 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+        _cur_r_proto="$(uci -q get "firewall.@redirect[${_cur_save_idx}].proto" 2>/dev/null | tr 'A-Z' 'a-z')"
         [ -z "$_cur_r_proto" ] && _cur_r_proto="tcpudp"
         case "$_cur_r_proto" in
             "$_cur_proto_lower" | tcpudp) ;;
@@ -414,7 +415,7 @@ nft_add_dnat_rule() {
     _nr_dest_port="$4"
     _nr_iface="$5"
 
-    _nr_proto_lower="$(echo "$_nr_proto" | tr '[:upper:]' '[:lower:]')"
+    _nr_proto_lower="$(echo "$_nr_proto" | tr 'A-Z' 'a-z')"
     nft add rule inet ${NFT_TABLE_NAME} ${NFT_CHAIN} iifname "\"${_nr_iface}\"" "${_nr_proto_lower}" dport "${_nr_port}" dnat ip to "${_nr_dest_ip}:${_nr_dest_port}" || return 1
     return 0
 }
@@ -505,6 +506,43 @@ openclash_detect() {
         fi
     fi
     printf '{"installed":%d,"running":%d}' "$_od_installed" "$_od_running"
+}
+
+do_refresh_env() {
+    ensure_dirs
+
+    _dre_nft_status="not_present"
+    if command -v nft >/dev/null 2>&1 && nft list table inet ${NFT_TABLE_NAME} >/dev/null 2>&1; then
+        _dre_nft_status="present"
+    fi
+
+    _dre_oc_status="not_installed"
+    _oc_detect="$(openclash_detect)"
+    _oc_installed="$(echo "$_oc_detect" | sed -n 's/.*"installed":\([0-9]*\).*/\1/p')"
+    _oc_running="$(echo "$_oc_detect" | sed -n 's/.*"running":\([0-9]*\).*/\1/p')"
+    if [ "$_oc_installed" = "1" ]; then
+        if [ "$_oc_running" = "1" ]; then
+            _dre_oc_status="running"
+        else
+            _dre_oc_status="installed"
+        fi
+    fi
+
+    _dre_timestamp="$(get_timestamp)"
+
+    printf '{"nft_table_status":"%s","openclash_status":"%s","updated_at":"%s"}\n' \
+        "$(json_escape "$_dre_nft_status")" \
+        "$(json_escape "$_dre_oc_status")" \
+        "$(json_escape "$_dre_timestamp")" \
+        > "${ENV_CACHE_FILE}"
+}
+
+read_env_cache() {
+    if [ -f "${ENV_CACHE_FILE}" ]; then
+        cat "${ENV_CACHE_FILE}"
+    else
+        printf '{"nft_table_status":"-","openclash_status":"-","updated_at":""}\n'
+    fi
 }
 
 openclash_has_plugin_rule() {
@@ -1208,7 +1246,7 @@ do_dry_run() {
     if [ -f "$_dr_accept_file" ]; then
         while IFS='|' read -r _dr_act _dr_proto _dr_ext_port _dr_int_ip _dr_int_port _dr_desc; do
             [ "$_dr_act" != "ACCEPT" ] && continue
-            _dr_proto_lower="$(echo "$_dr_proto" | tr '[:upper:]' '[:lower:]')"
+            _dr_proto_lower="$(echo "$_dr_proto" | tr 'A-Z' 'a-z')"
             ja_append "\"$(json_escape "$(printf 'nft add rule inet %s %s iifname "\\"%s\\"" %s dport %s dnat ip to %s:%s' \
                 "${NFT_TABLE_NAME}" "${NFT_CHAIN}" "${cfg_upstream_wan_if}" "${_dr_proto_lower}" "${_dr_ext_port}" "${cfg_downstream_wan_ip}" "${_dr_ext_port}")")\""
         done < "$_dr_accept_file"
@@ -1272,21 +1310,13 @@ do_full_status() {
         _dfs_base="$(printf '%s' "$_dfs_base" | sed 's/"running":true/"running":false/')"
     fi
 
-    _dfs_nft_status="not_present"
-    if command -v nft >/dev/null 2>&1 && nft list table inet ${NFT_TABLE_NAME} >/dev/null 2>&1; then
-        _dfs_nft_status="present"
-    fi
-    _dfs_oc_status="not_installed"
-    _oc_detect="$(openclash_detect)"
-    _oc_installed="$(echo "$_oc_detect" | sed -n 's/.*"installed":\([0-9]*\).*/\1/p')"
-    _oc_running="$(echo "$_oc_detect" | sed -n 's/.*"running":\([0-9]*\).*/\1/p')"
-    if [ "$_oc_installed" = "1" ]; then
-        if [ "$_oc_running" = "1" ]; then
-            _dfs_oc_status="running"
-        else
-            _dfs_oc_status="installed"
-        fi
-    fi
+    _dfs_env="$(read_env_cache)"
+    _dfs_nft_status="$(printf '%s' "$_dfs_env" | sed -n 's/.*"nft_table_status":"\([^"]*\)".*/\1/p')"
+    _dfs_oc_status="$(printf '%s' "$_dfs_env" | sed -n 's/.*"openclash_status":"\([^"]*\)".*/\1/p')"
+    _dfs_env_updated="$(printf '%s' "$_dfs_env" | sed -n 's/.*"updated_at":"\([^"]*\)".*/\1/p')"
+    [ -z "$_dfs_nft_status" ] && _dfs_nft_status="-"
+    [ -z "$_dfs_oc_status" ] && _dfs_oc_status="-"
+
     _dfs_version=""
     case "$SCRIPT_VERSION" in
         @*) ;;
@@ -1301,7 +1331,7 @@ do_full_status() {
     fi
     [ -z "$_dfs_version" ] && _dfs_version="unknown"
 
-    _dfs_extra=",\"nft_table_status\":\"${_dfs_nft_status}\",\"openclash_status\":\"${_dfs_oc_status}\",\"version\":\"${_dfs_version}\"}"
+    _dfs_extra=",\"nft_table_status\":\"${_dfs_nft_status}\",\"openclash_status\":\"${_dfs_oc_status}\",\"env_updated_at\":\"${_dfs_env_updated}\",\"version\":\"${_dfs_version}\"}"
 
     _dfs_last_brace="$(printf '%s' "$_dfs_base" | sed -n 's/.*}/}/p' | tail -c 2)"
     if [ "$_dfs_last_brace" = "}" ]; then
@@ -1574,6 +1604,8 @@ do_daemon() {
 
     trap 'log_info "Daemon stopping"; write_status "false" "$(get_timestamp)" "stopped" "${cfg_backend}" 0 0 0 0 "" ""; exec 9>&- 2>/dev/null; exit 0' TERM INT
 
+    do_refresh_env >/dev/null 2>&1
+
     log_info "Daemon started (interval=${cfg_interval}s, backend=${cfg_backend})"
 
     while true; do
@@ -1597,6 +1629,17 @@ do_read_log() {
     printf '{"success":true,"logs":"%s"}\n' "$(json_escape "$_rl_logs")"
 }
 
+do_clear_log() {
+    _cl_logread="$(command -v logread 2>/dev/null || true)"
+    if [ -z "$_cl_logread" ]; then
+        printf '{"success":false,"error":"logread_not_found"}\n'
+        return 0
+    fi
+
+    "$_cl_logread" -z 2>/dev/null || /etc/init.d/log restart >/dev/null 2>&1 || true
+    printf '{"success":true}\n'
+}
+
 case "$1" in
     --check-env)
         do_check_env
@@ -1615,6 +1658,10 @@ case "$1" in
         ;;
     --status)
         do_full_status
+        ;;
+    --refresh-env)
+        do_refresh_env
+        cat "${ENV_CACHE_FILE}"
         ;;
     --dump-mappings)
         do_dump_mappings
@@ -1637,11 +1684,14 @@ case "$1" in
     --read-log)
         do_read_log
         ;;
+    --clear-log)
+        do_clear_log
+        ;;
     --daemon)
         do_daemon
         ;;
     *)
-        printf 'Usage: %s {--check-env|--check-network|--sync|--dry-run|--clear|--status|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--remove-openclash-rule|--rollback|--read-log|--daemon}\n' "$0"
+        printf 'Usage: %s {--check-env|--check-network|--sync|--dry-run|--clear|--status|--refresh-env|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--remove-openclash-rule|--rollback|--read-log|--clear-log|--daemon}\n' "$0"
         exit 1
         ;;
 esac

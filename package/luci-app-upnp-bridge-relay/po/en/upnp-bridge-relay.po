@@ -27,6 +27,9 @@ msgstr "OpenClash"
 msgid "Diagnostics"
 msgstr "Diagnostics"
 
+msgid "Logs & Maintenance"
+msgstr "Logs & Maintenance"
+
 msgid "UPnP Bridge Relay - Overview"
 msgstr "UPnP Bridge Relay - Overview"
 
@@ -777,8 +780,8 @@ msgstr "Automatically restart OpenClash service after writing rules so changes t
 msgid "Backup Status"
 msgstr "Backup Status"
 
-msgid "Check via Diagnostics page"
-msgstr "Check via Diagnostics page"
+msgid "Check via Logs & Maintenance page"
+msgstr "Check via Logs & Maintenance page"
 
 msgid "OpenClash Actions"
 msgstr "OpenClash Actions"
@@ -851,6 +854,9 @@ msgstr "Restore failed: "
 
 msgid "UPnP Bridge Relay - Diagnostics & Rollback"
 msgstr "UPnP Bridge Relay - Diagnostics & Rollback"
+
+msgid "UPnP Bridge Relay - Logs & Maintenance"
+msgstr "UPnP Bridge Relay - Logs & Maintenance"
 
 msgid "Environment Detection"
 msgstr "Environment Detection"
@@ -1136,3 +1142,45 @@ msgstr "Unknown error"
 
 msgid "GitHub"
 msgstr "GitHub"
+
+msgid "Last Env Check"
+msgstr "Last Env Check"
+
+msgid "Refresh Env"
+msgstr "Refresh Env"
+
+msgid "Environment detection refreshed."
+msgstr "Environment detection refreshed."
+
+msgid "Failed to refresh environment: "
+msgstr "Failed to refresh environment: "
+
+msgid "Clear Logs"
+msgstr "Clear Logs"
+
+msgid "Clear system log buffer? This will clear ALL system logs, not just plugin logs."
+msgstr "Clear system log buffer? This will clear ALL system logs, not just plugin logs."
+
+msgid "Clearing..."
+msgstr "Clearing..."
+
+msgid "Log buffer cleared."
+msgstr "Log buffer cleared."
+
+msgid "Failed to clear logs: "
+msgstr "Failed to clear logs: "
+
+msgid "Reachable"
+msgstr "Reachable"
+
+msgid "Unreachable"
+msgstr "Unreachable"
+
+msgid "Readable"
+msgstr "Readable"
+
+msgid "Exists"
+msgstr "Exists"
+
+msgid "Not found"
+msgstr "Not found"
