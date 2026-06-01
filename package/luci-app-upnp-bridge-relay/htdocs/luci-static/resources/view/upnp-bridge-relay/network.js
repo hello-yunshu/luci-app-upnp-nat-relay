@@ -11,6 +11,12 @@ var callCheckNetwork = rpc.declare({
 	expect: { '': {} }
 });
 
+var callNetworkCache = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'network-cache',
+	expect: { '': {} }
+});
+
 var callSetupInterface = rpc.declare({
 	object: 'upnp_bridge_relay',
 	method: 'setup-interface',
@@ -33,14 +39,12 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			uci.load('upnp_bridge_relay'),
-			uci.load('network'),
-			uci.load('firewall'),
-			callCheckNetwork().catch(function() {
+			callNetworkCache().catch(function() {
 				return null;
 			})
 		]).then(function(results) {
 			return {
-				network: results[3]
+				network: results[1]
 			};
 		});
 	},
@@ -84,14 +88,24 @@ return view.extend({
 		o.rmempty = false;
 
 		var netCheckData = data ? data.network : null;
+		var hasNetCheckData = function() {
+			if (!netCheckData || netCheckData.cached !== 1)
+				return false;
+			return (netCheckData.bind_ifname || '') === (uci.get('upnp_bridge_relay', 'main', 'bind_ifname') || '') &&
+				(netCheckData.bind_ip || '') === (uci.get('upnp_bridge_relay', 'main', 'bind_ip') || '') &&
+				(netCheckData.downstream_lan_gateway || '') === (uci.get('upnp_bridge_relay', 'main', 'downstream_lan_gateway') || '') &&
+				(netCheckData.downstream_wan_ip || '') === (uci.get('upnp_bridge_relay', 'main', 'downstream_wan_ip') || '') &&
+				(netCheckData.upstream_wan_if || '') === (uci.get('upnp_bridge_relay', 'main', 'upstream_wan_if') || '') &&
+				(netCheckData.zone_name || '') === (uci.get('upnp_bridge_relay', 'main', 'firewall_zone_name') || 'upnp_bridge');
+		};
 
 		o = s.taboption('status', form.DummyValue, '_if_status', _('Interface Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (netCheckData && netCheckData.iface_exists === 1) {
+			if (hasNetCheckData() && netCheckData.iface_exists === 1) {
 				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Interface exists') + '</span>';
 			}
-			if (netCheckData) {
+			if (hasNetCheckData()) {
 				return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Interface not found') + '</span>';
 			}
 			return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
@@ -100,10 +114,10 @@ return view.extend({
 		o = s.taboption('status', form.DummyValue, '_ip_status', _('IP Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (netCheckData && netCheckData.bind_ip_configured === 1) {
+			if (hasNetCheckData() && netCheckData.bind_ip_configured === 1) {
 				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('IP configured') + '</span>';
 			}
-			if (netCheckData) {
+			if (hasNetCheckData()) {
 				return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('IP not configured') + '</span>';
 			}
 			return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
@@ -112,7 +126,7 @@ return view.extend({
 		o = s.taboption('status', form.DummyValue, '_gateway_reachable', _('Downstream LAN Gateway'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (!netCheckData) {
+			if (!hasNetCheckData()) {
 				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.gateway_reachable === 1 || netCheckData.gateway_reachable === 'ok' || netCheckData.gateway_reachable === true) {
@@ -124,7 +138,7 @@ return view.extend({
 		o = s.taboption('status', form.DummyValue, '_upnpc_readable', _('UPnP IGD Read'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (!netCheckData) {
+			if (!hasNetCheckData()) {
 				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.upnpc_readable === 1 || netCheckData.upnpc_readable === 'ok' || netCheckData.upnpc_readable === true) {
@@ -136,7 +150,7 @@ return view.extend({
 		o = s.taboption('status', form.DummyValue, '_wan_ip_reachable', _('Downstream WAN IP'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (!netCheckData) {
+			if (!hasNetCheckData()) {
 				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.wan_ip_reachable === 1 || netCheckData.wan_ip_reachable === 'ok' || netCheckData.wan_ip_reachable === true) {
@@ -148,7 +162,7 @@ return view.extend({
 		o = s.taboption('status', form.DummyValue, '_upstream_wan', _('Upstream WAN Interface'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (!netCheckData) {
+			if (!hasNetCheckData()) {
 				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.upstream_wan_exists === 1 || netCheckData.upstream_wan_exists === 'ok' || netCheckData.upstream_wan_exists === true) {
@@ -160,7 +174,7 @@ return view.extend({
 		o = s.taboption('status', form.DummyValue, '_default_route', _('Default Route Risk'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (!netCheckData) {
+			if (!hasNetCheckData()) {
 				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.default_route_on_bind === 1) {
@@ -173,9 +187,11 @@ return view.extend({
 		o = s.taboption('status', form.DummyValue, '_gateway_set', _('Gateway Setting'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			var gw = uci.get('network', 'upnp_bridge_lan', 'gateway');
-			if (gw) {
-				return '<span style="color:var(--danger-color, #d94b4b)">&#9888; ' + _('Gateway is set: %s').format(gw) + '</span>' +
+			if (!hasNetCheckData()) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.gateway_set === 1) {
+				return '<span style="color:var(--danger-color, #d94b4b)">&#9888; ' + _('Gateway is set: %s').format(netCheckData.gateway_value || '-') + '</span>' +
 					'<p style="color:var(--warning-color, #d89b00)">' + _('The read interface should not have a gateway configured.') + '</p>';
 			}
 			return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('No gateway set') + '</span>';
@@ -184,9 +200,11 @@ return view.extend({
 		o = s.taboption('status', form.DummyValue, '_dns_set', _('DNS Setting'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			var dns = uci.get('network', 'upnp_bridge_lan', 'dns');
-			if (dns) {
-				return '<span style="color:var(--warning-color, #d89b00)">&#9888; ' + _('DNS is set: %s').format(dns) + '</span>';
+			if (!hasNetCheckData()) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.dns_set === 1) {
+				return '<span style="color:var(--warning-color, #d89b00)">&#9888; ' + _('DNS is set: %s').format(netCheckData.dns_value || '-') + '</span>';
 			}
 			return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('No DNS set') + '</span>';
 		};
@@ -194,7 +212,7 @@ return view.extend({
 		o = s.taboption('status', form.DummyValue, '_forwarding', _('Extra Forwarding'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			if (!netCheckData) {
+			if (!hasNetCheckData()) {
 				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.bad_forwarding === 1) {
@@ -248,6 +266,10 @@ return view.extend({
 				btn.node.textContent = _('Configuring...');
 			}
 			return callSetupInterface().then(function(result) {
+				return callCheckNetwork().catch(function() {
+					return result;
+				});
+			}).then(function(result) {
 				ui.addNotification(null, E('p', _('Interface configured. Click the Status tab to view details.')), 'info');
 				reloadSoon();
 			}).catch(function(e) {
@@ -269,11 +291,11 @@ return view.extend({
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			var zoneName = uci.get('upnp_bridge_relay', 'main', 'firewall_zone_name') || 'upnp_bridge';
-			var zones = uci.sections('firewall', 'zone');
-			for (var i = 0; i < zones.length; i++) {
-				if (zones[i].name === zoneName) {
-					return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + zoneName + '</span>';
-				}
+			if (!hasNetCheckData()) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.zone_exists === 1) {
+				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + (netCheckData.zone_name || zoneName) + '</span>';
 			}
 			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + zoneName + ' (' + _('Zone not found') + ')</span>';
 		};
@@ -281,16 +303,15 @@ return view.extend({
 		o = s.taboption('zone_status', form.DummyValue, '_zone_input', _('Input Policy'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			var zoneName = uci.get('upnp_bridge_relay', 'main', 'firewall_zone_name') || 'upnp_bridge';
-			var zones = uci.sections('firewall', 'zone');
-			for (var i = 0; i < zones.length; i++) {
-				if (zones[i].name === zoneName) {
-					var input = zones[i].input || '-';
-					if (input === 'ACCEPT') {
-						return '<span style="color:var(--success-color, #3aa657)">' + input + '</span>';
-					}
-					return '<span style="color:var(--danger-color, #d94b4b)">' + input + ' ' + _('(should be ACCEPT)') + '</span>';
+			if (!hasNetCheckData()) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.zone_exists === 1) {
+				var input = netCheckData.zone_input || '-';
+				if (input === 'ACCEPT') {
+					return '<span style="color:var(--success-color, #3aa657)">' + input + '</span>';
 				}
+				return '<span style="color:var(--danger-color, #d94b4b)">' + input + ' ' + _('(should be ACCEPT)') + '</span>';
 			}
 			return '<span style="color:var(--warning-color, #d89b00)">' + _('Zone not found') + '</span>';
 		};
@@ -298,16 +319,15 @@ return view.extend({
 		o = s.taboption('zone_status', form.DummyValue, '_zone_output', _('Output Policy'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			var zoneName = uci.get('upnp_bridge_relay', 'main', 'firewall_zone_name') || 'upnp_bridge';
-			var zones = uci.sections('firewall', 'zone');
-			for (var i = 0; i < zones.length; i++) {
-				if (zones[i].name === zoneName) {
-					var output = zones[i].output || '-';
-					if (output === 'ACCEPT') {
-						return '<span style="color:var(--success-color, #3aa657)">' + output + '</span>';
-					}
-					return '<span style="color:var(--danger-color, #d94b4b)">' + output + ' ' + _('(should be ACCEPT)') + '</span>';
+			if (!hasNetCheckData()) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.zone_exists === 1) {
+				var output = netCheckData.zone_output || '-';
+				if (output === 'ACCEPT') {
+					return '<span style="color:var(--success-color, #3aa657)">' + output + '</span>';
 				}
+				return '<span style="color:var(--danger-color, #d94b4b)">' + output + ' ' + _('(should be ACCEPT)') + '</span>';
 			}
 			return '<span style="color:var(--warning-color, #d89b00)">' + _('Zone not found') + '</span>';
 		};
@@ -315,16 +335,15 @@ return view.extend({
 		o = s.taboption('zone_status', form.DummyValue, '_zone_forward', _('Forward Policy'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			var zoneName = uci.get('upnp_bridge_relay', 'main', 'firewall_zone_name') || 'upnp_bridge';
-			var zones = uci.sections('firewall', 'zone');
-			for (var i = 0; i < zones.length; i++) {
-				if (zones[i].name === zoneName) {
-					var forward = zones[i].forward || '-';
-					if (forward === 'REJECT') {
-						return '<span style="color:var(--success-color, #3aa657)">' + forward + '</span>';
-					}
-					return '<span style="color:var(--danger-color, #d94b4b)">' + forward + ' ' + _('(should be REJECT)') + '</span>';
+			if (!hasNetCheckData()) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.zone_exists === 1) {
+				var forward = netCheckData.zone_forward || '-';
+				if (forward === 'REJECT') {
+					return '<span style="color:var(--success-color, #3aa657)">' + forward + '</span>';
 				}
+				return '<span style="color:var(--danger-color, #d94b4b)">' + forward + ' ' + _('(should be REJECT)') + '</span>';
 			}
 			return '<span style="color:var(--warning-color, #d89b00)">' + _('Zone not found') + '</span>';
 		};
@@ -332,16 +351,15 @@ return view.extend({
 		o = s.taboption('zone_status', form.DummyValue, '_zone_maq', _('Masquerading'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			var zoneName = uci.get('upnp_bridge_relay', 'main', 'firewall_zone_name') || 'upnp_bridge';
-			var zones = uci.sections('firewall', 'zone');
-			for (var i = 0; i < zones.length; i++) {
-				if (zones[i].name === zoneName) {
-					var masq = zones[i].masq || '0';
-					if (masq === '0') {
-						return '<span style="color:var(--success-color, #3aa657)">' + _('Disabled') + '</span>';
-					}
-					return '<span style="color:var(--danger-color, #d94b4b)">' + _('Enabled (should be Disabled)') + '</span>';
+			if (!hasNetCheckData()) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			}
+			if (netCheckData.zone_exists === 1) {
+				var masq = netCheckData.zone_masq || '0';
+				if (masq === '0') {
+					return '<span style="color:var(--success-color, #3aa657)">' + _('Disabled') + '</span>';
 				}
+				return '<span style="color:var(--danger-color, #d94b4b)">' + _('Enabled (should be Disabled)') + '</span>';
 			}
 			return '<span style="color:var(--warning-color, #d89b00)">' + _('Zone not found') + '</span>';
 		};
@@ -372,6 +390,10 @@ return view.extend({
 				btn.node.textContent = _('Applying...');
 			}
 			return callFixZone().then(function(result) {
+				return callCheckNetwork().catch(function() {
+					return result;
+				});
+			}).then(function(result) {
 				ui.addNotification(null, E('p', _('Zone settings fixed.')), 'info');
 				reloadSoon();
 			}).catch(function(e) {
@@ -389,13 +411,9 @@ return view.extend({
 		o.inputstyle = 'apply';
 		o.onclick = function() {
 			var zoneName = uci.get('upnp_bridge_relay', 'main', 'firewall_zone_name') || 'upnp_bridge';
-
-			var zones = uci.sections('firewall', 'zone');
-			for (var i = 0; i < zones.length; i++) {
-				if (zones[i].name === zoneName) {
-					ui.addNotification(null, E('p', _('Zone "%s" already exists. Use "Fix Zone Settings" instead.').format(zoneName)), 'warning');
-					return;
-				}
+			if (hasNetCheckData() && netCheckData.zone_exists === 1) {
+				ui.addNotification(null, E('p', _('Zone "%s" already exists. Use "Fix Zone Settings" instead.').format(zoneName)), 'warning');
+				return;
 			}
 
 			var btn = this;
@@ -404,6 +422,10 @@ return view.extend({
 				btn.node.textContent = _('Creating...');
 			}
 			return callFixZone().then(function(result) {
+				return callCheckNetwork().catch(function() {
+					return result;
+				});
+			}).then(function(result) {
 				ui.addNotification(null, E('p', _('Zone created successfully.')), 'info');
 				reloadSoon();
 			}).catch(function(e) {
