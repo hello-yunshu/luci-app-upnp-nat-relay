@@ -528,11 +528,89 @@ do_refresh_env() {
         fi
     fi
 
+    _dre_version=""
+    case "$SCRIPT_VERSION" in
+        @*) ;;
+        *) _dre_version="$SCRIPT_VERSION" ;;
+    esac
+    if [ -z "$_dre_version" ]; then
+        if command -v apk >/dev/null 2>&1; then
+            _dre_version="$(apk info --installed luci-app-upnp-bridge-relay 2>/dev/null | sed -n 's/.*-\([0-9][0-9.]*\)/\1/p' | head -1)"
+        elif command -v opkg >/dev/null 2>&1; then
+            _dre_version="$(opkg info luci-app-upnp-bridge-relay 2>/dev/null | sed -n 's/^Version: //p' | head -1)"
+        fi
+    fi
+    [ -z "$_dre_version" ] && _dre_version="unknown"
+
+    _dre_openwrt_version=""
+    if [ -f /etc/openwrt_release ]; then
+        _dre_release="$(grep 'DISTRIB_RELEASE' /etc/openwrt_release 2>/dev/null | cut -d"'" -f2)"
+    fi
+    if [ -f /etc/os-release ]; then
+        _dre_os_version="$(grep '^VERSION=' /etc/os-release 2>/dev/null | cut -d'"' -f2)"
+    fi
+    if [ -n "$_dre_os_version" ]; then
+        _dre_openwrt_version="$_dre_os_version"
+    elif [ -n "$_dre_release" ]; then
+        _dre_openwrt_version="$_dre_release"
+    fi
+
+    _dre_pkg_manager="unknown"
+    if command -v apk >/dev/null 2>&1; then
+        _dre_pkg_manager="apk"
+    elif command -v opkg >/dev/null 2>&1; then
+        _dre_pkg_manager="opkg"
+    fi
+
+    _dre_firewall="unknown"
+    _dre_fw4=0
+    _dre_nft=0
+    if command -v fw4 >/dev/null 2>&1; then
+        _dre_fw4=1
+        if fw4 -q print >/dev/null 2>&1; then
+            _dre_firewall="fw4"
+        fi
+    fi
+    if command -v nft >/dev/null 2>&1; then
+        _dre_nft=1
+    fi
+    if [ "$_dre_firewall" = "unknown" ] && [ "$_dre_nft" -eq 1 ]; then
+        _dre_firewall="nftables_only"
+    fi
+
+    _dre_upnpc=0
+    if command -v upnpc >/dev/null 2>&1; then
+        _dre_upnpc=1
+    fi
+
+    _dre_luci=0
+    if [ -f /www/luci-static/resources/rpc.js ]; then
+        _dre_luci=1
+    fi
+
+    _dre_oc_has_ac=0
+    if [ "$_oc_installed" = "1" ]; then
+        if uci -q get openclash.@access_control[0] >/dev/null 2>&1; then
+            _dre_oc_has_ac=1
+        fi
+    fi
+
     _dre_timestamp="$(get_timestamp)"
 
-    printf '{"nft_table_status":"%s","openclash_status":"%s","updated_at":"%s"}\n' \
+    printf '{"nft_table_status":"%s","openclash_status":"%s","version":"%s","openwrt_version":"%s","package_manager":"%s","firewall":"%s","fw4":%d,"nft":%d,"upnpc":%d,"luci":%d,"openclash_installed":%d,"openclash_running":%d,"openclash_has_access_control":%d,"updated_at":"%s"}\n' \
         "$(json_escape "$_dre_nft_status")" \
         "$(json_escape "$_dre_oc_status")" \
+        "$(json_escape "$_dre_version")" \
+        "$(json_escape "$_dre_openwrt_version")" \
+        "$(json_escape "$_dre_pkg_manager")" \
+        "$(json_escape "$_dre_firewall")" \
+        "$_dre_fw4" \
+        "$_dre_nft" \
+        "$_dre_upnpc" \
+        "$_dre_luci" \
+        "$_oc_installed" \
+        "$_oc_running" \
+        "$_dre_oc_has_ac" \
         "$(json_escape "$_dre_timestamp")" \
         > "${ENV_CACHE_FILE}"
 }
@@ -541,7 +619,7 @@ read_env_cache() {
     if [ -f "${ENV_CACHE_FILE}" ]; then
         cat "${ENV_CACHE_FILE}"
     else
-        printf '{"nft_table_status":"-","openclash_status":"-","updated_at":""}\n'
+        printf '{"nft_table_status":"-","openclash_status":"-","version":"-","openwrt_version":"","package_manager":"unknown","firewall":"unknown","fw4":0,"nft":0,"upnpc":0,"luci":0,"openclash_installed":0,"openclash_running":0,"openclash_has_access_control":0,"updated_at":""}\n'
     fi
 }
 
@@ -1311,27 +1389,10 @@ do_full_status() {
     fi
 
     _dfs_env="$(read_env_cache)"
-    _dfs_nft_status="$(printf '%s' "$_dfs_env" | sed -n 's/.*"nft_table_status":"\([^"]*\)".*/\1/p')"
-    _dfs_oc_status="$(printf '%s' "$_dfs_env" | sed -n 's/.*"openclash_status":"\([^"]*\)".*/\1/p')"
-    _dfs_env_updated="$(printf '%s' "$_dfs_env" | sed -n 's/.*"updated_at":"\([^"]*\)".*/\1/p')"
-    [ -z "$_dfs_nft_status" ] && _dfs_nft_status="-"
-    [ -z "$_dfs_oc_status" ] && _dfs_oc_status="-"
+    _dfs_env_inner="$(printf '%s' "$_dfs_env" | sed 's/^{//;s/}$//')"
+    [ -z "$_dfs_env_inner" ] && _dfs_env_inner='"nft_table_status":"-","openclash_status":"-","version":"unknown","updated_at":""'
 
-    _dfs_version=""
-    case "$SCRIPT_VERSION" in
-        @*) ;;
-        *) _dfs_version="$SCRIPT_VERSION" ;;
-    esac
-    if [ -z "$_dfs_version" ]; then
-        if command -v apk >/dev/null 2>&1; then
-            _dfs_version="$(apk info --installed luci-app-upnp-bridge-relay 2>/dev/null | sed -n 's/.*-\([0-9][0-9.]*\)/\1/p' | head -1)"
-        elif command -v opkg >/dev/null 2>&1; then
-            _dfs_version="$(opkg info luci-app-upnp-bridge-relay 2>/dev/null | sed -n 's/^Version: //p' | head -1)"
-        fi
-    fi
-    [ -z "$_dfs_version" ] && _dfs_version="unknown"
-
-    _dfs_extra=",\"nft_table_status\":\"${_dfs_nft_status}\",\"openclash_status\":\"${_dfs_oc_status}\",\"env_updated_at\":\"${_dfs_env_updated}\",\"version\":\"${_dfs_version}\"}"
+    _dfs_extra=",${_dfs_env_inner}}"
 
     _dfs_last_brace="$(printf '%s' "$_dfs_base" | sed -n 's/.*}/}/p' | tail -c 2)"
     if [ "$_dfs_last_brace" = "}" ]; then

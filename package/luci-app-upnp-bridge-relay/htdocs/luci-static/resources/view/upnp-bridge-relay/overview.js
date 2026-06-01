@@ -26,21 +26,15 @@ var callSyncNow = rpc.declare({
 	expect: { '': {} }
 });
 
-var callClear = rpc.declare({
-	object: 'upnp_bridge_relay',
-	method: 'clear',
-	expect: { '': {} }
-});
-
 var callRefreshEnv = rpc.declare({
 	object: 'upnp_bridge_relay',
 	method: 'refresh-env',
 	expect: { '': {} }
 });
 
-var callCheckEnv = rpc.declare({
+var callClear = rpc.declare({
 	object: 'upnp_bridge_relay',
-	method: 'check-env',
+	method: 'clear',
 	expect: { '': {} }
 });
 
@@ -78,7 +72,7 @@ function reloadSoon(delay) {
 function makeNftBadge(status) {
 	if (status === 'present') {
 		return E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + _('Present'));
-	} else if (status === '-') {
+	} else if (status === '-' || status === 'not_present') {
 		return E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + _('Missing'));
 	} else {
 		return E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + status);
@@ -97,6 +91,23 @@ function makeOcBadge(status) {
 	} else {
 		return E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + status);
 	}
+}
+
+function buildDepSection(missingDeps, pkgManager) {
+	var section = E('div', { 'class': 'cbi-section ubr-section' });
+	section.appendChild(E('h4', {}, '\u2757 ' + _('Missing Dependencies & Fix Commands')));
+	if (missingDeps.length > 0) {
+		var installCmd = pkgManager === 'apk' ?
+			'apk add --allow-untrusted ' + missingDeps.join(' ') :
+			'opkg install ' + missingDeps.join(' ');
+		section.appendChild(E('p', { 'style': 'color:var(--warning-color, #d89b00);margin-bottom:0.5em' },
+			'\u2718 ' + _('Missing dependencies: ') + missingDeps.join(', ')));
+		section.appendChild(E('div', { 'class': 'ubr-cmd-box' }, installCmd));
+	} else {
+		section.appendChild(E('p', { 'style': 'color:var(--success-color, #3aa657)' },
+			'\u2714 ' + _('All dependencies are installed.')));
+	}
+	return section;
 }
 
 var css = `
@@ -163,19 +174,14 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			callStatus(),
-			callCheckEnv().catch(function() { return {}; }),
 			uci.load('upnp_bridge_relay')
 		]).then(function(results) {
-			return {
-				status: results[0],
-				env: results[1]
-			};
+			return results[0];
 		});
 	},
 
-	render: function(data) {
-		var status = data.status || {};
-		var env = data.env || {};
+	render: function(status) {
+		status = status || {};
 		var running = status.running || false;
 		var lastSync = status.last_sync || '-';
 		var lastResult = status.last_result || '-';
@@ -359,9 +365,10 @@ return view.extend({
 
 		var infoTable = E('table', { 'class': 'table' });
 
+		var versionTd = E('td', { 'class': 'td' }, version);
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
 			E('th', { 'class': 'th' }, _('Plugin Version')),
-			E('td', { 'class': 'td' }, version)
+			versionTd
 		]));
 
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
@@ -399,77 +406,26 @@ return view.extend({
 			E('td', { 'class': 'td' }, lastResultBadge)
 		]));
 
-		var nftBadge;
-		if (nftStatus === 'present') {
-			nftBadge = E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + _('Present'));
-		} else if (nftStatus === '-') {
-			nftBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + _('Missing'));
-		} else {
-			nftBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + nftStatus);
-		}
+		var nftBadge = makeNftBadge(nftStatus);
 		var nftTd = E('td', { 'class': 'td' }, nftBadge);
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
 			E('th', { 'class': 'th' }, _('nftables Table')),
 			nftTd
 		]));
 
-		var ocBadge;
-		if (openclashStatus === 'running') {
-			ocBadge = E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + _('Running'));
-		} else if (openclashStatus === 'installed') {
-			ocBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + _('Installed (Stopped)'));
-		} else if (openclashStatus === 'not_installed') {
-			ocBadge = E('span', { 'class': 'ubr-badge orange' }, '\u2718 ' + _('Not Installed'));
-		} else if (openclashStatus === '-') {
-			ocBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + '-');
-		} else {
-			ocBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + openclashStatus);
-		}
+		var ocBadge = makeOcBadge(openclashStatus);
 		var ocTd = E('td', { 'class': 'td' }, ocBadge);
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
 			E('th', { 'class': 'th' }, _('OpenClash')),
 			ocTd
 		]));
 
-		var envUpdatedAt = status.env_updated_at || '';
+		var envUpdatedAt = status.updated_at || '';
 		var envTimeTd = E('td', { 'class': 'td' }, envUpdatedAt || '-');
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
 			E('th', { 'class': 'th' }, _('Last Env Check')),
 			envTimeTd
 		]));
-
-		var envBtnRow = E('tr', { 'class': 'tr' });
-		envBtnRow.appendChild(E('th', { 'class': 'th' }, ''));
-		var envBtnTd = E('td', { 'class': 'td' });
-		envBtnTd.appendChild(E('button', {
-			'class': 'cbi-button cbi-button-apply',
-			'style': 'font-size:0.85em;padding:0.3em 0.8em',
-			'click': function() {
-				var btn = this;
-				setBusy(btn, _('Checking...'));
-				return callRefreshEnv().then(function(result) {
-					var newNft = (result && result.nft_table_status) || '-';
-					var newOc = (result && result.openclash_status) || '-';
-					var newTime = (result && result.updated_at) || '';
-
-					while (nftTd.firstChild) nftTd.removeChild(nftTd.firstChild);
-					nftTd.appendChild(makeNftBadge(newNft));
-
-					while (ocTd.firstChild) ocTd.removeChild(ocTd.firstChild);
-					ocTd.appendChild(makeOcBadge(newOc));
-
-					envTimeTd.textContent = newTime || '-';
-
-					resetBusy(btn);
-					ui.addNotification(null, E('p', _('Environment detection refreshed.')), 'info');
-				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('Failed to refresh environment: ') + e.message), 'error');
-					resetBusy(btn);
-				});
-			}
-		}, '\u21BB ' + _('Refresh Env')));
-		envBtnRow.appendChild(envBtnTd);
-		infoTable.appendChild(envBtnRow);
 
 		infoSection.appendChild(infoTable);
 		container.appendChild(infoSection);
@@ -480,25 +436,42 @@ return view.extend({
 		var envTable = E('table', { 'class': 'table' });
 
 		var envItems = [
-			{ label: _('OpenWrt Version'), value: env.openwrt_version || '-', status: env.package_manager === 'unknown' ? 'orange' : 'green' },
-			{ label: _('Package Manager'), value: env.package_manager || '-', status: env.package_manager === 'unknown' ? 'orange' : 'green' },
-			{ label: _('Firewall'), value: env.firewall || '-', status: env.firewall !== 'fw4' ? 'orange' : 'green' },
-			{ label: _('nft'), value: env.nft ? '\u2714 ' + _('Installed') : '\u2718 ' + _('Missing'), status: env.nft ? 'green' : 'orange' },
-			{ label: _('upnpc'), value: env.upnpc ? '\u2714 ' + _('Installed') : '\u2718 ' + _('Missing'), status: env.upnpc ? 'green' : 'orange' },
-			{ label: _('LuCI'), value: env.luci ? '\u2714 ' + _('Installed') : '\u2718 ' + _('Missing'), status: env.luci ? 'green' : 'orange' },
-			{
-				label: _('OpenClash'),
-				value: env.openclash_installed ? (env.openclash_running ? '\u2714 ' + _('Running') : '\u26A0 ' + _('Installed (Stopped)')) : '\u2718 ' + _('Not Installed'),
-				status: env.openclash_installed && env.openclash_running ? 'green' : 'orange'
-			}
+			{ label: _('OpenWrt Version'), key: 'openwrt_version', statusKey: 'package_manager', statusFn: function(v) { return v === 'unknown' ? 'orange' : 'green'; } },
+			{ label: _('Package Manager'), key: 'package_manager', statusKey: 'package_manager', statusFn: function(v) { return v === 'unknown' ? 'orange' : 'green'; } },
+			{ label: _('Firewall'), key: 'firewall', statusKey: 'firewall', statusFn: function(v) { return v !== 'fw4' ? 'orange' : 'green'; } },
+			{ label: _('nft'), key: 'nft', statusKey: 'nft', statusFn: function(v) { return v ? 'green' : 'orange'; }, bool: true },
+			{ label: _('upnpc'), key: 'upnpc', statusKey: 'upnpc', statusFn: function(v) { return v ? 'green' : 'orange'; }, bool: true },
+			{ label: _('LuCI'), key: 'luci', statusKey: 'luci', statusFn: function(v) { return v ? 'green' : 'orange'; }, bool: true },
+			{ label: _('OpenClash'), key: 'openclash_installed', statusKey: null, oc: true }
 		];
 
+		var envTds = [];
 		for (var i = 0; i < envItems.length; i++) {
 			var item = envItems[i];
-			var badgeClass = 'ubr-badge ' + item.status;
+			var val, badgeVal, badgeStatus;
+			if (item.oc) {
+				var ocInstalled = status.openclash_installed;
+				var ocRunning = status.openclash_running;
+				if (ocInstalled) {
+					badgeVal = ocRunning ? '\u2714 ' + _('Running') : '\u26A0 ' + _('Installed (Stopped)');
+				} else {
+					badgeVal = '\u2718 ' + _('Not Installed');
+				}
+				badgeStatus = (ocInstalled && ocRunning) ? 'green' : 'orange';
+			} else if (item.bool) {
+				var bval = status[item.key];
+				badgeVal = bval ? '\u2714 ' + _('Installed') : '\u2718 ' + _('Missing');
+				badgeStatus = item.statusFn(bval);
+			} else {
+				var sval = status[item.key] || '-';
+				badgeVal = sval;
+				badgeStatus = item.statusFn(status[item.statusKey]);
+			}
+			var td = E('td', { 'class': 'td' }, E('span', { 'class': 'ubr-badge ' + badgeStatus }, badgeVal));
+			envTds.push({ td: td, item: item });
 			envTable.appendChild(E('tr', { 'class': 'tr' }, [
 				E('th', { 'class': 'th' }, item.label),
-				E('td', { 'class': 'td' }, E('span', { 'class': badgeClass }, item.value))
+				td
 			]));
 		}
 		envSection.appendChild(envTable);
@@ -509,37 +482,65 @@ return view.extend({
 			'click': function() {
 				var btn = this;
 				setBusy(btn, _('Checking...'));
-				return callCheckEnv().then(function(result) {
-					ui.addNotification(null, E('p', _('Environment detection completed. Refresh page to see updated results.')), 'info');
-					reloadSoon();
+				return callRefreshEnv().then(function(result) {
+					result = result || {};
+					for (var j = 0; j < envTds.length; j++) {
+						var entry = envTds[j];
+						var it = entry.item;
+						var newBadgeVal, newBadgeStatus;
+						if (it.oc) {
+							var oi = result.openclash_installed;
+							var or2 = result.openclash_running;
+							if (oi) {
+								newBadgeVal = or2 ? '\u2714 ' + _('Running') : '\u26A0 ' + _('Installed (Stopped)');
+							} else {
+								newBadgeVal = '\u2718 ' + _('Not Installed');
+							}
+							newBadgeStatus = (oi && or2) ? 'green' : 'orange';
+						} else if (it.bool) {
+							var nbv = result[it.key];
+							newBadgeVal = nbv ? '\u2714 ' + _('Installed') : '\u2718 ' + _('Missing');
+							newBadgeStatus = it.statusFn(nbv);
+						} else {
+							newBadgeVal = result[it.key] || '-';
+							newBadgeStatus = it.statusFn(result[it.statusKey]);
+						}
+						while (entry.td.firstChild) entry.td.removeChild(entry.td.firstChild);
+						entry.td.appendChild(E('span', { 'class': 'ubr-badge ' + newBadgeStatus }, newBadgeVal));
+					}
+
+					while (nftTd.firstChild) nftTd.removeChild(nftTd.firstChild);
+					nftTd.appendChild(makeNftBadge(result.nft_table_status || '-'));
+					while (ocTd.firstChild) ocTd.removeChild(ocTd.firstChild);
+					ocTd.appendChild(makeOcBadge(result.openclash_status || '-'));
+					versionTd.textContent = result.version || '-';
+					envTimeTd.textContent = result.updated_at || '-';
+
+					var newMissing = [];
+					if (!result.nft) newMissing.push('nftables');
+					if (!result.upnpc) newMissing.push('miniupnpc');
+					var depSectionParent = depSection.parentNode;
+					if (depSectionParent) {
+						var newDepSection = buildDepSection(newMissing, result.package_manager || 'opkg');
+						depSectionParent.replaceChild(newDepSection, depSection);
+						depSection = newDepSection;
+					}
+
+					resetBusy(btn);
+					ui.addNotification(null, E('p', _('Environment detection refreshed.')), 'info');
 				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('Detection failed: ') + e.message), 'error');
+					ui.addNotification(null, E('p', _('Failed to refresh environment: ') + e.message), 'error');
 					resetBusy(btn);
 				});
 			}
-		}, '\u21BB ' + _('Run Environment Check')));
+		}, '\u21BB ' + _('Refresh Env')));
 		envSection.appendChild(envBtnBar);
 		container.appendChild(envSection);
 
-		var depSection = E('div', { 'class': 'cbi-section ubr-section' });
-		depSection.appendChild(E('h4', {}, '\u2757 ' + _('Missing Dependencies & Fix Commands')));
 		var missingDeps = [];
-		if (!env.nft) missingDeps.push('nftables');
-		if (!env.upnpc) missingDeps.push('miniupnpc');
-
-		if (missingDeps.length > 0) {
-			var pkgMgr = env.package_manager || 'opkg';
-			var installCmd = pkgMgr === 'apk' ?
-				'apk add --allow-untrusted ' + missingDeps.join(' ') :
-				'opkg install ' + missingDeps.join(' ');
-
-			depSection.appendChild(E('p', { 'style': 'color:var(--warning-color, #d89b00);margin-bottom:0.5em' },
-				'\u2718 ' + _('Missing dependencies: ') + missingDeps.join(', ')));
-			depSection.appendChild(E('div', { 'class': 'ubr-cmd-box' }, installCmd));
-		} else {
-			depSection.appendChild(E('p', { 'style': 'color:var(--success-color, #3aa657)' },
-				'\u2714 ' + _('All dependencies are installed.')));
-		}
+		if (!status.nft) missingDeps.push('nftables');
+		if (!status.upnpc) missingDeps.push('miniupnpc');
+		var depSection = buildDepSection(missingDeps, status.package_manager || 'opkg');
 		container.appendChild(depSection);
 
 		var footer = E('div', { 'style': 'margin-top:2em;padding:0.8em 0;text-align:center;color:var(--subtext-color, #666);font-size:0.85em;border-top:1px solid var(--border-color)' });
