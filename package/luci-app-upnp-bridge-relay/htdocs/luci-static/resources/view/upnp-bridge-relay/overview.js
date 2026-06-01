@@ -38,13 +38,15 @@ var callClear = rpc.declare({
 	expect: { '': {} }
 });
 
-function callInitAction(action) {
-	return rpc.declare({
-		object: 'luci',
-		method: 'setInitAction',
-		params: ['name', 'action'],
-		expect: { result: false }
-	})('upnp_bridge_relay', action);
+var callInitAction = rpc.declare({
+	object: 'luci',
+	method: 'setInitAction',
+	params: ['name', 'action'],
+	expect: { result: false }
+});
+
+function initAction(action) {
+	return callInitAction('upnp_bridge_relay', action);
 }
 
 function setBusy(button, label) {
@@ -95,7 +97,7 @@ function makeOcBadge(status) {
 
 function buildDepSection(missingDeps, pkgManager) {
 	var section = E('div', { 'class': 'cbi-section ubr-section' });
-	section.appendChild(E('h4', {}, '\u2757 ' + _('Missing Dependencies & Fix Commands')));
+	section.appendChild(E('h3', {}, _('Missing Dependencies & Fix Commands')));
 	if (missingDeps.length > 0) {
 		var installCmd = pkgManager === 'apk' ?
 			'apk add --allow-untrusted ' + missingDeps.join(' ') :
@@ -147,12 +149,6 @@ var css = `
 		.ubr-section {
 			margin-bottom: 1.5em;
 		}
-	.ubr-section h4 {
-		margin: 0 0 0.8em 0; padding: 0 0 0.5em 0.6em;
-		border-bottom: 1px solid var(--border-color);
-		border-left: 3px solid var(--main-color, #0069d9);
-		font-size: 1.05em;
-	}
 	.ubr-badge {
 		display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
 		font-size: 0.85em; font-weight: 500;
@@ -242,7 +238,7 @@ return view.extend({
 		container.appendChild(statsGrid);
 
 			var controlSection = E('div', { 'class': 'cbi-section ubr-section' });
-		controlSection.appendChild(E('h4', {}, _('Service Control')));
+		controlSection.appendChild(E('h3', {}, _('Service Control')));
 
 		var btnGroup = E('div', { 'class': 'ubr-btn-group' });
 
@@ -260,7 +256,9 @@ return view.extend({
 							.then(function() { return safeApply(); });
 					}
 					return chain.then(function() {
-						return callInitAction('start');
+						return initAction('enable');
+					}).then(function() {
+						return initAction('start');
 					}).then(function() {
 						ui.addNotification(null, E('p', _('Service started.')), 'info');
 						reloadSoon();
@@ -278,7 +276,7 @@ return view.extend({
 				'click': function() {
 					var btn = this;
 					setBusy(btn, _('Loading...'));
-					return callInitAction('stop').then(function() {
+					return initAction('stop').then(function() {
 						ui.addNotification(null, E('p', _('Service stopped.')), 'info');
 						reloadSoon();
 					}).catch(function(e) {
@@ -294,7 +292,7 @@ return view.extend({
 			'click': function() {
 				var btn = this;
 				setBusy(btn, _('Loading...'));
-				return callInitAction('restart').then(function() {
+				return initAction('restart').then(function() {
 					ui.addNotification(null, E('p', _('Service restarted.')), 'info');
 					reloadSoon();
 				}).catch(function(e) {
@@ -361,7 +359,7 @@ return view.extend({
 		container.appendChild(controlSection);
 
 			var infoSection = E('div', { 'class': 'cbi-section ubr-section' });
-		infoSection.appendChild(E('h4', {}, _('Service Information')));
+		infoSection.appendChild(E('h3', {}, _('Service Information')));
 
 		var infoTable = E('table', { 'class': 'table' });
 
@@ -431,7 +429,7 @@ return view.extend({
 		container.appendChild(infoSection);
 
 		var envSection = E('div', { 'class': 'cbi-section ubr-section' });
-		envSection.appendChild(E('h4', {}, '\u2699 ' + _('Environment Detection')));
+		envSection.appendChild(E('h3', {}, _('Environment Detection')));
 
 		var envTable = E('table', { 'class': 'table' });
 

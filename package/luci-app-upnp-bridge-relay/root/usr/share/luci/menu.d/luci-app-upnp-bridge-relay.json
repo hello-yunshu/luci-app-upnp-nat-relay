@@ -27,6 +27,14 @@
 			"path": "upnp-bridge-relay/wizard"
 		}
 	},
+	"admin/services/upnp_bridge_relay/settings": {
+		"title": "Settings",
+		"order": 25,
+		"action": {
+			"type": "view",
+			"path": "upnp-bridge-relay/settings"
+		}
+	},
 	"admin/services/upnp_bridge_relay/network": {
 		"title": "Network & Firewall",
 		"order": 30,

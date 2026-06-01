@@ -57,13 +57,15 @@ var callSetupOpenclash = rpc.declare({
 	expect: { '': {} }
 });
 
-function callInitAction(action) {
-	return rpc.declare({
-		object: 'luci',
-		method: 'setInitAction',
-		params: ['name', 'action'],
-		expect: { result: false }
-	})('upnp_bridge_relay', action);
+var callInitAction = rpc.declare({
+	object: 'luci',
+	method: 'setInitAction',
+	params: ['name', 'action'],
+	expect: { result: false }
+});
+
+function initAction(action) {
+	return callInitAction('upnp_bridge_relay', action);
 }
 
 var css = `
@@ -85,11 +87,6 @@ var css = `
 		.ubr-wizard-step-card {
 			padding: 1.2em;
 		}
-	.ubr-wizard-step-card h3 {
-		margin: 0 0 0.8em 0; padding: 0 0 0.5em 0.6em;
-		border-bottom: 1px solid var(--border-color);
-		border-left: 3px solid var(--main-color, #0069d9);
-	}
 	.ubr-wizard-nav {
 		display: flex; gap: 1em; margin-top: 1.2em;
 		padding-top: 1em; border-top: 1px solid var(--border-color);
@@ -174,7 +171,7 @@ return view.extend({
 				autoBtn.classList.remove('active');
 				self.renderStep(container);
 			}
-		}, '\u26A1 ' + _('Safe Mode (Detect Only)'));
+		}, _('Safe Mode (Detect Only)'));
 		var autoBtn = E('button', {
 			'class': 'ubr-mode-btn' + (self.wizardMode === 'auto' ? ' active' : ''),
 			'click': function() {
@@ -183,7 +180,7 @@ return view.extend({
 				safeBtn.classList.remove('active');
 				self.renderStep(container);
 			}
-		}, '\u2699 ' + _('Auto Mode (Apply Changes)'));
+		}, _('Auto Mode (Apply Changes)'));
 		modeBar.appendChild(safeBtn);
 		modeBar.appendChild(autoBtn);
 		container.appendChild(modeBar);
@@ -820,8 +817,8 @@ return view.extend({
 						}
 					}).then(function() {
 						if (self.wizardData.enabled === '1') {
-							return callInitAction('enable').then(function() {
-								return callInitAction('start');
+							return initAction('enable').then(function() {
+								return initAction('start');
 							});
 						}
 					});

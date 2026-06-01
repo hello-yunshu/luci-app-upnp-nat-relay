@@ -126,6 +126,18 @@ msgstr "Sync Now"
 msgid "Sync triggered."
 msgstr "Sync triggered."
 
+msgid "Sync completed: %d read, %d accepted, %d rejected."
+msgstr "Sync completed: %d read, %d accepted, %d rejected."
+
+msgid "Sync completed: %d read, 0 accepted, %d rejected. Check rejected mappings for details."
+msgstr "Sync completed: %d read, 0 accepted, %d rejected. Check rejected mappings for details."
+
+msgid "Sync completed: 0 mappings read from downstream router. Ensure the downstream router has UPnP mappings."
+msgstr "Sync completed: 0 mappings read from downstream router. Ensure the downstream router has UPnP mappings."
+
+msgid "Sync failed: %s"
+msgstr "Sync failed: %s"
+
 msgid "Sync completed successfully."
 msgstr "Sync completed successfully."
 
@@ -1184,3 +1196,150 @@ msgstr "Exists"
 
 msgid "Not found"
 msgstr "Not found"
+
+msgid "Sync Settings"
+msgstr "Sync Settings"
+
+msgid "Sync Interval (seconds)"
+msgstr "Sync Interval (seconds)"
+
+msgid "UPnP Backend"
+msgstr "UPnP Backend"
+
+msgid "Log Level"
+msgstr "Log Level"
+
+msgid "Failure Grace Count"
+msgstr "Failure Grace Count"
+
+msgid "Dry Run Mode"
+msgstr "Dry Run Mode"
+
+msgid "Clear Rules on Stop"
+msgstr "Clear Rules on Stop"
+
+msgid "Dry run mode reads UPnP mappings but does not create DNAT rules. Useful for verifying configuration before applying."
+msgstr "Dry run mode reads UPnP mappings but does not create DNAT rules. Useful for verifying configuration before applying."
+
+msgid "Saving..."
+msgstr "Saving..."
+
+msgid "Settings saved and applied."
+msgstr "Settings saved and applied."
+
+msgid "Failed to save settings: %s"
+msgstr "Failed to save settings: %s"
+
+msgid "Save & Apply"
+msgstr "Save & Apply"
+
+msgid "Reset"
+msgstr "Reset"
+
+msgid "UPnP Bridge Relay - Settings"
+msgstr "UPnP Bridge Relay - Settings"
+
+msgid "Sync Behavior"
+msgstr "Sync Behavior"
+
+msgid "Failure grace count: the service will stop after this many consecutive sync failures. Set to 0 to never stop."
+msgstr "Failure grace count: the service will stop after this many consecutive sync failures. Set to 0 to never stop."
+
+msgid "Logging"
+msgstr "Logging"
+
+msgid "Log level controls the verbosity of system log output. Debug produces the most detail."
+msgstr "Log level controls the verbosity of system log output. Debug produces the most detail."
+
+msgid "Sync completed: %d read, 0 accepted, %d rejected. Check Mappings page for details."
+msgstr "Sync completed: %d read, 0 accepted, %d rejected. Check Mappings page for details."
+
+msgid "Strategy:"
+msgstr "Strategy:"
+
+msgid "Per-Mapping"
+msgstr "Per-Mapping"
+
+msgid "Dynamic (comma-separated, grouped by protocol)"
+msgstr "Dynamic (comma-separated, grouped by protocol)"
+
+msgid "Per protocol (1 rule for TCP, 1 rule for UDP)"
+msgstr "Per protocol (1 rule for TCP, 1 rule for UDP)"
+
+msgid "Port Pool"
+msgstr "Port Pool"
+
+msgid "Strategy for generating RETURN rules. Per-Mapping creates one rule per UPnP port mapping (precise). Port Pool creates one rule covering the entire port range (broad)."
+msgstr "Strategy for generating RETURN rules. Per-Mapping creates one rule per UPnP port mapping (precise). Port Pool creates one rule covering the entire port range (broad)."
+
+msgid "Per-Mapping RETURN (recommended)"
+msgstr "Per-Mapping RETURN (recommended)"
+
+msgid "Port Pool RETURN"
+msgstr "Port Pool RETURN"
+
+msgid "Per-mapping rules already exist in OpenClash."
+msgstr "Per-mapping rules already exist in OpenClash."
+
+msgid "Per-mapping rules written (%d rules) and OpenClash restarted."
+msgstr "Per-mapping rules written (%d rules) and OpenClash restarted."
+
+msgid "Per-mapping rules written (%d rules). OpenClash is not running, so it was not restarted."
+msgstr "Per-mapping rules written (%d rules). OpenClash is not running, so it was not restarted."
+
+msgid "Per-mapping rules written (%d rules). OpenClash is currently disabled, so it was not restarted."
+msgstr "Per-mapping rules written (%d rules). OpenClash is currently disabled, so it was not restarted."
+
+msgid "Per-mapping rules written (%d rules). You need to restart OpenClash for changes to take effect."
+msgstr "Per-mapping rules written (%d rules). You need to restart OpenClash for changes to take effect."
+
+msgid "Per-mapping rules are already up to date (%d rules)."
+msgstr "Per-mapping rules are already up to date (%d rules)."
+
+msgid "Failed to write per-mapping rules: "
+msgstr "Failed to write per-mapping rules: "
+
+msgid "Per-mapping rules written. You need to restart OpenClash for changes to take effect."
+msgstr "Per-mapping rules written. You need to restart OpenClash for changes to take effect."
+
+msgid "Service Running"
+msgstr "Service Running"
+
+msgid "Service Stopped"
+msgstr "Service Stopped"
+
+msgid "UPnP Bridge Relay is active and syncing mappings."
+msgstr "UPnP Bridge Relay is active and syncing mappings."
+
+msgid "UPnP Bridge Relay is not running. Click Start to begin."
+msgstr "UPnP Bridge Relay is not running. Click Start to begin."
+
+msgid "Service Information"
+msgstr "Service Information"
+
+msgid "nftables Table"
+msgstr "nftables Table"
+
+msgid "Allowed External Ports"
+msgstr "Allowed External Ports"
+
+msgid "Interface configured. Click the Status tab to view details."
+msgstr "Interface configured. Click the Status tab to view details."
+
+msgid "Enter ports separated by commas, e.g. 22,23,80,443."
+msgstr "Enter ports separated by commas, e.g. 22,23,80,443."
+
+msgid "Invalid denied port: %s"
+msgstr "Invalid denied port: %s"
+
+msgid "Testing..."
+msgstr "Testing..."
+
+msgid "Error: "
+msgstr "Error: "
+
+msgid "Enable the UPnP Bridge Relay service after saving configuration."
+msgstr "Enable the UPnP Bridge Relay service after saving configuration."
+
+msgid "Invalid port range format."
+msgstr "Invalid port range format."

@@ -3,7 +3,6 @@
 'require ui';
 'require rpc';
 'require uci';
-'require form';
 
 var callStatus = rpc.declare({
 	object: 'upnp_bridge_relay',
@@ -41,19 +40,13 @@ function reloadSoon(delay) {
 
 var css = `
 	.ubr-mappings { max-width: 100%; }
-	.ubr-mappings h3 {
-		margin: 1.2em 0 0.5em 0;
-		font-size: 1.05em;
-		padding-left: 0.6em;
-		border-left: 3px solid var(--main-color, #0069d9);
+	.ubr-mappings .cbi-section {
+		margin-bottom: 1.5em;
 	}
-		.ubr-mappings .cbi-section {
-			margin-bottom: 1.5em;
-		}
-		.ubr-btn-bar {
-			display: flex; gap: 1em;
-		}
-	`;
+	.ubr-btn-bar {
+		display: flex; gap: 1em;
+	}
+`;
 
 return view.extend({
 	load: function() {
@@ -71,7 +64,7 @@ return view.extend({
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Mappings')));
 
-			var btnBar = E('div', { 'class': 'cbi-section ubr-btn-bar' });
+		var btnBar = E('div', { 'class': 'cbi-section ubr-btn-bar' });
 		btnBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
 			'click': function() {
@@ -115,17 +108,16 @@ return view.extend({
 		}, _('Refresh')));
 		container.appendChild(btnBar);
 
-		container.appendChild(E('h3', {}, _('Read UPnP Mappings (Raw)')));
 		var rawTable = E('table', { 'class': 'table', 'id': 'raw-mappings-table' }, [
-		E('thead', {}, E('tr', {}, [
-			E('th', {}, _('Protocol')),
-			E('th', {}, _('External Port')),
-			E('th', {}, _('Internal IP')),
-			E('th', {}, _('Internal Port')),
-			E('th', {}, _('Description')),
-			E('th', {}, _('Status'))
-		]))
-	]);
+			E('thead', {}, E('tr', {}, [
+				E('th', {}, _('Protocol')),
+				E('th', {}, _('External Port')),
+				E('th', {}, _('Internal IP')),
+				E('th', {}, _('Internal Port')),
+				E('th', {}, _('Description')),
+				E('th', {}, _('Status'))
+			]))
+		]);
 
 		var rawMappings = (status && status.accepted) ? status.accepted.concat(status.rejected || []) : [];
 		if (rawMappings && rawMappings.length > 0) {
@@ -155,9 +147,11 @@ return view.extend({
 		} else {
 			rawTable.appendChild(E('tr', {}, E('td', { 'colspan': '6', 'style': 'color:var(--subtext-color, #666)' }, _('No mappings found.'))));
 		}
-		container.appendChild(E('div', { 'class': 'cbi-section' }, rawTable));
+		var rawSection = E('div', { 'class': 'cbi-section' });
+		rawSection.appendChild(E('h3', {}, _('Read UPnP Mappings (Raw)')));
+		rawSection.appendChild(rawTable);
+		container.appendChild(rawSection);
 
-		container.appendChild(E('h3', {}, _('Synced Mappings (DNAT)')));
 		var syncTable = E('table', { 'class': 'table', 'id': 'synced-mappings-table' }, [
 			E('thead', {}, E('tr', {}, [
 				E('th', {}, _('Protocol')),
@@ -187,9 +181,11 @@ return view.extend({
 		} else {
 			syncTable.appendChild(E('tr', {}, E('td', { 'colspan': '5', 'style': 'color:var(--subtext-color, #666)' }, _('No synced mappings.'))));
 		}
-		container.appendChild(E('div', { 'class': 'cbi-section' }, syncTable));
+		var syncSection = E('div', { 'class': 'cbi-section' });
+		syncSection.appendChild(E('h3', {}, _('Synced Mappings (DNAT)')));
+		syncSection.appendChild(syncTable);
+		container.appendChild(syncSection);
 
-		container.appendChild(E('h3', {}, _('Rejected Mappings')));
 		var rejectTable = E('table', { 'class': 'table', 'id': 'rejected-mappings-table' }, [
 			E('thead', {}, E('tr', {}, [
 				E('th', {}, _('Protocol')),
@@ -216,7 +212,10 @@ return view.extend({
 		} else {
 			rejectTable.appendChild(E('tr', {}, E('td', { 'colspan': '5', 'style': 'color:var(--success-color, #3aa657)' }, '\u2714 ' + _('No rejected mappings.'))));
 		}
-		container.appendChild(E('div', { 'class': 'cbi-section' }, rejectTable));
+		var rejectSection = E('div', { 'class': 'cbi-section' });
+		rejectSection.appendChild(E('h3', {}, _('Rejected Mappings')));
+		rejectSection.appendChild(rejectTable);
+		container.appendChild(rejectSection);
 
 		return container;
 	}
