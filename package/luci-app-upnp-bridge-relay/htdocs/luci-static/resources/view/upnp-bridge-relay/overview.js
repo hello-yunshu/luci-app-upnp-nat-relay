@@ -13,7 +13,9 @@ var callStatus = rpc.declare({
 
 function safeApply() {
 	return uci.apply().catch(function(e) {
-		if (e.code === 5) return;
+		var message = e && e.message ? e.message : String(e);
+		if (e === 5 || /\bubus code 5\b/.test(message) || /No data|未收到数据/.test(message))
+			return;
 		throw e;
 	});
 }
@@ -45,13 +47,15 @@ var css = `
 			display: flex; align-items: center; gap: 1.2em;
 			padding: 1.5em; margin-bottom: 1.5em;
 		}
-	.ubr-status-banner.running { border-left: 5px solid var(--success-color); }
-	.ubr-status-banner.stopped { border-left: 5px solid var(--danger-color); }
+	.ubr-status-banner.running { border-left: 5px solid var(--success-color, #3aa657); }
+	.ubr-status-banner.stopped { border-left: 5px solid var(--warning-color, #d89b00); }
 	.ubr-status-icon { font-size: 2.5em; line-height: 1; }
-	.ubr-status-icon.running { color: var(--success-color); }
-	.ubr-status-icon.stopped { color: var(--danger-color); }
+	.ubr-status-icon.running { color: var(--success-color, #3aa657); }
+	.ubr-status-icon.stopped { color: var(--warning-color, #d89b00); }
 	.ubr-status-text h3 { margin: 0 0 0.2em 0; font-size: 1.3em; }
-	.ubr-status-text p { margin: 0; color: var(--subtext-color); font-size: 0.9em; }
+	.ubr-status-text h3.running { color: var(--success-color, #3aa657); }
+	.ubr-status-text h3.stopped { color: var(--warning-color, #d89b00); }
+	.ubr-status-text p { margin: 0; color: var(--subtext-color, #666); font-size: 0.9em; }
 	.ubr-stats-grid {
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 		gap: 1em; margin-bottom: 1.5em;
@@ -62,13 +66,13 @@ var css = `
 		}
 	.ubr-stat-card .ubr-stat-value {
 		font-size: 1.8em; font-weight: bold; line-height: 1.2;
-		color: var(--main-color);
+		color: var(--main-color, #0069d9);
 	}
-	.ubr-stat-card .ubr-stat-value.green { color: var(--success-color); }
-	.ubr-stat-card .ubr-stat-value.red { color: var(--danger-color); }
-	.ubr-stat-card .ubr-stat-value.orange { color: var(--warning-color); }
+	.ubr-stat-card .ubr-stat-value.green { color: var(--success-color, #3aa657); }
+	.ubr-stat-card .ubr-stat-value.red { color: var(--danger-color, #d94b4b); }
+	.ubr-stat-card .ubr-stat-value.orange { color: var(--warning-color, #d89b00); }
 	.ubr-stat-card .ubr-stat-label {
-		font-size: 0.85em; color: var(--subtext-color);
+		font-size: 0.85em; color: var(--subtext-color, #666);
 		margin-top: 0.3em;
 	}
 		.ubr-section {
@@ -77,7 +81,7 @@ var css = `
 	.ubr-section h4 {
 		margin: 0 0 0.8em 0; padding: 0 0 0.5em 0.6em;
 		border-bottom: 1px solid var(--border-color);
-		border-left: 3px solid var(--main-color);
+		border-left: 3px solid var(--main-color, #0069d9);
 		font-size: 1.05em;
 	}
 	.ubr-info-grid {
@@ -88,16 +92,16 @@ var css = `
 		display: flex; justify-content: space-between; align-items: center;
 		padding: 0.4em 0;
 	}
-	.ubr-info-label { color: var(--subtext-color); font-size: 0.9em; }
+	.ubr-info-label { color: var(--subtext-color, #666); font-size: 0.9em; }
 	.ubr-info-value { font-weight: 500; }
 	.ubr-badge {
 		display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
 		font-size: 0.85em; font-weight: 500;
 	}
-	.ubr-badge.green { background: color-mix(in srgb, var(--success-color) 15%, transparent); color: var(--success-color); }
-	.ubr-badge.red { background: color-mix(in srgb, var(--danger-color) 15%, transparent); color: var(--danger-color); }
-		.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color) 15%, transparent); color: var(--warning-color); }
-		.ubr-badge.gray { background: color-mix(in srgb, var(--subtext-color) 15%, transparent); color: var(--subtext-color); }
+	.ubr-badge.green { background: color-mix(in srgb, var(--success-color, #3aa657) 15%, transparent); color: var(--success-color, #3aa657); }
+	.ubr-badge.red { background: color-mix(in srgb, var(--danger-color, #d94b4b) 15%, transparent); color: var(--danger-color, #d94b4b); }
+		.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color, #d89b00) 15%, transparent); color: var(--warning-color, #d89b00); }
+	.ubr-badge.gray { background: color-mix(in srgb, var(--warning-color, #d89b00) 15%, transparent); color: var(--warning-color, #d89b00); }
 		.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
 	`;
 
@@ -136,7 +140,8 @@ return view.extend({
 			'class': 'ubr-status-icon ' + (running ? 'running' : 'stopped')
 		}, running ? '\u25CF' : '\u25CB'));
 		var bannerText = E('div', { 'class': 'ubr-status-text' });
-		bannerText.appendChild(E('h3', {}, running ? _('Service Running') : _('Service Stopped')));
+		bannerText.appendChild(E('h3', { 'class': running ? 'running' : 'stopped' },
+			running ? _('Service Running') : _('Service Stopped')));
 		bannerText.appendChild(E('p', {}, running ?
 			_('UPnP Bridge Relay is active and syncing mappings.') :
 			_('UPnP Bridge Relay is not running. Click Start to begin.')));
@@ -275,7 +280,7 @@ return view.extend({
 				'href': 'https://github.com/hello-yunshu/upnp-bridge-relay',
 				'target': '_blank',
 				'rel': 'noopener',
-				'style': 'color:var(--main-color);text-decoration:none'
+				'style': 'color:var(--main-color, #0069d9);text-decoration:none'
 			}, 'hello-yunshu/upnp-bridge-relay')
 		]));
 
@@ -321,7 +326,7 @@ return view.extend({
 		} else if (openclashStatus === 'installed') {
 			ocBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + _('Installed (Stopped)'));
 		} else if (openclashStatus === 'not_installed') {
-			ocBadge = E('span', { 'class': 'ubr-badge gray' }, _('Not Installed'));
+			ocBadge = E('span', { 'class': 'ubr-badge orange' }, '\u2718 ' + _('Not Installed'));
 		} else if (openclashStatus === '-') {
 			ocBadge = E('span', { 'class': 'ubr-info-value' }, '-');
 		} else {
@@ -335,9 +340,9 @@ return view.extend({
 		infoSection.appendChild(infoGrid);
 		container.appendChild(infoSection);
 
-		var footer = E('div', { 'style': 'margin-top:2em;padding:0.8em 0;text-align:center;color:var(--subtext-color);font-size:0.85em;border-top:1px solid var(--border-color)' });
+		var footer = E('div', { 'style': 'margin-top:2em;padding:0.8em 0;text-align:center;color:var(--subtext-color, #666);font-size:0.85em;border-top:1px solid var(--border-color)' });
 		footer.innerHTML = 'UPnP Bridge Relay v' + version +
-			' &middot; <a href="https://github.com/hello-yunshu/upnp-bridge-relay" target="_blank" rel="noopener" style="color:var(--main-color);text-decoration:none">GitHub</a>';
+			' &middot; <a href="https://github.com/hello-yunshu/upnp-bridge-relay" target="_blank" rel="noopener" style="color:var(--main-color, #0069d9);text-decoration:none">GitHub</a>';
 		container.appendChild(footer);
 
 		return container;

@@ -23,7 +23,7 @@ var css = `
 		margin: 1.2em 0 0.5em 0;
 		font-size: 1.05em;
 		padding-left: 0.6em;
-		border-left: 3px solid var(--main-color);
+		border-left: 3px solid var(--main-color, #0069d9);
 	}
 		.ubr-mappings .cbi-section {
 			margin-bottom: 1.5em;
@@ -94,8 +94,8 @@ return view.extend({
 				var mapping = rawMappings[i];
 				var key = mapping.protocol + ':' + mapping.external_port;
 				var statusLabel = acceptedPorts[key] ?
-					'<span style="color:var(--success-color)">' + _('Accepted') + '</span>' :
-					'<span style="color:var(--danger-color)">' + _('Rejected') + '</span>';
+					'<span style="color:var(--success-color, #3aa657)">' + _('Accepted') + '</span>' :
+					'<span style="color:var(--danger-color, #d94b4b)">' + _('Rejected') + '</span>';
 				var row = E('tr', { 'class': 'tr' }, [
 					E('td', {}, mapping.protocol || '-'),
 					E('td', {}, String(mapping.external_port || '-')),
@@ -134,7 +134,7 @@ return view.extend({
 					E('td', {}, String(mapping.external_port || '-')),
 					E('td', {}, dnatTarget),
 					E('td', {}, sourceMapping),
-					E('td', { 'innerHTML': '<span style="color:var(--success-color)">' + _('Active') + '</span>' })
+					E('td', { 'innerHTML': '<span style="color:var(--success-color, #3aa657)">' + _('Active') + '</span>' })
 				]);
 				syncTable.appendChild(row);
 			}
@@ -163,7 +163,7 @@ return view.extend({
 					E('td', {}, String(mapping.external_port || '-')),
 					E('td', {}, mapping.internal_ip || '-'),
 					E('td', {}, String(mapping.internal_port || '-')),
-					E('td', { 'innerHTML': '<span style="color:var(--danger-color)">' + (mapping.reason || '-') + '</span>' })
+					E('td', { 'innerHTML': '<span style="color:var(--danger-color, #d94b4b)">' + (mapping.reason || '-') + '</span>' })
 				]);
 				rejectTable.appendChild(row);
 			}

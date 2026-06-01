@@ -50,7 +50,7 @@ var css = `
 	.ubr-section h4 {
 		margin: 0 0 0.8em 0; padding: 0 0 0.5em 0.6em;
 		border-bottom: 1px solid var(--border-color);
-		border-left: 3px solid var(--main-color);
+		border-left: 3px solid var(--main-color, #0069d9);
 		font-size: 1.05em;
 	}
 	.ubr-env-grid {
@@ -59,34 +59,34 @@ var css = `
 	}
 		.ubr-env-card {
 			padding: 0.8em 1em; border-radius: 6px;
-			background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color)));
+			background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color, #0069d9)));
 			border: 1px solid var(--border-color);
 			display: flex; justify-content: space-between; align-items: center;
 		}
-	.ubr-env-label { font-size: 0.9em; color: var(--subtext-color); }
+	.ubr-env-label { font-size: 0.9em; color: var(--subtext-color, #666); }
 	.ubr-badge {
 		display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
 		font-size: 0.85em; font-weight: 500;
 	}
-	.ubr-badge.green { background: color-mix(in srgb, var(--success-color) 15%, transparent); color: var(--success-color); }
-	.ubr-badge.red { background: color-mix(in srgb, var(--danger-color) 15%, transparent); color: var(--danger-color); }
-	.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color) 15%, transparent); color: var(--warning-color); }
-	.ubr-badge.gray { background: color-mix(in srgb, var(--subtext-color) 15%, transparent); color: var(--subtext-color); }
+	.ubr-badge.green { background: color-mix(in srgb, var(--success-color, #3aa657) 15%, transparent); color: var(--success-color, #3aa657); }
+	.ubr-badge.red { background: color-mix(in srgb, var(--danger-color, #d94b4b) 15%, transparent); color: var(--danger-color, #d94b4b); }
+	.ubr-badge.orange { background: color-mix(in srgb, var(--warning-color, #d89b00) 15%, transparent); color: var(--warning-color, #d89b00); }
+	.ubr-badge.gray { background: color-mix(in srgb, var(--warning-color, #d89b00) 15%, transparent); color: var(--warning-color, #d89b00); }
 	.ubr-check-grid {
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 		gap: 0.8em;
 	}
 		.ubr-check-card {
 			padding: 0.8em 1em; border-radius: 6px;
-			background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color)));
+			background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color, #0069d9)));
 			border: 1px solid var(--border-color);
 			display: flex; justify-content: space-between; align-items: center;
 		}
 	.ubr-check-label { font-size: 0.9em; }
 		.ubr-log-area {
 			max-height: 300px; overflow-y: auto; padding: 1em;
-			background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color)));
-			color: var(--main-text-color);
+			background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color, #0069d9)));
+			color: var(--main-text-color, #222);
 			font-size: 0.85em; border-radius: 6px;
 			border: 1px solid var(--border-color);
 			font-family: monospace;
@@ -94,16 +94,16 @@ var css = `
 		.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
 		.ubr-danger-zone {
 			margin-bottom: 1.5em;
-			border-left: 5px solid var(--danger-color);
+			border-left: 5px solid var(--danger-color, #d94b4b);
 		}
 	.ubr-danger-zone h4 {
 		margin: 0 0 0.8em 0; padding-bottom: 0.5em;
 		border-bottom: 1px solid var(--border-color);
-		font-size: 1.05em; color: var(--danger-color);
+		font-size: 1.05em; color: var(--danger-color, #d94b4b);
 	}
 			.ubr-cmd-box {
 				padding: 0.8em 1em; border-radius: 6px;
-				background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color)));
+				background: var(--background-color-low, color-mix(in srgb, var(--background-color-high, var(--background-color-a)) 85%, var(--main-color, #0069d9)));
 				border: 1px solid var(--border-color);
 				font-family: monospace; font-size: 0.9em;
 			}
@@ -138,18 +138,22 @@ return view.extend({
 		var envGrid = E('div', { 'class': 'ubr-env-grid' });
 
 		var envItems = [
-			{ label: _('OpenWrt Version'), value: env.openwrt_version || '-', warn: env.package_manager === 'unknown' },
-			{ label: _('Package Manager'), value: env.package_manager || '-', warn: env.package_manager === 'unknown' },
-			{ label: _('Firewall'), value: env.firewall || '-', warn: env.firewall !== 'fw4' },
-			{ label: _('nft'), value: env.nft ? _('Installed') : _('Missing'), warn: !env.nft },
-			{ label: _('upnpc'), value: env.upnpc ? _('Installed') : _('Missing'), warn: !env.upnpc },
-			{ label: _('LuCI'), value: env.luci ? _('Installed') : _('Missing'), warn: !env.luci },
-			{ label: _('OpenClash'), value: env.openclash_installed ? (env.openclash_running ? _('Running') : _('Installed (Stopped)')) : _('Not Installed'), warn: false }
+			{ label: _('OpenWrt Version'), value: env.openwrt_version || '-', status: env.package_manager === 'unknown' ? 'orange' : 'green' },
+			{ label: _('Package Manager'), value: env.package_manager || '-', status: env.package_manager === 'unknown' ? 'orange' : 'green' },
+			{ label: _('Firewall'), value: env.firewall || '-', status: env.firewall !== 'fw4' ? 'orange' : 'green' },
+			{ label: _('nft'), value: env.nft ? '\u2714 ' + _('Installed') : '\u2718 ' + _('Missing'), status: env.nft ? 'green' : 'orange' },
+			{ label: _('upnpc'), value: env.upnpc ? '\u2714 ' + _('Installed') : '\u2718 ' + _('Missing'), status: env.upnpc ? 'green' : 'orange' },
+			{ label: _('LuCI'), value: env.luci ? '\u2714 ' + _('Installed') : '\u2718 ' + _('Missing'), status: env.luci ? 'green' : 'orange' },
+			{
+				label: _('OpenClash'),
+				value: env.openclash_installed ? (env.openclash_running ? '\u2714 ' + _('Running') : '\u26A0 ' + _('Installed (Stopped)')) : '\u2718 ' + _('Not Installed'),
+				status: env.openclash_installed && env.openclash_running ? 'green' : 'orange'
+			}
 		];
 
 		for (var i = 0; i < envItems.length; i++) {
 			var item = envItems[i];
-			var badgeClass = item.warn ? 'ubr-badge red' : 'ubr-badge green';
+			var badgeClass = 'ubr-badge ' + item.status;
 			envGrid.appendChild(E('div', { 'class': 'ubr-env-card' }, [
 				E('span', { 'class': 'ubr-env-label' }, item.label),
 				E('span', { 'class': badgeClass }, item.value)
@@ -184,7 +188,7 @@ return view.extend({
 		netGrid.appendChild(E('div', {
 			'class': 'ubr-check-card',
 			'style': 'grid-column: 1 / -1'
-		}, E('span', { 'style': 'color:var(--subtext-color)' }, _('Click "Run Network Check" to detect network status.'))));
+		}, E('span', { 'style': 'color:var(--subtext-color, #666)' }, _('Click "Run Network Check" to detect network status.'))));
 		netSection.appendChild(netGrid);
 
 		var netBtnBar = E('div', { 'class': 'ubr-btn-group', 'style': 'margin-top:1em' });
@@ -308,11 +312,11 @@ return view.extend({
 				'apk add --allow-untrusted ' + missingDeps.join(' ') :
 				'opkg install ' + missingDeps.join(' ');
 
-			depSection.appendChild(E('p', { 'style': 'color:var(--danger-color);margin-bottom:0.5em' },
+			depSection.appendChild(E('p', { 'style': 'color:var(--warning-color, #d89b00);margin-bottom:0.5em' },
 				'\u2718 ' + _('Missing dependencies: ') + missingDeps.join(', ')));
 			depSection.appendChild(E('div', { 'class': 'ubr-cmd-box' }, installCmd));
 		} else {
-			depSection.appendChild(E('p', { 'style': 'color:var(--success-color)' },
+			depSection.appendChild(E('p', { 'style': 'color:var(--success-color, #3aa657)' },
 				'\u2714 ' + _('All dependencies are installed.')));
 		}
 		container.appendChild(depSection);

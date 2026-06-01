@@ -64,27 +64,27 @@ return view.extend({
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (env.openclash_installed === 1 || env.openclash_installed === true) {
-				return '<span style="color:var(--success-color)">&#10004; ' + _('Installed') + '</span>';
+				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Installed') + '</span>';
 			}
-			return '<span style="color:var(--subtext-color)">&#10008; ' + _('Not Installed') + '</span>';
+			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + _('Not Installed') + '</span>';
 		};
 
 		o = s.option(form.DummyValue, '_oc_running', _('OpenClash Running'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (env.openclash_running === 1 || env.openclash_running === true) {
-				return '<span style="color:var(--success-color)">&#10004; ' + _('Running') + '</span>';
+				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Running') + '</span>';
 			}
-			return '<span style="color:var(--warning-color)">&#10008; ' + _('Not Running') + '</span>';
+			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + _('Not Running') + '</span>';
 		};
 
 		o = s.option(form.DummyValue, '_oc_access_control', _('Source Access Control Detected'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (env.openclash_has_access_control === 1 || env.openclash_has_access_control === true) {
-				return '<span style="color:var(--success-color)">&#10004; ' + _('Detected') + '</span>';
+				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Detected') + '</span>';
 			}
-			return '<span style="color:var(--warning-color)">&#10008; ' + _('Not Detected') + '</span>';
+			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + _('Not Detected') + '</span>';
 		};
 
 		o = s.option(form.DummyValue, '_oc_existing_rule', _('Existing Matching Rule'));
@@ -102,9 +102,9 @@ return view.extend({
 				}
 			}
 			if (found) {
-				return '<span style="color:var(--success-color)">&#10004; ' + _('Rule exists') + '</span>';
+				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Rule exists') + '</span>';
 			}
-			return '<span style="color:var(--warning-color)">&#10008; ' + _('No matching rule found') + '</span>';
+			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + _('No matching rule found') + '</span>';
 		};
 
 		s = m.section(form.TypedSection, 'service', _('Suggested RETURN Rule'));
@@ -157,7 +157,7 @@ return view.extend({
 		o = s.option(form.DummyValue, '_oc_backup_status', _('Backup Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			return '<span style="color:var(--subtext-color)">' + _('Check via Diagnostics page') + '</span>';
+			return '<span style="color:var(--subtext-color, #666)">' + _('Check via Diagnostics page') + '</span>';
 		};
 
 		s = m.section(form.TypedSection, 'service', _('OpenClash Actions'));

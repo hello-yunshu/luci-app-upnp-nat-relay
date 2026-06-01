@@ -26,7 +26,9 @@ var callCheckNetwork = rpc.declare({
 
 function safeApply() {
 	return uci.apply().catch(function(e) {
-		if (e.code === 5) return;
+		var message = e && e.message ? e.message : String(e);
+		if (e === 5 || /\bubus code 5\b/.test(message) || /No data|未收到数据/.test(message))
+			return;
 		throw e;
 	});
 }
@@ -74,19 +76,19 @@ var css = `
 		font-size: 0.8em; font-weight: bold; color: #fff;
 		background: var(--border-color); transition: all 0.2s;
 	}
-	.ubr-wizard-dot.done { background: var(--success-color); }
-	.ubr-wizard-dot.active { background: var(--main-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--main-color) 30%, transparent); }
+	.ubr-wizard-dot.done { background: var(--success-color, #3aa657); }
+	.ubr-wizard-dot.active { background: var(--main-color, #0069d9); box-shadow: 0 0 0 3px color-mix(in srgb, var(--main-color, #0069d9) 30%, transparent); }
 	.ubr-wizard-line {
 		flex: 1; height: 3px; background: var(--border-color);
 	}
-	.ubr-wizard-line.done { background: var(--success-color); }
+	.ubr-wizard-line.done { background: var(--success-color, #3aa657); }
 		.ubr-wizard-step-card {
 			padding: 1.2em;
 		}
 	.ubr-wizard-step-card h3 {
 		margin: 0 0 0.8em 0; padding: 0 0 0.5em 0.6em;
 		border-bottom: 1px solid var(--border-color);
-		border-left: 3px solid var(--main-color);
+		border-left: 3px solid var(--main-color, #0069d9);
 	}
 	.ubr-wizard-nav {
 		display: flex; gap: 1em; margin-top: 1.2em;
@@ -99,14 +101,17 @@ var css = `
 		.ubr-mode-btn {
 			flex: 1; padding: 0.8em; text-align: center;
 			cursor: pointer; border: none; background: transparent;
-			color: var(--main-text-color); font-size: 0.95em;
+			color: var(--main-text-color, #222); font-size: 0.95em;
 			transition: all 0.2s;
 		}
 		.ubr-mode-btn:hover {
-			background: color-mix(in srgb, var(--main-color) 8%, transparent);
+			background: color-mix(in srgb, var(--main-color, #0069d9) 8%, transparent);
 		}
 		.ubr-mode-btn.active {
-			background: var(--main-color); color: #fff;
+			background: color-mix(in srgb, var(--main-color, #0069d9) 16%, transparent);
+			color: var(--main-text-color, #222);
+			font-weight: bold;
+			box-shadow: inset 0 -3px 0 var(--main-color, #0069d9);
 		}
 	`;
 
@@ -246,7 +251,7 @@ return view.extend({
 
 		if (self.step === 1) {
 			s.appendChild(E('p', {}, _('Select the interface connected to the downstream router LAN side.')));
-			s.appendChild(E('p', { 'style': 'color:var(--warning-color)' },
+			s.appendChild(E('p', { 'style': 'color:var(--warning-color, #d89b00)' },
 				_('This interface is only for reading UPnP mappings. Do not set it as default gateway.')));
 
 			var ifSelect = E('select', { 'class': 'cbi-input-select', 'id': 'wiz-ifname' });
@@ -322,15 +327,15 @@ return view.extend({
 			s.appendChild(E('p', {}, _('Testing ping to downstream LAN gateway...')));
 
 			if (self.wizardMode === 'auto') {
-				s.appendChild(E('p', { 'style': 'color:var(--subtext-color)' },
+				s.appendChild(E('p', { 'style': 'color:var(--subtext-color, #666)' },
 					_('Auto mode: interface and firewall will be configured before testing.')));
 			} else {
-				s.appendChild(E('p', { 'style': 'color:var(--subtext-color)' },
+				s.appendChild(E('p', { 'style': 'color:var(--subtext-color, #666)' },
 					_('Safe mode: testing with current network state. If the interface is not configured yet, tests may fail.')));
 			}
 
 			var pingResultDiv = E('div', { 'id': 'wiz-ping-result', 'style': 'margin-top:1em' });
-			pingResultDiv.innerHTML = '<span style="color:var(--subtext-color)">' + _('Testing...') + '</span>';
+			pingResultDiv.innerHTML = '<span style="color:var(--subtext-color, #666)">' + _('Testing...') + '</span>';
 			s.appendChild(pingResultDiv);
 
 			self.applyTempUci().then(function() {
@@ -344,33 +349,33 @@ return view.extend({
 			}).then(function(result) {
 				self.pingResult = result;
 				if (result && result.error) {
-					pingResultDiv.innerHTML = '<span style="color:var(--danger-color)">&#10008; ' + _('Network check error: ') + result.error + '</span>';
+					pingResultDiv.innerHTML = '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Network check error: ') + result.error + '</span>';
 					return;
 				}
 				if (result && result.gateway_reachable === 1) {
-					pingResultDiv.innerHTML = '<span style="color:var(--success-color)">&#10004; ' + _('Ping to gateway successful') + '</span>';
+					pingResultDiv.innerHTML = '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Ping to gateway successful') + '</span>';
 				} else {
 					var detail = '';
 					if (result && result.iface_exists === 0) {
-						detail += '<br><span style="color:var(--warning-color)">' + _('Interface does not exist. Check the interface name.') + '</span>';
+						detail += '<br><span style="color:var(--warning-color, #d89b00)">' + _('Interface does not exist. Check the interface name.') + '</span>';
 					} else if (result && result.bind_ip_configured === 0) {
-						detail += '<br><span style="color:var(--warning-color)">' + _('Bind IP is not configured on the interface. Use Auto mode or configure the interface manually.') + '</span>';
+						detail += '<br><span style="color:var(--warning-color, #d89b00)">' + _('Bind IP is not configured on the interface. Use Auto mode or configure the interface manually.') + '</span>';
 					} else {
-						detail += '<br><span style="color:var(--warning-color)">' + _('Check that the interface is connected and the firewall zone allows output.') + '</span>';
+						detail += '<br><span style="color:var(--warning-color, #d89b00)">' + _('Check that the interface is connected and the firewall zone allows output.') + '</span>';
 					}
-					pingResultDiv.innerHTML = '<span style="color:var(--danger-color)">&#10008; ' + _('Ping to gateway failed') + '</span>' +
+					pingResultDiv.innerHTML = '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Ping to gateway failed') + '</span>' +
 					'<p>' + detail + '</p>';
 				}
 			}).catch(function(e) {
-				pingResultDiv.innerHTML = '<span style="color:var(--danger-color)">&#10008; ' + _('Network check failed') + '</span>' +
-				'<p style="color:var(--warning-color)">' + _('Error: ') + (e.message || e || _('Unknown error')) + '</p>';
+				pingResultDiv.innerHTML = '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Network check failed') + '</span>' +
+				'<p style="color:var(--warning-color, #d89b00)">' + _('Error: ') + (e.message || e || _('Unknown error')) + '</p>';
 			});
 
 		} else if (self.step === 5) {
 			s.appendChild(E('p', {}, _('Testing UPnP IGD discovery via upnpc...')));
 
 			var upnpcResultDiv = E('div', { 'id': 'wiz-upnpc-result', 'style': 'margin-top:1em' });
-			upnpcResultDiv.innerHTML = '<span style="color:var(--subtext-color)">' + _('Testing...') + '</span>';
+			upnpcResultDiv.innerHTML = '<span style="color:var(--subtext-color, #666)">' + _('Testing...') + '</span>';
 			s.appendChild(upnpcResultDiv);
 
 			self.applyTempUci().then(function() {
@@ -384,25 +389,25 @@ return view.extend({
 			}).then(function(result) {
 				self.upnpcResult = result;
 				if (result && result.error) {
-					upnpcResultDiv.innerHTML = '<span style="color:var(--danger-color)">&#10008; ' + _('UPnP check error: ') + result.error + '</span>';
+					upnpcResultDiv.innerHTML = '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('UPnP check error: ') + result.error + '</span>';
 					return;
 				}
 				if (result && result.upnpc_readable === 1) {
 					var count = result.upnpc_mapping_count || 0;
-					upnpcResultDiv.innerHTML = '<span style="color:var(--success-color)">&#10004; ' + _('UPnP IGD discovered, %d mapping(s) found').format(count) + '</span>';
+					upnpcResultDiv.innerHTML = '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('UPnP IGD discovered, %d mapping(s) found').format(count) + '</span>';
 				} else {
 					var detail = '';
 					if (result && result.bind_ip_configured === 0) {
-						detail += '<br><span style="color:var(--warning-color)">' + _('Bind IP is not configured on the interface. UPnP discovery requires a valid bind IP.') + '</span>';
+						detail += '<br><span style="color:var(--warning-color, #d89b00)">' + _('Bind IP is not configured on the interface. UPnP discovery requires a valid bind IP.') + '</span>';
 					} else {
-						detail += '<br><span style="color:var(--warning-color)">' + _('Ensure the downstream router has UPnP enabled and the bind IP is on its LAN side.') + '</span>';
+						detail += '<br><span style="color:var(--warning-color, #d89b00)">' + _('Ensure the downstream router has UPnP enabled and the bind IP is on its LAN side.') + '</span>';
 					}
-					upnpcResultDiv.innerHTML = '<span style="color:var(--danger-color)">&#10008; ' + _('UPnP IGD discovery failed') + '</span>' +
+					upnpcResultDiv.innerHTML = '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('UPnP IGD discovery failed') + '</span>' +
 						'<p>' + detail + '</p>';
 				}
 			}).catch(function(e) {
-				upnpcResultDiv.innerHTML = '<span style="color:var(--danger-color)">&#10008; ' + _('UPnP check failed') + '</span>' +
-				'<p style="color:var(--warning-color)">' + _('Error: ') + (e.message || e || _('Unknown error')) + '</p>';
+				upnpcResultDiv.innerHTML = '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('UPnP check failed') + '</span>' +
+				'<p style="color:var(--warning-color, #d89b00)">' + _('Error: ') + (e.message || e || _('Unknown error')) + '</p>';
 			});
 
 		} else if (self.step === 6) {
@@ -446,7 +451,7 @@ return view.extend({
 
 		} else if (self.step === 8) {
 			s.appendChild(E('p', {}, _('Set the allowed external port range for synchronization.')));
-			s.appendChild(E('p', { 'style': 'color:var(--warning-color)' },
+			s.appendChild(E('p', { 'style': 'color:var(--warning-color, #d89b00)' },
 				_('It is NOT recommended to use 1-65535 as the allowed range.')));
 
 			var portInput = E('input', {
