@@ -739,6 +739,12 @@ msgstr ""
 msgid "Internal Ports:"
 msgstr ""
 
+msgid "Source Address:"
+msgstr ""
+
+msgid "Source Ports:"
+msgstr ""
+
 msgid "Protocol:"
 msgstr ""
 

@@ -29,9 +29,15 @@ var callRemoveOpenclashRule = rpc.declare({
 	expect: { '': {} }
 });
 
-var callDryRun = rpc.declare({
+var callGenerateOpenclashRule = rpc.declare({
 	object: 'upnp_bridge_relay',
-	method: 'dry-run',
+	method: 'generate-openclash-rule',
+	expect: { '': {} }
+});
+
+var callOpenclashRuleCache = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'openclash-rule-cache',
 	expect: { '': {} }
 });
 
@@ -82,23 +88,29 @@ function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark,
 		html += '<b>' + _('Strategy:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Per-Mapping') + '</span><br>';
 		for (var i = 0; i < suggestion.rules.length; i++) {
 			var rule = suggestion.rules[i] || {};
+			var srcIp = rule.src_ip || rule.internal_address || downstreamWanIp;
+			var srcPort = rule.src_port || rule.internal_ports || '-';
+			var proto = rule.proto || rule.protocols || '-';
 			html += '<br><b>' + _('Rule') + ' ' + (i + 1) + '</b><br>' +
-				'<b>' + _('Internal Address:') + '</b> ' + htmlEscape(rule.internal_address || downstreamWanIp) + '<br>' +
-				'<b>' + _('Internal Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + htmlEscape(rule.internal_ports || '-') + '</span><br>' +
-				'<b>' + _('Protocol:') + '</b> ' + htmlEscape(rule.protocols || '-') + '<br>' +
-				'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">' + htmlEscape(rule.target || 'RETURN') + '</span><br>' +
+				'<b>' + _('Source Address:') + '</b> ' + htmlEscape(srcIp) + '<br>' +
+				'<b>' + _('Source Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + htmlEscape(srcPort) + '</span><br>' +
+				'<b>' + _('Protocol:') + '</b> ' + htmlEscape(proto) + '<br>' +
+				'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">' + htmlEscape(rule.target || 'return') + '</span><br>' +
 				'<b>' + _('Remark:') + '</b> ' + htmlEscape(rule.remark || '');
 		}
 		return html + '</div>';
 	}
 
 	if (suggestion && suggestion.strategy === 'port_pool') {
+		var poolSrcIp = suggestion.src_ip || suggestion.internal_address || downstreamWanIp;
+		var poolSrcPort = suggestion.src_port || suggestion.internal_ports || allowedPorts;
+		var poolProto = suggestion.proto || suggestion.protocols || 'both';
 		return html +
 			'<b>' + _('Strategy:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Port Pool') + '</span><br>' +
-			'<b>' + _('Internal Address:') + '</b> ' + htmlEscape(suggestion.internal_address || downstreamWanIp) + '<br>' +
-			'<b>' + _('Internal Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + htmlEscape(suggestion.internal_ports || allowedPorts) + '</span><br>' +
-			'<b>' + _('Protocol:') + '</b> ' + htmlEscape(suggestion.protocols || 'tcp udp') + '<br>' +
-			'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">' + htmlEscape(suggestion.target || 'RETURN') + '</span><br>' +
+			'<b>' + _('Source Address:') + '</b> ' + htmlEscape(poolSrcIp) + '<br>' +
+			'<b>' + _('Source Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + htmlEscape(poolSrcPort) + '</span><br>' +
+			'<b>' + _('Protocol:') + '</b> ' + htmlEscape(poolProto) + '<br>' +
+			'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">' + htmlEscape(suggestion.target || 'return') + '</span><br>' +
 			'<b>' + _('Remark:') + '</b> ' + htmlEscape(suggestion.remark || remark) +
 			'</div>';
 	}
@@ -106,20 +118,20 @@ function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark,
 	if (strategy === 'per_mapping') {
 		return html +
 			'<b>' + _('Strategy:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Per-Mapping') + '</span><br>' +
-			'<b>' + _('Internal Address:') + '</b> ' + downstreamWanIpText + '<br>' +
-			'<b>' + _('Internal Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Dynamic (comma-separated, grouped by protocol)') + '</span><br>' +
+			'<b>' + _('Source Address:') + '</b> ' + downstreamWanIpText + '<br>' +
+			'<b>' + _('Source Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Dynamic (comma-separated, grouped by protocol)') + '</span><br>' +
 			'<b>' + _('Protocol:') + '</b> ' + _('Per protocol (1 rule for TCP, 1 rule for UDP)') + '<br>' +
-			'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">RETURN</span><br>' +
+			'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">return</span><br>' +
 			'<b>' + _('Remark:') + '</b> ' + htmlEscape(remark) + ' [TCP] / ' + htmlEscape(remark) + ' [UDP]' +
 			'</div>';
 	}
 
 	return html +
 		'<b>' + _('Strategy:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Port Pool') + '</span><br>' +
-		'<b>' + _('Internal Address:') + '</b> ' + downstreamWanIpText + '<br>' +
-		'<b>' + _('Internal Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + htmlEscape(allowedPorts) + '</span><br>' +
-		'<b>' + _('Protocol:') + '</b> TCP/UDP<br>' +
-		'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">RETURN</span><br>' +
+		'<b>' + _('Source Address:') + '</b> ' + downstreamWanIpText + '<br>' +
+		'<b>' + _('Source Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + htmlEscape(allowedPorts) + '</span><br>' +
+		'<b>' + _('Protocol:') + '</b> both<br>' +
+		'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">return</span><br>' +
 		'<b>' + _('Remark:') + '</b> ' + htmlEscape(remark) +
 		'</div>';
 }
@@ -130,11 +142,13 @@ return view.extend({
 			uci.load('upnp_bridge_relay'),
 			uci.load('openclash').catch(function() {}),
 			callStatus(),
-			callCheckEnv()
+			callCheckEnv(),
+			callOpenclashRuleCache()
 		]).then(function(results) {
 			return {
 				status: results[2],
-				env: results[3]
+				env: results[3],
+				ruleCache: results[4]
 			};
 		});
 	},
@@ -143,6 +157,7 @@ return view.extend({
 		var m, s, o;
 		var status = data.status || {};
 		var env = data.env || {};
+		var ruleCache = data.ruleCache || {};
 
 		m = new form.Map('upnp_bridge_relay', _('UPnP Bridge Relay - OpenClash Compatibility'));
 
@@ -181,10 +196,11 @@ return view.extend({
 		o.cfgvalue = function() {
 			var remark = uci.get('upnp_bridge_relay', 'main', 'openclash_rule_remark') || 'UPnP Bridge Relay Auto RETURN';
 			var found = false;
-			var sections = uci.sections('openclash', 'access_control');
+			var sections = uci.sections('openclash', 'lan_ac_traffic');
 			if (sections) {
 				for (var i = 0; i < sections.length; i++) {
-					if (sections[i].remark === remark || sections[i].remark.indexOf(remark + ' [') === 0) {
+					var label = sections[i].comment || sections[i].remark || '';
+					if (label === remark || label.indexOf(remark + ' [') === 0) {
 						found = true;
 						break;
 					}
@@ -206,7 +222,7 @@ return view.extend({
 			var downstreamWanIp = uci.get('upnp_bridge_relay', 'main', 'downstream_wan_ip') || '-';
 			var allowedPorts = uci.get('upnp_bridge_relay', 'main', 'allowed_external_ports') || '40000-65535';
 			var remark = uci.get('upnp_bridge_relay', 'main', 'openclash_rule_remark') || 'UPnP Bridge Relay Auto RETURN';
-			return buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark);
+			return buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark, ruleCache);
 		};
 
 		s = m.section(form.TypedSection, 'service', _('OpenClash Configuration'));
@@ -261,7 +277,7 @@ return view.extend({
 			if (preview)
 				preview.innerHTML = '<span style="color:var(--subtext-color, #666)">' + _('Generating...') + '</span>';
 
-			return callDryRun().then(function(result) {
+			return callGenerateOpenclashRule().then(function(result) {
 				if (preview)
 					preview.outerHTML = buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark, result);
 				ui.addNotification(null, E('p', _('Suggested RETURN rule refreshed.')), 'info');

@@ -76,6 +76,8 @@ case "$1" in
 		echo '"check-network": {},'
 		echo '"network-cache": {},'
 		echo '"dry-run": {},'
+		echo '"generate-openclash-rule": {},'
+		echo '"openclash-rule-cache": {},'
 		echo '"read-log": {},'
 		echo '"clear-log": {},'
 		echo '"sync-now": {},'
@@ -110,6 +112,12 @@ case "$1" in
 				;;
 			dry-run)
 				"$UPNP_BRIDGE_RELAY_BIN" --dry-run 2>/dev/null || echo '{"error":"dry-run failed"}'
+				;;
+			generate-openclash-rule)
+				"$UPNP_BRIDGE_RELAY_BIN" --generate-openclash-rule 2>/dev/null || echo '{"error":"generate-openclash-rule failed"}'
+				;;
+			openclash-rule-cache)
+				"$UPNP_BRIDGE_RELAY_BIN" --openclash-rule-cache 2>/dev/null || echo '{"cached":false,"updated_at":"","openclash_suggestion":{}}'
 				;;
 			read-log)
 				"$UPNP_BRIDGE_RELAY_BIN" --read-log 2>/dev/null || echo '{"success":false,"error":"read-log failed","logs":""}'

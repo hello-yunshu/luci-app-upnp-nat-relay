@@ -8,6 +8,8 @@ STATUS_DIR="/tmp/upnp_bridge_relay"
 STATUS_FILE="${STATUS_DIR}/status.json"
 ENV_CACHE_FILE="${STATUS_DIR}/env_cache.json"
 NETWORK_CACHE_FILE="${STATUS_DIR}/network_cache.json"
+OPENCLASH_SUGGESTION_CACHE="${STATUS_DIR}/openclash_suggestion_cache.json"
+OPENCLASH_PER_MAPPING_CACHE="${STATUS_DIR}/oc_per_mapping_cache.v2.txt"
 RESOURCES_DIR="/etc/upnp_bridge_relay"
 RESOURCES_FILE="${RESOURCES_DIR}/resources.txt"
 LOCK_FILE="/tmp/upnp_bridge_relay.lock"
@@ -617,7 +619,7 @@ do_refresh_env() {
 
     _dre_oc_has_ac=0
     if [ "$_oc_installed" = "1" ]; then
-        if uci -q get openclash.@access_control[0] >/dev/null 2>&1; then
+        if uci -q get openclash.@lan_ac_traffic[0] >/dev/null 2>&1; then
             _dre_oc_has_ac=1
         fi
     fi
@@ -661,15 +663,12 @@ read_network_cache() {
 openclash_has_plugin_rule() {
     _oh_prefix="${cfg_openclash_rule_remark} ["
     _oh_idx=0
-    while true; do
-        _oh_remark="$(uci -q get openclash.@access_control[${_oh_idx}].remark 2>/dev/null)"
-        if [ -z "$_oh_remark" ]; then
-            break
-        fi
-        if [ "$_oh_remark" = "${cfg_openclash_rule_remark}" ]; then
+    while uci -q get "openclash.@lan_ac_traffic[${_oh_idx}]" >/dev/null 2>&1; do
+        _oh_label="$(openclash_rule_label "$_oh_idx")"
+        if [ "$_oh_label" = "${cfg_openclash_rule_remark}" ]; then
             return 0
         fi
-        case "$_oh_remark" in
+        case "$_oh_label" in
             "${_oh_prefix}"*)
                 return 0
                 ;;
@@ -679,12 +678,113 @@ openclash_has_plugin_rule() {
     return 1
 }
 
+openclash_rule_label() {
+    _orl_idx="$1"
+    _orl_label="$(uci -q get "openclash.@lan_ac_traffic[${_orl_idx}].comment" 2>/dev/null)"
+    if [ -z "$_orl_label" ]; then
+        _orl_label="$(uci -q get "openclash.@lan_ac_traffic[${_orl_idx}].remark" 2>/dev/null)"
+    fi
+    printf '%s' "$_orl_label"
+}
+
+openclash_remove_plugin_rules() {
+    _orpr_prefix="${cfg_openclash_rule_remark} ["
+    _orpr_removed=0
+    _orpr_idx=0
+    while uci -q get "openclash.@lan_ac_traffic[${_orpr_idx}]" >/dev/null 2>&1; do
+        _orpr_label="$(openclash_rule_label "$_orpr_idx")"
+        _orpr_match=0
+        if [ "$_orpr_label" = "${cfg_openclash_rule_remark}" ]; then
+            _orpr_match=1
+        fi
+        case "$_orpr_label" in
+            "${_orpr_prefix}"*)
+                _orpr_match=1
+                ;;
+        esac
+        if [ "$_orpr_match" -eq 1 ]; then
+            uci delete "openclash.@lan_ac_traffic[${_orpr_idx}]" 2>/dev/null
+            _orpr_removed=$((_orpr_removed + 1))
+            continue
+        fi
+        _orpr_idx=$((_orpr_idx + 1))
+    done
+    printf '%d' "$_orpr_removed"
+}
+
 openclash_generate_return_rule() {
-    printf '{"strategy":"port_pool","remark":"%s","internal_address":"%s","internal_ports":"%s","protocols":"%s","target":"RETURN"}\n' \
+    _ogrr_proto="$(openclash_protocol_for_rule "${cfg_protocols}")"
+    printf '{"strategy":"port_pool","remark":"%s","src_ip":"%s","src_port":"%s","proto":"%s","target":"return","enabled":"1","family":"ipv4"}\n' \
         "$(json_escape "${cfg_openclash_rule_remark}")" \
         "$(json_escape "${cfg_downstream_wan_ip}")" \
         "$(json_escape "${cfg_allowed_external_ports}")" \
-        "$(json_escape "${cfg_protocols}")"
+        "$(json_escape "${_ogrr_proto}")"
+}
+
+openclash_protocol_for_rule() {
+    _opfr_proto="$(printf '%s' "$1" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]/ /g')"
+    _opfr_has_tcp=0
+    _opfr_has_udp=0
+    for _opfr_part in $_opfr_proto; do
+        case "$_opfr_part" in
+            tcp)
+                _opfr_has_tcp=1
+                ;;
+            udp)
+                _opfr_has_udp=1
+                ;;
+            tcpudp|both|all)
+                _opfr_has_tcp=1
+                _opfr_has_udp=1
+                ;;
+        esac
+    done
+    if [ "$_opfr_has_tcp" -eq 1 ] && [ "$_opfr_has_udp" -eq 1 ]; then
+        printf 'both'
+    elif [ "$_opfr_has_tcp" -eq 1 ]; then
+        printf 'tcp'
+    elif [ "$_opfr_has_udp" -eq 1 ]; then
+        printf 'udp'
+    else
+        printf 'both'
+    fi
+}
+
+openclash_set_lan_ac_traffic_rule() {
+    _osacr_remark="$1"
+    _osacr_src_ip="$2"
+    _osacr_src_port="$3"
+    _osacr_proto="$4"
+
+    if ! uci add openclash lan_ac_traffic >/dev/null 2>&1; then
+        return 1
+    fi
+
+    uci set "openclash.@lan_ac_traffic[-1].enabled=1"
+    uci set "openclash.@lan_ac_traffic[-1].src_ip=${_osacr_src_ip}"
+    uci set "openclash.@lan_ac_traffic[-1].src_port=${_osacr_src_port}"
+    uci set "openclash.@lan_ac_traffic[-1].proto=${_osacr_proto}"
+    uci set "openclash.@lan_ac_traffic[-1].target=return"
+    uci set "openclash.@lan_ac_traffic[-1].family=ipv4"
+    uci set "openclash.@lan_ac_traffic[-1].comment=${_osacr_remark}"
+    uci set "openclash.@lan_ac_traffic[-1].remark=${_osacr_remark}"
+    return 0
+}
+
+openclash_write_suggestion_cache() {
+    _owsc_suggestion="$1"
+    ensure_dirs
+    printf '{"cached":true,"updated_at":"%s","openclash_suggestion":%s}\n' \
+        "$(json_escape "$(get_timestamp)")" \
+        "$_owsc_suggestion" > "${OPENCLASH_SUGGESTION_CACHE}"
+}
+
+openclash_read_suggestion_cache() {
+    if [ -f "${OPENCLASH_SUGGESTION_CACHE}" ]; then
+        cat "${OPENCLASH_SUGGESTION_CACHE}"
+    else
+        printf '{"cached":false,"updated_at":"","openclash_suggestion":{}}\n'
+    fi
 }
 
 openclash_apply() {
@@ -693,62 +793,20 @@ openclash_apply() {
         return 1
     fi
 
-    _oa_exact_found=0
-    _oa_idx=0
-    while true; do
-        _oa_remark="$(uci -q get openclash.@access_control[${_oa_idx}].remark 2>/dev/null)"
-        if [ -z "$_oa_remark" ]; then
-            break
-        fi
-        if [ "$_oa_remark" = "${cfg_openclash_rule_remark}" ]; then
-            _oa_exact_found=1
-            break
-        fi
-        _oa_idx=$((_oa_idx + 1))
-    done
-
-    if [ "$_oa_exact_found" -eq 1 ]; then
-        printf '{"success":true,"error":"","action":"already_exists"}\n'
-        return 0
-    fi
-
-    _oa_prefix="${cfg_openclash_rule_remark} ["
-    _oa_pm_found=0
-    _oa_idx=0
-    while true; do
-        _oa_remark="$(uci -q get openclash.@access_control[${_oa_idx}].remark 2>/dev/null)"
-        if [ -z "$_oa_remark" ]; then
-            break
-        fi
-        case "$_oa_remark" in
-            "${_oa_prefix}"*)
-                _oa_pm_found=1
-                break
-                ;;
-        esac
-        _oa_idx=$((_oa_idx + 1))
-    done
-
     if [ "${cfg_openclash_backup}" = "1" ] && [ ! -f "${OPENCLASH_BACKUP}" ]; then
         cp /etc/config/openclash "${OPENCLASH_BACKUP}" 2>/dev/null
     fi
 
-    if [ "$_oa_pm_found" -eq 1 ]; then
-        openclash_remove_per_mapping_rules >/dev/null
-    fi
+    openclash_remove_plugin_rules >/dev/null
 
-    if ! uci add openclash access_control >/dev/null 2>&1; then
-        printf '{"success":false,"error":"failed_to_add_access_control_section"}\n'
+    _oa_proto="$(openclash_protocol_for_rule "${cfg_protocols}")"
+    if ! openclash_set_lan_ac_traffic_rule "${cfg_openclash_rule_remark}" "${cfg_downstream_wan_ip}" "${cfg_allowed_external_ports}" "$_oa_proto"; then
+        printf '{"success":false,"error":"failed_to_add_lan_ac_traffic_section"}\n'
         return 1
     fi
-    uci set "openclash.@access_control[-1].remark=${cfg_openclash_rule_remark}"
-    uci set "openclash.@access_control[-1].internal_address=${cfg_downstream_wan_ip}"
-    uci set "openclash.@access_control[-1].internal_ports=${cfg_allowed_external_ports}"
-    uci set "openclash.@access_control[-1].protocols=${cfg_protocols}"
-    uci set "openclash.@access_control[-1].target=RETURN"
     uci commit openclash
 
-    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" 2>/dev/null
+    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
 
     write_resource "openclash_rule" "${cfg_openclash_rule_remark}"
 
@@ -765,39 +823,18 @@ openclash_rollback() {
     if [ -f "${OPENCLASH_BACKUP}" ]; then
         cp "${OPENCLASH_BACKUP}" /etc/config/openclash 2>/dev/null
         rm -f "${OPENCLASH_BACKUP}" 2>/dev/null
-        rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" 2>/dev/null
+        rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
         printf '{"removed":1,"method":"backup_restored"}\n'
         return 0
     fi
 
-    _or_prefix="${cfg_openclash_rule_remark} ["
-    _or_removed=0
-    _or_idx=0
-    while true; do
-        _or_remark="$(uci -q get openclash.@access_control[${_or_idx}].remark 2>/dev/null)"
-        if [ -z "$_or_remark" ]; then
-            break
-        fi
-        if [ "$_or_remark" = "${cfg_openclash_rule_remark}" ]; then
-            uci delete "openclash.@access_control[${_or_idx}]" 2>/dev/null
-            _or_removed=1
-            continue
-        fi
-        case "$_or_remark" in
-            "${_or_prefix}"*)
-                uci delete "openclash.@access_control[${_or_idx}]" 2>/dev/null
-                _or_removed=$((_or_removed + 1))
-                continue
-                ;;
-        esac
-        _or_idx=$((_or_idx + 1))
-    done
+    _or_removed="$(openclash_remove_plugin_rules)"
 
     if [ "$_or_removed" -ge 1 ]; then
         uci commit openclash 2>/dev/null
     fi
 
-    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" 2>/dev/null
+    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
 
     printf '{"removed":%d}\n' "$_or_removed"
 }
@@ -876,23 +913,7 @@ openclash_collect_ports_by_proto() {
 }
 
 openclash_remove_per_mapping_rules() {
-    _orm_prefix="${cfg_openclash_rule_remark} ["
-    _orm_removed=0
-    _orm_idx=0
-    while true; do
-        _orm_remark="$(uci -q get openclash.@access_control[${_orm_idx}].remark 2>/dev/null)"
-        if [ -z "$_orm_remark" ]; then
-            break
-        fi
-        case "$_orm_remark" in
-            "${_orm_prefix}"*)
-                uci delete "openclash.@access_control[${_orm_idx}]" 2>/dev/null
-                _orm_removed=$((_orm_removed + 1))
-                continue
-                ;;
-        esac
-        _orm_idx=$((_orm_idx + 1))
-    done
+    _orm_removed="$(openclash_remove_plugin_rules)"
     if [ "$_orm_removed" -gt 0 ]; then
         uci commit openclash 2>/dev/null
     fi
@@ -907,14 +928,14 @@ openclash_generate_per_mapping_rules() {
     ja_reset
     if [ -n "$_ogpm_tcp_ports" ]; then
         _ogpm_remark="$(openclash_per_mapping_remark "TCP")"
-        ja_append "$(printf '{"remark":"%s","internal_address":"%s","internal_ports":"%s","protocols":"tcp","target":"RETURN"}' \
+        ja_append "$(printf '{"remark":"%s","src_ip":"%s","src_port":"%s","proto":"tcp","target":"return","enabled":"1","family":"ipv4"}' \
             "$(json_escape "$_ogpm_remark")" \
             "$(json_escape "${cfg_downstream_wan_ip}")" \
             "$(json_escape "$_ogpm_tcp_ports")")"
     fi
     if [ -n "$_ogpm_udp_ports" ]; then
         _ogpm_remark="$(openclash_per_mapping_remark "UDP")"
-        ja_append "$(printf '{"remark":"%s","internal_address":"%s","internal_ports":"%s","protocols":"udp","target":"RETURN"}' \
+        ja_append "$(printf '{"remark":"%s","src_ip":"%s","src_port":"%s","proto":"udp","target":"return","enabled":"1","family":"ipv4"}' \
             "$(json_escape "$_ogpm_remark")" \
             "$(json_escape "${cfg_downstream_wan_ip}")" \
             "$(json_escape "$_ogpm_udp_ports")")"
@@ -938,7 +959,7 @@ openclash_sync_per_mapping() {
         done < "$_ospm_file" | sort)"
     fi
 
-    _ospm_cache_file="${STATUS_DIR}/oc_per_mapping_cache.txt"
+    _ospm_cache_file="${OPENCLASH_PER_MAPPING_CACHE}"
     _ospm_old_fingerprint=""
     if [ -f "$_ospm_cache_file" ]; then
         _ospm_old_fingerprint="$(cat "$_ospm_cache_file")"
@@ -960,19 +981,6 @@ openclash_sync_per_mapping() {
 
     openclash_remove_per_mapping_rules >/dev/null
 
-    _ospm_pp_idx=0
-    while true; do
-        _ospm_pp_remark="$(uci -q get openclash.@access_control[${_ospm_pp_idx}].remark 2>/dev/null)"
-        if [ -z "$_ospm_pp_remark" ]; then
-            break
-        fi
-        if [ "$_ospm_pp_remark" = "${cfg_openclash_rule_remark}" ]; then
-            uci delete "openclash.@access_control[${_ospm_pp_idx}]" 2>/dev/null
-            break
-        fi
-        _ospm_pp_idx=$((_ospm_pp_idx + 1))
-    done
-
     _ospm_count=0
     if [ -f "$_ospm_file" ]; then
         _ospm_collected="$(openclash_collect_ports_by_proto "$_ospm_file")"
@@ -981,29 +989,19 @@ openclash_sync_per_mapping() {
 
         if [ -n "$_ospm_tcp_ports" ]; then
             _ospm_remark="$(openclash_per_mapping_remark "TCP")"
-            if uci add openclash access_control >/dev/null 2>&1; then
-                uci set "openclash.@access_control[-1].remark=${_ospm_remark}"
-                uci set "openclash.@access_control[-1].internal_address=${cfg_downstream_wan_ip}"
-                uci set "openclash.@access_control[-1].internal_ports=${_ospm_tcp_ports}"
-                uci set "openclash.@access_control[-1].protocols=tcp"
-                uci set "openclash.@access_control[-1].target=RETURN"
+            if openclash_set_lan_ac_traffic_rule "$_ospm_remark" "${cfg_downstream_wan_ip}" "$_ospm_tcp_ports" "tcp"; then
                 _ospm_count=$((_ospm_count + 1))
             else
-                log_warn "Failed to add OpenClash access_control section for TCP"
+                log_warn "Failed to add OpenClash lan_ac_traffic section for TCP"
             fi
         fi
 
         if [ -n "$_ospm_udp_ports" ]; then
             _ospm_remark="$(openclash_per_mapping_remark "UDP")"
-            if uci add openclash access_control >/dev/null 2>&1; then
-                uci set "openclash.@access_control[-1].remark=${_ospm_remark}"
-                uci set "openclash.@access_control[-1].internal_address=${cfg_downstream_wan_ip}"
-                uci set "openclash.@access_control[-1].internal_ports=${_ospm_udp_ports}"
-                uci set "openclash.@access_control[-1].protocols=udp"
-                uci set "openclash.@access_control[-1].target=RETURN"
+            if openclash_set_lan_ac_traffic_rule "$_ospm_remark" "${cfg_downstream_wan_ip}" "$_ospm_udp_ports" "udp"; then
                 _ospm_count=$((_ospm_count + 1))
             else
-                log_warn "Failed to add OpenClash access_control section for UDP"
+                log_warn "Failed to add OpenClash lan_ac_traffic section for UDP"
             fi
         fi
     fi
@@ -1130,7 +1128,7 @@ do_check_env() {
         if /etc/init.d/openclash status >/dev/null 2>&1; then
             _ce_oc_running=1
         fi
-        if uci -q get openclash.@access_control[0] >/dev/null 2>&1; then
+        if uci -q get openclash.@lan_ac_traffic[0] >/dev/null 2>&1; then
             _ce_oc_has_ac=1
         fi
     fi
@@ -1533,6 +1531,7 @@ do_sync() {
 }
 
 do_dry_run() {
+    _dr_cache_openclash="${1:-0}"
     load_config
     ensure_dirs
 
@@ -1680,6 +1679,10 @@ do_dry_run() {
         fi
     fi
 
+    if [ "$_dr_cache_openclash" = "1" ]; then
+        openclash_write_suggestion_cache "$_dr_oc_suggestion"
+    fi
+
     rm -f "$_dr_accept_file"
 
     printf '{"success":true,"read_mappings":[%s],"accepted":[%s],"rejected":[%s],"nft_commands":[%s],"openclash_suggestion":%s}\n' \
@@ -1688,6 +1691,10 @@ do_dry_run() {
         "$_dr_rejected_json" \
         "$_dr_nft_json" \
         "$_dr_oc_suggestion"
+}
+
+do_generate_openclash_rule() {
+    do_dry_run 1
 }
 
 do_clear() {
@@ -2118,6 +2125,12 @@ case "$1" in
     --dry-run)
         do_dry_run
         ;;
+    --generate-openclash-rule)
+        do_generate_openclash_rule
+        ;;
+    --openclash-rule-cache)
+        openclash_read_suggestion_cache
+        ;;
     --clear)
         do_clear
         ;;
@@ -2156,7 +2169,7 @@ case "$1" in
         do_daemon
         ;;
     *)
-        printf 'Usage: %s {--check-env|--check-network|--network-cache|--sync|--dry-run|--clear|--status|--refresh-env|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--remove-openclash-rule|--rollback|--read-log|--clear-log|--daemon}\n' "$0"
+        printf 'Usage: %s {--check-env|--check-network|--network-cache|--sync|--dry-run|--generate-openclash-rule|--openclash-rule-cache|--clear|--status|--refresh-env|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--remove-openclash-rule|--rollback|--read-log|--clear-log|--daemon}\n' "$0"
         exit 1
         ;;
 esac

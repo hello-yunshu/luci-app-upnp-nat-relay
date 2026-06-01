@@ -735,6 +735,12 @@ msgstr "Internal Address:"
 msgid "Internal Ports:"
 msgstr "Internal Ports:"
 
+msgid "Source Address:"
+msgstr "Source Address:"
+
+msgid "Source Ports:"
+msgstr "Source Ports:"
+
 msgid "Protocol:"
 msgstr "Protocol:"
 
