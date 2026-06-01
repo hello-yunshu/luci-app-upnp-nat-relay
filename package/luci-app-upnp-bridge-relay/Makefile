@@ -46,6 +46,7 @@ define Build/Compile
 		fi; \
 	done; \
 	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/bin/upnp-bridge-relay
+	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/libexec/rpcd/upnp_bridge_relay
 endef
 
 define Package/luci-app-upnp-bridge-relay/install
@@ -60,6 +61,8 @@ define Package/luci-app-upnp-bridge-relay/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/root/usr/libexec/rpcd/upnp_bridge_relay $(1)/usr/libexec/rpcd/
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/upnp-bridge-relay
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/htdocs/luci-static/resources/view/upnp-bridge-relay/*.js $(1)/www/luci-static/resources/view/upnp-bridge-relay/
+	$(INSTALL_DIR) $(1)/www/luci-static/resources/upnp-bridge-relay
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/htdocs/luci-static/resources/upnp-bridge-relay/*.js $(PKG_BUILD_DIR)/htdocs/luci-static/resources/upnp-bridge-relay/*.css $(1)/www/luci-static/resources/upnp-bridge-relay/
 	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/root/usr/share/luci/menu.d/luci-app-upnp-bridge-relay.json $(1)/usr/share/luci/menu.d/
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d

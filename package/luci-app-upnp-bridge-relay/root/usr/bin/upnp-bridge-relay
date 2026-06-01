@@ -39,7 +39,16 @@ log_err() {
 }
 
 json_escape() {
-    printf '%s\n' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/\\t/g' -e 's/</\\u003c/g' -e 's/>/\\u003e/g' -e 's/&/\\u0026/g' | awk 'BEGIN{ORS="\\n"}1' | sed 's/\\n$//'
+    printf '%s' "$1" | sed \
+        -e 's/\\/\\\\/g' \
+        -e 's/"/\\"/g' \
+        -e 's/\t/\\t/g' \
+        -e 's/\r/\\r/g' \
+        -e 's/</\\u003c/g' \
+        -e 's/>/\\u003e/g' \
+        -e 's/&/\\u0026/g' \
+        -e 's/[\x00-\x08\x0b\x0c\x0e-\x1f]/\\ufffd/g' \
+    | awk 'BEGIN{ORS="\\n"}1' | sed 's/\\n$//'
 }
 
 _ja=""
@@ -66,6 +75,64 @@ get_timestamp() {
 ensure_dirs() {
     mkdir -p "${STATUS_DIR}" 2>/dev/null
     mkdir -p "${RESOURCES_DIR}" 2>/dev/null
+}
+
+detect_openwrt_version() {
+    local _dov_version=""
+    if [ -f /etc/os-release ]; then
+        _dov_version="$(grep '^VERSION=' /etc/os-release 2>/dev/null | cut -d'"' -f2)"
+    fi
+    if [ -z "$_dov_version" ] && [ -f /etc/openwrt_release ]; then
+        _dov_version="$(grep 'DISTRIB_RELEASE' /etc/openwrt_release 2>/dev/null | cut -d"'" -f2)"
+    fi
+    printf '%s' "$_dov_version"
+}
+
+detect_pkg_manager() {
+    if command -v apk >/dev/null 2>&1; then
+        printf 'apk'
+    elif command -v opkg >/dev/null 2>&1; then
+        printf 'opkg'
+    else
+        printf 'unknown'
+    fi
+}
+
+detect_firewall() {
+    local _dfw_fw="unknown" _dfw_fw4=0 _dfw_nft=0
+    if command -v fw4 >/dev/null 2>&1; then
+        _dfw_fw4=1
+        if fw4 -q print >/dev/null 2>&1; then
+            _dfw_fw="fw4"
+        fi
+    fi
+    if command -v nft >/dev/null 2>&1; then
+        _dfw_nft=1
+    fi
+    [ "$_dfw_fw" = "unknown" ] && [ "$_dfw_nft" -eq 1 ] && _dfw_fw="nftables_only"
+    printf '%s\t%d\t%d' "$_dfw_fw" "$_dfw_fw4" "$_dfw_nft"
+}
+
+detect_upnpc() {
+    command -v upnpc >/dev/null 2>&1 && printf '1' || printf '0'
+}
+
+detect_luci() {
+    [ -f /www/luci-static/resources/rpc.js ] && printf '1' || printf '0'
+}
+
+detect_openclash_status() {
+    local _dos_installed=0 _dos_running=0 _dos_has_ac=0
+    if [ -f /etc/config/openclash ]; then
+        _dos_installed=1
+        if /etc/init.d/openclash status >/dev/null 2>&1; then
+            _dos_running=1
+        fi
+        if uci -q get openclash.@lan_ac_traffic[0] >/dev/null 2>&1; then
+            _dos_has_ac=1
+        fi
+    fi
+    printf '%d\t%d\t%d' "$_dos_installed" "$_dos_running" "$_dos_has_ac"
 }
 
 load_config() {
@@ -571,58 +638,19 @@ do_refresh_env() {
     fi
     [ -z "$_dre_version" ] && _dre_version="unknown"
 
-    _dre_openwrt_version=""
-    if [ -f /etc/openwrt_release ]; then
-        _dre_release="$(grep 'DISTRIB_RELEASE' /etc/openwrt_release 2>/dev/null | cut -d"'" -f2)"
-    fi
-    if [ -f /etc/os-release ]; then
-        _dre_os_version="$(grep '^VERSION=' /etc/os-release 2>/dev/null | cut -d'"' -f2)"
-    fi
-    if [ -n "$_dre_os_version" ]; then
-        _dre_openwrt_version="$_dre_os_version"
-    elif [ -n "$_dre_release" ]; then
-        _dre_openwrt_version="$_dre_release"
-    fi
+    _dre_openwrt_version="$(detect_openwrt_version)"
+    _dre_pkg_manager="$(detect_pkg_manager)"
 
-    _dre_pkg_manager="unknown"
-    if command -v apk >/dev/null 2>&1; then
-        _dre_pkg_manager="apk"
-    elif command -v opkg >/dev/null 2>&1; then
-        _dre_pkg_manager="opkg"
-    fi
+    _dre_fw_data="$(detect_firewall)"
+    _dre_firewall="$(echo "$_dre_fw_data" | cut -f1)"
+    _dre_fw4="$(echo "$_dre_fw_data" | cut -f2)"
+    _dre_nft="$(echo "$_dre_fw_data" | cut -f3)"
 
-    _dre_firewall="unknown"
-    _dre_fw4=0
-    _dre_nft=0
-    if command -v fw4 >/dev/null 2>&1; then
-        _dre_fw4=1
-        if fw4 -q print >/dev/null 2>&1; then
-            _dre_firewall="fw4"
-        fi
-    fi
-    if command -v nft >/dev/null 2>&1; then
-        _dre_nft=1
-    fi
-    if [ "$_dre_firewall" = "unknown" ] && [ "$_dre_nft" -eq 1 ]; then
-        _dre_firewall="nftables_only"
-    fi
+    _dre_upnpc="$(detect_upnpc)"
+    _dre_luci="$(detect_luci)"
 
-    _dre_upnpc=0
-    if command -v upnpc >/dev/null 2>&1; then
-        _dre_upnpc=1
-    fi
-
-    _dre_luci=0
-    if [ -f /www/luci-static/resources/rpc.js ]; then
-        _dre_luci=1
-    fi
-
-    _dre_oc_has_ac=0
-    if [ "$_oc_installed" = "1" ]; then
-        if uci -q get openclash.@lan_ac_traffic[0] >/dev/null 2>&1; then
-            _dre_oc_has_ac=1
-        fi
-    fi
+    _dre_oc_ac_data="$(detect_openclash_status)"
+    _dre_oc_has_ac="$(echo "$_dre_oc_ac_data" | cut -f3)"
 
     _dre_timestamp="$(get_timestamp)"
 
@@ -1074,64 +1102,21 @@ parse_upnpc_to_file() {
 }
 
 do_check_env() {
-    _ce_version=""
-    if [ -f /etc/openwrt_release ]; then
-        _ce_release="$(grep 'DISTRIB_RELEASE' /etc/openwrt_release 2>/dev/null | cut -d"'" -f2)"
-    fi
-    if [ -f /etc/os-release ]; then
-        _ce_os_version="$(grep '^VERSION=' /etc/os-release 2>/dev/null | cut -d'"' -f2)"
-    fi
-    if [ -n "$_ce_os_version" ]; then
-        _ce_version="$_ce_os_version"
-    elif [ -n "$_ce_release" ]; then
-        _ce_version="$_ce_release"
-    fi
+    _ce_version="$(detect_openwrt_version)"
+    _ce_pkg_manager="$(detect_pkg_manager)"
 
-    _ce_pkg_manager="unknown"
-    if command -v apk >/dev/null 2>&1; then
-        _ce_pkg_manager="apk"
-    elif command -v opkg >/dev/null 2>&1; then
-        _ce_pkg_manager="opkg"
-    fi
+    _ce_fw_data="$(detect_firewall)"
+    _ce_firewall="$(echo "$_ce_fw_data" | cut -f1)"
+    _ce_fw4="$(echo "$_ce_fw_data" | cut -f2)"
+    _ce_nft="$(echo "$_ce_fw_data" | cut -f3)"
 
-    _ce_firewall="unknown"
-    _ce_fw4=0
-    _ce_nft=0
-    if command -v fw4 >/dev/null 2>&1; then
-        _ce_fw4=1
-        if fw4 -q print >/dev/null 2>&1; then
-            _ce_firewall="fw4"
-        fi
-    fi
-    if command -v nft >/dev/null 2>&1; then
-        _ce_nft=1
-    fi
-    if [ "$_ce_firewall" = "unknown" ] && [ "$_ce_nft" -eq 1 ]; then
-        _ce_firewall="nftables_only"
-    fi
+    _ce_upnpc="$(detect_upnpc)"
+    _ce_luci="$(detect_luci)"
 
-    _ce_upnpc=0
-    if command -v upnpc >/dev/null 2>&1; then
-        _ce_upnpc=1
-    fi
-
-    _ce_luci=0
-    if [ -f /www/luci-static/resources/rpc.js ]; then
-        _ce_luci=1
-    fi
-
-    _ce_oc_installed=0
-    _ce_oc_running=0
-    _ce_oc_has_ac=0
-    if [ -f /etc/config/openclash ]; then
-        _ce_oc_installed=1
-        if /etc/init.d/openclash status >/dev/null 2>&1; then
-            _ce_oc_running=1
-        fi
-        if uci -q get openclash.@lan_ac_traffic[0] >/dev/null 2>&1; then
-            _ce_oc_has_ac=1
-        fi
-    fi
+    _ce_oc_data="$(detect_openclash_status)"
+    _ce_oc_installed="$(echo "$_ce_oc_data" | cut -f1)"
+    _ce_oc_running="$(echo "$_ce_oc_data" | cut -f2)"
+    _ce_oc_has_ac="$(echo "$_ce_oc_data" | cut -f3)"
 
     printf '{"openwrt_version":"%s","package_manager":"%s","firewall":"%s","fw4":%d,"nft":%d,"upnpc":%d,"luci":%d,"openclash_installed":%d,"openclash_running":%d,"openclash_has_access_control":%d}\n' \
         "$(json_escape "$_ce_version")" \
@@ -1286,8 +1271,22 @@ do_sync() {
     if ! flock -n 9; then
         log_warn "Another sync process is running, skipping"
         printf '{"success":false,"error":"another_sync_running"}\n'
+        exec 9>&-
         return 1
     fi
+
+    _s_parsed_file="${STATUS_DIR}/_sync_parsed.tmp"
+    _s_accept_file="${STATUS_DIR}/_sync_accept.tmp"
+    _s_reject_file="${STATUS_DIR}/_sync_reject.tmp"
+
+    _sync_cleanup() {
+        rm -f "$_s_parsed_file" "$_s_accept_file" "$_s_reject_file" 2>/dev/null
+        exec 9>&- 2>/dev/null
+    }
+    trap _sync_cleanup EXIT
+
+    : > "$_s_accept_file"
+    : > "$_s_reject_file"
 
     _s_timestamp="$(get_timestamp)"
     _s_last_error=""
@@ -1308,18 +1307,16 @@ do_sync() {
         _s_last_error="nft not found"
         log_err "Sync failed: nft not found"
         write_status "$_s_daemon_running" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
-        exec 9>&-
         printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
-        return 1
+        _sync_cleanup; trap - EXIT; return 1
     fi
 
     if ! command -v upnpc >/dev/null 2>&1; then
         _s_last_error="upnpc not found"
         log_err "Sync failed: upnpc not found"
         write_status "$_s_daemon_running" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
-        exec 9>&-
         printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
-        return 1
+        _sync_cleanup; trap - EXIT; return 1
     fi
 
     _s_upnpc_output="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>&1)"
@@ -1337,16 +1334,9 @@ do_sync() {
         fi
 
         write_status "$_s_daemon_running" "$_s_timestamp" "failed" "${cfg_backend}" 0 0 0 "$_s_failure_count" "" "" "$_s_last_error"
-        exec 9>&-
         printf '{"success":false,"error":"%s","failure_count":%d}\n' "$_s_last_error" "$_s_failure_count"
-        return 1
+        _sync_cleanup; trap - EXIT; return 1
     fi
-
-    _s_parsed_file="${STATUS_DIR}/_sync_parsed.tmp"
-    _s_accept_file="${STATUS_DIR}/_sync_accept.tmp"
-    _s_reject_file="${STATUS_DIR}/_sync_reject.tmp"
-    : > "$_s_accept_file"
-    : > "$_s_reject_file"
 
     parse_upnpc_to_file "$_s_upnpc_output" "$_s_parsed_file"
 
@@ -1408,8 +1398,6 @@ do_sync() {
         fi
     done < "$_s_parsed_file"
 
-    rm -f "$_s_parsed_file"
-
     ja_reset
     if [ -f "$_s_accept_file" ]; then
         while IFS='|' read -r _s_act _s_proto _s_ext_port _s_int_ip _s_int_port _s_desc; do
@@ -1445,8 +1433,6 @@ do_sync() {
         log_info "Dry run mode enabled, skipping nft rule creation"
         _s_failure_count=0
         write_status "$_s_daemon_running" "$_s_timestamp" "success(dry_run)" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" ""
-        rm -f "$_s_accept_file" "$_s_reject_file"
-        exec 9>&-
         printf '{"success":true,"dry_run":true,"timestamp":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"accepted":[%s],"rejected":[%s]}\n' \
             "$(json_escape "$_s_timestamp")" \
             "$(json_escape "${cfg_backend}")" \
@@ -1455,17 +1441,15 @@ do_sync() {
             "$_s_rejected_count" \
             "$_s_accepted_json" \
             "$_s_rejected_json"
-        return 0
+        _sync_cleanup; trap - EXIT; return 0
     fi
 
     if ! nft_ensure_table; then
         _s_last_error="Failed to ensure nft table"
         log_err "Sync failed: $_s_last_error"
         write_status "$_s_daemon_running" "$_s_timestamp" "failed" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" 0 "" "" "$_s_last_error"
-        rm -f "$_s_accept_file" "$_s_reject_file"
-        exec 9>&-
         printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
-        return 1
+        _sync_cleanup; trap - EXIT; return 1
     fi
 
     nft_flush_chain
@@ -1493,8 +1477,6 @@ do_sync() {
         fi
     fi
 
-    rm -f "$_s_accept_file" "$_s_reject_file"
-
     _s_failure_count=0
     _s_sync_status="success"
     if [ "$_s_nft_fail" -gt 0 ]; then
@@ -1504,8 +1486,6 @@ do_sync() {
     write_status "$_s_daemon_running" "$_s_timestamp" "$_s_sync_status" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" "$_s_last_error"
 
     log_info "Sync completed: read=${_s_read_count}, accepted=${_s_accepted_count}, rejected=${_s_rejected_count}"
-
-    exec 9>&-
 
     if [ "$_s_nft_fail" -gt 0 ]; then
         printf '{"success":false,"error":"%s","timestamp":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"accepted":[%s],"rejected":[%s]}\n' \
@@ -1517,7 +1497,7 @@ do_sync() {
             "$_s_rejected_count" \
             "$_s_accepted_json" \
             "$_s_rejected_json"
-        return 1
+        _sync_cleanup; trap - EXIT; return 1
     fi
 
     printf '{"success":true,"timestamp":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"accepted":[%s],"rejected":[%s]}\n' \
@@ -1528,6 +1508,7 @@ do_sync() {
         "$_s_rejected_count" \
         "$_s_accepted_json" \
         "$_s_rejected_json"
+    _sync_cleanup; trap - EXIT
 }
 
 do_dry_run() {
@@ -1562,6 +1543,12 @@ do_dry_run() {
     _dr_parsed_file="${STATUS_DIR}/_dry_parsed.tmp"
     _dr_accept_file="${STATUS_DIR}/_dry_accept.tmp"
     _dr_reject_file="${STATUS_DIR}/_dry_reject.tmp"
+
+    _dryrun_cleanup() {
+        rm -f "$_dr_parsed_file" "$_dr_accept_file" "$_dr_reject_file" 2>/dev/null
+    }
+    trap _dryrun_cleanup EXIT
+
     : > "$_dr_accept_file"
     : > "$_dr_reject_file"
 
@@ -1621,8 +1608,6 @@ do_dry_run() {
         fi
     done < "$_dr_parsed_file"
 
-    rm -f "$_dr_parsed_file"
-
     _dr_read_json="$_ja"
 
     ja_reset
@@ -1664,7 +1649,6 @@ do_dry_run() {
                 "$(json_escape "$_dr_desc")" \
                 "$(json_escape "$_dr_reason")")"
         done < "$_dr_reject_file"
-        rm -f "$_dr_reject_file"
     fi
     _dr_rejected_json="$_ja"
 
@@ -1683,14 +1667,13 @@ do_dry_run() {
         openclash_write_suggestion_cache "$_dr_oc_suggestion"
     fi
 
-    rm -f "$_dr_accept_file"
-
     printf '{"success":true,"read_mappings":[%s],"accepted":[%s],"rejected":[%s],"nft_commands":[%s],"openclash_suggestion":%s}\n' \
         "$_dr_read_json" \
         "$_dr_accepted_json" \
         "$_dr_rejected_json" \
         "$_dr_nft_json" \
         "$_dr_oc_suggestion"
+    _dryrun_cleanup; trap - EXIT
 }
 
 do_generate_openclash_rule() {

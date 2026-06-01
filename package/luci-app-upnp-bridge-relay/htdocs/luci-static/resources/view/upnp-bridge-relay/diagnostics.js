@@ -2,6 +2,7 @@
 'require view';
 'require ui';
 'require rpc';
+'require upnp-bridge-relay/utils';
 
 var callStatus = rpc.declare({
 	object: 'upnp_bridge_relay',
@@ -40,10 +41,6 @@ var callClearLog = rpc.declare({
 });
 
 var css = `
-	.ubr-dashboard { max-width: 100%; }
-	.ubr-section {
-		margin-bottom: 1.5em;
-	}
 	.ubr-log-area {
 		min-height: 16em; max-height: 26em; overflow: auto; padding: 1em;
 		background: var(--background-color-low);
@@ -57,7 +54,6 @@ var css = `
 	.ubr-log-area.is-empty,
 	.ubr-log-area.is-loading { color: var(--subtext-color); font-style: italic; }
 	.ubr-log-area.is-error { color: var(--danger-color); }
-	.ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
 	.ubr-danger-zone {
 		margin-bottom: 1.5em;
 		border-left: 5px solid var(--danger-color, #d94b4b);
@@ -78,6 +74,7 @@ return view.extend({
 	},
 
 	render: function(data) {
+		utils.loadSharedCSS();
 		var status = data.status || {};
 		var logData = data.logData || {};
 

@@ -2,6 +2,7 @@
 
 [ -f /lib/functions.sh ] && . /lib/functions.sh
 
+RPCD_VERSION="@PKG_VERSION@"
 UPNP_BRIDGE_RELAY_BIN="/usr/bin/upnp-bridge-relay"
 STATUS_FILE="/tmp/upnp_bridge_relay/status.json"
 INIT_SCRIPT="/etc/init.d/upnp_bridge_relay"
@@ -69,28 +70,31 @@ service_action() {
 
 case "$1" in
 	list)
-		echo '{'
-		echo '"status": {},'
-		echo '"refresh-env": {},'
-		echo '"check-env": {},'
-		echo '"check-network": {},'
-		echo '"network-cache": {},'
-		echo '"dry-run": {},'
-		echo '"generate-openclash-rule": {},'
-		echo '"openclash-rule-cache": {},'
-		echo '"read-log": {},'
-		echo '"clear-log": {},'
-		echo '"sync-now": {},'
-		echo '"clear": {},'
-		echo '"start": {},'
-		echo '"stop": {},'
-		echo '"restart": {},'
-		echo '"setup-interface": {},'
-		echo '"fix-zone": {},'
-		echo '"setup-openclash": {},'
-		echo '"remove-openclash-rule": {},'
-		echo '"rollback": {}'
-		echo '}'
+		cat <<'EOF'
+{
+	"status": {},
+	"refresh-env": {},
+	"check-env": {},
+	"check-network": {},
+	"network-cache": {},
+	"dry-run": {},
+	"generate-openclash-rule": {},
+	"openclash-rule-cache": {},
+	"read-log": {},
+	"clear-log": {},
+	"sync-now": {},
+	"clear": {},
+	"start": {},
+	"stop": {},
+	"restart": {},
+	"setup-interface": {},
+	"fix-zone": {},
+	"setup-openclash": {},
+	"remove-openclash-rule": {},
+	"rollback": {},
+	"version": {}
+}
+EOF
 		;;
 	call)
 		method="$2"
@@ -154,6 +158,9 @@ case "$1" in
 				;;
 			rollback)
 				"$UPNP_BRIDGE_RELAY_BIN" --rollback 2>/dev/null
+				;;
+			version)
+				printf '{"version":"%s"}\n' "$RPCD_VERSION"
 				;;
 			*)
 				echo '{"error":"unknown_method"}'
