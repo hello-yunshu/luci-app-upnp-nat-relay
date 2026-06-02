@@ -1320,6 +1320,15 @@ msgstr "Per-mapping rules written. You need to restart OpenClash for changes to 
 msgid "Service Running"
 msgstr "Service Running"
 
+msgid "Service Starting"
+msgstr "Service Starting"
+
+msgid "Starting"
+msgstr "Starting"
+
+msgid "UPnP Bridge Relay is starting up. Waiting for first sync..."
+msgstr "UPnP Bridge Relay is starting up. Waiting for first sync..."
+
 msgid "Service Stopped"
 msgstr "Service Stopped"
 

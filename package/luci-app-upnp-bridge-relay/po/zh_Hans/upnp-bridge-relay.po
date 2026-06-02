@@ -1179,6 +1179,15 @@ msgstr "GitHub"
 msgid "Service Running"
 msgstr "服务运行中"
 
+msgid "Service Starting"
+msgstr "服务启动中"
+
+msgid "Starting"
+msgstr "启动中"
+
+msgid "UPnP Bridge Relay is starting up. Waiting for first sync..."
+msgstr "UPnP 桥接中继正在启动，等待首次同步..."
+
 msgid "Service Stopped"
 msgstr "服务已停止"
 
