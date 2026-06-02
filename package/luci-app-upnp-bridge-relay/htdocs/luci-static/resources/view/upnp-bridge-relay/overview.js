@@ -48,10 +48,13 @@ var callServiceRestart = rpc.declare({
 	expect: { '': {} }
 });
 
-function requireSuccess(result) {
-	if (result && result.success === false)
-		throw new Error(result.error || _('service action failed'));
-	return result || {};
+function waitReadyAndReload() {
+	return utils.waitForServiceReady(callStatus).then(function(status) {
+		if (status && status.last_result === 'starting')
+			ui.addNotification(null, E('p', _('Service action completed, but the first sync is still starting. Refreshing current status.')), 'warning');
+		utils.reloadSoon(300);
+		return status;
+	});
 }
 
 function makeNftBadge(status) {
@@ -183,26 +186,12 @@ return view.extend({
 		container.appendChild(banner);
 
 		if (isStarting) {
-			var pollTimer = window.setInterval(function() {
-				if (!container.isConnected) {
-					window.clearInterval(pollTimer);
-					return;
-				}
-				callStatus().then(function(s) {
-					if (!container.isConnected) {
-						window.clearInterval(pollTimer);
-						return;
-					}
-					s = s || {};
-					if (s.last_result !== 'starting') {
-						window.clearInterval(pollTimer);
-						utils.reloadSoon(300);
-					}
-				}).catch(function() {
-					if (!container.isConnected)
-						window.clearInterval(pollTimer);
-				});
-			}, 3000);
+			utils.waitForServiceReady(callStatus, {
+				isActive: function() { return container.isConnected; }
+			}).then(function() {
+				if (container.isConnected)
+					utils.reloadSoon(300);
+			}).catch(function() {});
 		}
 
 		var statsGrid = E('div', { 'class': 'ubr-stats-grid' });
@@ -243,9 +232,9 @@ return view.extend({
 				'click': function() {
 					var btn = this;
 					utils.setBusy(btn, _('Loading...'));
-					return callServiceStart().then(requireSuccess).then(function() {
-						ui.addNotification(null, E('p', _('Service started.')), 'info');
-						utils.reloadSoon();
+					return callServiceStart().then(utils.requireSuccess).then(function() {
+						ui.addNotification(null, E('p', _('Service started. Waiting for first sync...')), 'info');
+						return waitReadyAndReload();
 					}).catch(function(e) {
 						ui.addNotification(null, E('p', _('Failed to start service: ') + e.message), 'error');
 						utils.resetBusy(btn);
@@ -260,7 +249,7 @@ return view.extend({
 				'click': function() {
 					var btn = this;
 					utils.setBusy(btn, _('Loading...'));
-					return callServiceStop().then(requireSuccess).then(function() {
+					return callServiceStop().then(utils.requireSuccess).then(function() {
 						ui.addNotification(null, E('p', _('Service stopped.')), 'info');
 						utils.reloadSoon();
 					}).catch(function(e) {
@@ -276,12 +265,12 @@ return view.extend({
 			'click': function() {
 				var btn = this;
 				utils.setBusy(btn, _('Loading...'));
-			return callServiceRestart().then(requireSuccess).then(function() {
-				ui.addNotification(null, E('p', _('Service restarted.')), 'info');
-				utils.reloadSoon();
-			}).catch(function(e) {
-				ui.addNotification(null, E('p', _('Failed to restart service: ') + e.message), 'error');
-				utils.resetBusy(btn);
+				return callServiceRestart().then(utils.requireSuccess).then(function() {
+					ui.addNotification(null, E('p', _('Service restarted. Waiting for first sync...')), 'info');
+					return waitReadyAndReload();
+				}).catch(function(e) {
+					ui.addNotification(null, E('p', _('Failed to restart service: ') + e.message), 'error');
+					utils.resetBusy(btn);
 				});
 			}
 		}, '\u21BB ' + _('Restart')));

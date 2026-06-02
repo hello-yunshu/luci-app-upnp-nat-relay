@@ -33,6 +33,41 @@ function reloadSoon(delay) {
 	}, delay || 1200);
 }
 
+function waitForServiceReady(callStatus, options) {
+	options = options || {};
+	var interval = options.interval || 3000;
+	var timeout = options.timeout || 120000;
+	var startedAt = Date.now();
+
+	function wait(delay) {
+		return new Promise(function(resolve) {
+			window.setTimeout(resolve, delay);
+		});
+	}
+
+	function poll() {
+		if (options.isActive && !options.isActive())
+			return {};
+
+		return callStatus().then(function(status) {
+			status = status || {};
+			if (status.running && status.last_result !== 'starting')
+				return status;
+			if (Date.now() - startedAt >= timeout)
+				return status;
+			return wait(interval).then(poll);
+		});
+	}
+
+	return poll();
+}
+
+function requireSuccess(result) {
+	if (result && result.success === false)
+		throw new Error(result.error || _('service action failed'));
+	return result || {};
+}
+
 function loadSharedCSS() {
 	if (!document.getElementById('ubr-shared-css')) {
 		var link = E('link', {
@@ -49,5 +84,7 @@ return baseclass.extend({
 	setBusy: setBusy,
 	resetBusy: resetBusy,
 	reloadSoon: reloadSoon,
+	waitForServiceReady: waitForServiceReady,
+	requireSuccess: requireSuccess,
 	loadSharedCSS: loadSharedCSS
 });
