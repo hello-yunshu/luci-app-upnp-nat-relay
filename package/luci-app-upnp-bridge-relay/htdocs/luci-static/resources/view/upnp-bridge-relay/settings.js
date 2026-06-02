@@ -76,7 +76,7 @@ return view.extend({
 			_('Allow automatic setup flows to create or repair the independent firewall zone before testing.'));
 		o.default = '0';
 
-		o = s.option(form.Flag, 'openclash_auto_restart', _('Auto Restart OpenClash'),
+		o = s.option(form.Flag, 'openclash_auto_restart', _('Auto Restart OpenClash After Rule Write'),
 			_('Automatically restart OpenClash service after writing rules so changes take effect immediately. Without this, you need to restart OpenClash manually.'));
 		o.default = '0';
 
