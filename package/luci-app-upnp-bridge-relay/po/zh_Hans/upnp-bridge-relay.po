@@ -99,6 +99,12 @@ msgstr "启动"
 msgid "Service started."
 msgstr "服务已启动。"
 
+msgid "Service started. Waiting for first sync..."
+msgstr "服务已启动，正在等待首次同步..."
+
+msgid "Service action completed, but the first sync is still starting. Refreshing current status."
+msgstr "服务操作已完成，但首次同步仍在启动中。正在刷新当前状态。"
+
 msgid "Failed to start service: "
 msgstr "启动服务失败："
 
@@ -122,6 +128,9 @@ msgstr "重启"
 
 msgid "Service restarted."
 msgstr "服务已重启。"
+
+msgid "Service restarted. Waiting for first sync..."
+msgstr "服务已重启，正在等待首次同步..."
 
 msgid "Failed to restart service: "
 msgstr "重启服务失败："
@@ -1301,6 +1310,21 @@ msgstr "保存中..."
 
 msgid "Settings saved and applied."
 msgstr "设置已保存并应用。"
+
+msgid "Configuration saved and applied."
+msgstr "配置已保存并应用。"
+
+msgid "Configuration saved. Restarting service and waiting for first sync..."
+msgstr "配置已保存。正在重启服务并等待首次同步..."
+
+msgid "Service restart completed, but the first sync is still starting. Refreshing current status."
+msgstr "服务重启已完成，但首次同步仍在启动中。正在刷新当前状态。"
+
+msgid "Configuration applied and service is ready."
+msgstr "配置已应用，服务已准备就绪。"
+
+msgid "Failed to apply configuration: "
+msgstr "应用配置失败："
 
 msgid "Failed to save settings: %s"
 msgstr "保存设置失败：%s"

@@ -1,7 +1,23 @@
 'use strict';
 'require view';
+'require ui';
+'require rpc';
+'require dom';
 'require form';
 'require uci';
+'require upnp-bridge-relay/utils as utils';
+
+var callStatus = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'status',
+	expect: { '': {} }
+});
+
+var callServiceRestart = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'restart',
+	expect: { '': {} }
+});
 
 return view.extend({
 	load: function() {
@@ -77,5 +93,43 @@ return view.extend({
 		o.rmempty = false;
 
 		return m.render();
+	},
+
+	handleSave: function(ev) {
+		var tasks = [];
+
+		document.getElementById('maincontent')
+			.querySelectorAll('.cbi-map').forEach(function(map) {
+				tasks.push(dom.callClassMethod(map, 'save'));
+			});
+
+		return Promise.all(tasks);
+	},
+
+	handleSaveApply: function(ev, mode) {
+		return this.handleSave(ev).then(function() {
+			return utils.safeApply();
+		}).then(function() {
+			return uci.load('upnp_bridge_relay');
+		}).then(function() {
+			if (uci.get('upnp_bridge_relay', 'main', 'enabled') !== '1') {
+				ui.addNotification(null, E('p', _('Configuration saved and applied.')), 'info');
+				utils.reloadSoon(600);
+				return;
+			}
+
+			ui.addNotification(null, E('p', _('Configuration saved. Restarting service and waiting for first sync...')), 'info');
+			return callServiceRestart().then(utils.requireSuccess).then(function() {
+				return utils.waitForServiceReady(callStatus);
+			}).then(function(status) {
+				if (status && status.last_result === 'starting')
+					ui.addNotification(null, E('p', _('Service restart completed, but the first sync is still starting. Refreshing current status.')), 'warning');
+				else
+					ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
+				utils.reloadSoon(300);
+			});
+		}).catch(function(e) {
+			ui.addNotification(null, E('p', _('Failed to apply configuration: ') + e.message), 'error');
+		});
 	}
 });
