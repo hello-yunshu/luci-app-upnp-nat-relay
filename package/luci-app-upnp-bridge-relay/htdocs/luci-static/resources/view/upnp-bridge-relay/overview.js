@@ -4,7 +4,7 @@
 'require rpc';
 'require uci';
 'require form';
-'require upnp-bridge-relay/utils';
+'require upnp-bridge-relay/utils as utils';
 
 var callStatus = rpc.declare({
 	object: 'upnp_bridge_relay',
@@ -246,12 +246,12 @@ return view.extend({
 			'click': function() {
 				var btn = this;
 				utils.setBusy(btn, _('Loading...'));
-				return callServiceRestart().then(requireSuccess).then(function() {
-					ui.addNotification(null, E('p', _('Service restarted.')), 'info');
-					utils.reloadSoon();
-				}).catch(function(e) {
-					ui.addNotification(null, E('p', _('Failed to restart service: ') + e.message), 'error');
-					utils.resetBusy(btn);
+			return callServiceRestart().then(requireSuccess).then(function() {
+				ui.addNotification(null, E('p', _('Service restarted.')), 'info');
+				utils.reloadSoon();
+			}).catch(function(e) {
+				ui.addNotification(null, E('p', _('Failed to restart service: ') + e.message), 'error');
+				utils.resetBusy(btn);
 				});
 			}
 		}, '\u21BB ' + _('Restart')));

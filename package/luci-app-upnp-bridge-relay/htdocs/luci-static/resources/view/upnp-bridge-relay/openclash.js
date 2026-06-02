@@ -23,6 +23,12 @@ var callSetupOpenclash = rpc.declare({
 	expect: { '': {} }
 });
 
+var callRestartOpenclash = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'restart-openclash',
+	expect: { '': {} }
+});
+
 var callRemoveOpenclashRule = rpc.declare({
 	object: 'upnp_bridge_relay',
 	method: 'remove-openclash-rule',
@@ -345,6 +351,33 @@ return view.extend({
 				ui.addNotification(null, E('p', _('Plugin rule removed from OpenClash.')), 'info');
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Failed to remove rule: ') + e.message), 'error');
+			});
+		};
+
+		o = s.option(form.Button, '_restart_oc', _('Restart OpenClash'));
+		o.inputtitle = _('Restart OpenClash');
+		o.inputstyle = 'apply';
+		o.onclick = function() {
+			return callRestartOpenclash().then(function(result) {
+				var msg;
+				if (result && result.restarted) {
+					msg = _('OpenClash restarted successfully.');
+					ui.addNotification(null, E('p', msg), 'info');
+				} else if (result && result.error === 'core_not_running_after_restart') {
+					msg = _('OpenClash restart command completed, but the core process was not detected after 30 seconds.');
+					ui.addNotification(null, E('p', msg), 'warning');
+				} else if (result && result.error === 'init_script_not_found') {
+					msg = _('OpenClash init script was not found.');
+					ui.addNotification(null, E('p', msg), 'error');
+				} else if (result && result.error === 'init_restart_failed') {
+					msg = _('OpenClash init restart failed.');
+					ui.addNotification(null, E('p', msg), 'error');
+				} else {
+					msg = _('OpenClash restart failed: ') + ((result && result.error) || 'unknown');
+					ui.addNotification(null, E('p', msg), 'error');
+				}
+			}).catch(function(e) {
+				ui.addNotification(null, E('p', _('Failed to restart OpenClash: ') + e.message), 'error');
 			});
 		};
 

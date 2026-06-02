@@ -8,10 +8,16 @@ STATUS_DIR="/tmp/upnp_bridge_relay"
 STATUS_FILE="${STATUS_DIR}/status.json"
 ENV_CACHE_FILE="${STATUS_DIR}/env_cache.json"
 NETWORK_CACHE_FILE="${STATUS_DIR}/network_cache.json"
-OPENCLASH_SUGGESTION_CACHE="${STATUS_DIR}/openclash_suggestion_cache.json"
-OPENCLASH_PER_MAPPING_CACHE="${STATUS_DIR}/oc_per_mapping_cache.v2.txt"
 RESOURCES_DIR="/etc/upnp_bridge_relay"
 RESOURCES_FILE="${RESOURCES_DIR}/resources.txt"
+CACHE_DIR="${RESOURCES_DIR}/cache"
+OPENCLASH_SUGGESTION_CACHE="${CACHE_DIR}/openclash_suggestion_cache.json"
+OPENCLASH_PER_MAPPING_CACHE="${CACHE_DIR}/oc_per_mapping_cache.v2.txt"
+GENERATED_ACCEPT_CACHE="${CACHE_DIR}/generated_accept.v1.txt"
+GENERATED_REJECT_CACHE="${CACHE_DIR}/generated_reject.v1.txt"
+GENERATED_CACHE_META="${CACHE_DIR}/generated_mapping_cache.v1.meta"
+NFT_APPLIED_CACHE="${CACHE_DIR}/nft_applied_fingerprint.v1.txt"
+CACHE_TTL_SECONDS=300
 LOCK_FILE="/tmp/upnp_bridge_relay.lock"
 OPENCLASH_BACKUP="/etc/config/openclash.bak.upnp_bridge_relay"
 
@@ -75,6 +81,7 @@ get_timestamp() {
 ensure_dirs() {
     mkdir -p "${STATUS_DIR}" 2>/dev/null
     mkdir -p "${RESOURCES_DIR}" 2>/dev/null
+    mkdir -p "${CACHE_DIR}" 2>/dev/null
 }
 
 detect_openwrt_version() {
@@ -592,6 +599,108 @@ read_resources() {
     fi
 }
 
+cache_signature() {
+    {
+        printf 'bind_ip=%s\n' "${cfg_bind_ip}"
+        printf 'downstream_wan_ip=%s\n' "${cfg_downstream_wan_ip}"
+        printf 'upstream_wan_if=%s\n' "${cfg_upstream_wan_if}"
+        printf 'downstream_lan_subnet=%s\n' "${cfg_downstream_lan_subnet}"
+        printf 'allowed_external_ports=%s\n' "${cfg_allowed_external_ports}"
+        printf 'protocols=%s\n' "${cfg_protocols}"
+        printf 'deny_ports=%s\n' "${cfg_deny_ports}"
+        printf 'deny_low_ports=%s\n' "${cfg_deny_low_ports}"
+        printf 'restrict_to_subnet=%s\n' "${cfg_restrict_to_subnet}"
+        printf 'deny_empty_description=%s\n' "${cfg_deny_empty_description}"
+        printf 'openclash_return_strategy=%s\n' "${cfg_openclash_return_strategy}"
+        printf 'openclash_rule_remark=%s\n' "${cfg_openclash_rule_remark}"
+    } | cksum | awk '{print $1}'
+}
+
+cache_epoch() {
+    date '+%s' 2>/dev/null || printf '0'
+}
+
+cache_number() {
+    case "$1" in
+        ''|*[!0-9]*)
+            return 1
+            ;;
+    esac
+    return 0
+}
+
+generated_mapping_cache_valid() {
+    [ -f "${GENERATED_ACCEPT_CACHE}" ] || return 1
+    [ -f "${GENERATED_CACHE_META}" ] || return 1
+
+    _gcv_sig="$(sed -n 's/^signature=//p' "${GENERATED_CACHE_META}" 2>/dev/null | head -1)"
+    _gcv_now_sig="$(cache_signature)"
+    [ "$_gcv_sig" = "$_gcv_now_sig" ] || return 1
+
+    _gcv_updated="$(sed -n 's/^updated_epoch=//p' "${GENERATED_CACHE_META}" 2>/dev/null | head -1)"
+    cache_number "$_gcv_updated" || return 1
+    _gcv_now="$(cache_epoch)"
+    cache_number "$_gcv_now" || return 1
+
+    [ $((_gcv_now - _gcv_updated)) -le "${CACHE_TTL_SECONDS}" ] 2>/dev/null || return 1
+    return 0
+}
+
+write_generated_mapping_cache() {
+    _wgmc_accept="$1"
+    _wgmc_reject="$2"
+
+    ensure_dirs
+
+    if [ -f "$_wgmc_accept" ]; then
+        cp "$_wgmc_accept" "${GENERATED_ACCEPT_CACHE}.tmp" 2>/dev/null && mv "${GENERATED_ACCEPT_CACHE}.tmp" "${GENERATED_ACCEPT_CACHE}" 2>/dev/null || return 0
+    else
+        return 0
+    fi
+    if [ -f "$_wgmc_reject" ]; then
+        cp "$_wgmc_reject" "${GENERATED_REJECT_CACHE}.tmp" 2>/dev/null && mv "${GENERATED_REJECT_CACHE}.tmp" "${GENERATED_REJECT_CACHE}" 2>/dev/null
+    fi
+
+    _wgmc_epoch="$(cache_epoch)"
+    {
+        printf 'signature=%s\n' "$(cache_signature)"
+        printf 'updated_epoch=%s\n' "$_wgmc_epoch"
+        printf 'updated_at=%s\n' "$(get_timestamp)"
+        printf 'ttl_seconds=%s\n' "${CACHE_TTL_SECONDS}"
+    } > "${GENERATED_CACHE_META}.tmp"
+    mv "${GENERATED_CACHE_META}.tmp" "${GENERATED_CACHE_META}" 2>/dev/null
+}
+
+accepted_mapping_fingerprint() {
+    _amf_file="$1"
+
+    if [ ! -f "$_amf_file" ]; then
+        return 0
+    fi
+
+    while IFS='|' read -r _amf_act _amf_proto _amf_ext_port _amf_int_ip _amf_int_port _amf_desc; do
+        [ "$_amf_act" = "ACCEPT" ] || continue
+        printf '%s|%s|%s\n' \
+            "$(printf '%s' "$_amf_proto" | awk '{print tolower($0)}')" \
+            "$_amf_ext_port" \
+            "${cfg_downstream_wan_ip}:${cfg_upstream_wan_if}"
+    done < "$_amf_file" | sort
+}
+
+remove_rule_caches() {
+    rm -f \
+        "${STATUS_DIR}/openclash_suggestion_cache.json" \
+        "${STATUS_DIR}/oc_per_mapping_cache.txt" \
+        "${STATUS_DIR}/oc_per_mapping_cache.v2.txt" \
+        "${OPENCLASH_SUGGESTION_CACHE}" \
+        "${OPENCLASH_PER_MAPPING_CACHE}" \
+        "${GENERATED_ACCEPT_CACHE}" \
+        "${GENERATED_REJECT_CACHE}" \
+        "${GENERATED_CACHE_META}" \
+        "${NFT_APPLIED_CACHE}" \
+        2>/dev/null
+}
+
 openclash_detect() {
     _od_installed=0
     _od_running=0
@@ -810,6 +919,8 @@ openclash_write_suggestion_cache() {
 openclash_read_suggestion_cache() {
     if [ -f "${OPENCLASH_SUGGESTION_CACHE}" ]; then
         cat "${OPENCLASH_SUGGESTION_CACHE}"
+    elif [ -f "${STATUS_DIR}/openclash_suggestion_cache.json" ]; then
+        cat "${STATUS_DIR}/openclash_suggestion_cache.json"
     else
         printf '{"cached":false,"updated_at":"","openclash_suggestion":{}}\n'
     fi
@@ -834,7 +945,7 @@ openclash_apply() {
     fi
     uci commit openclash
 
-    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
+    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${STATUS_DIR}/oc_per_mapping_cache.v2.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
 
     write_resource "openclash_rule" "${cfg_openclash_rule_remark}"
 
@@ -851,7 +962,7 @@ openclash_rollback() {
     if [ -f "${OPENCLASH_BACKUP}" ]; then
         cp "${OPENCLASH_BACKUP}" /etc/config/openclash 2>/dev/null
         rm -f "${OPENCLASH_BACKUP}" 2>/dev/null
-        rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
+        rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${STATUS_DIR}/oc_per_mapping_cache.v2.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
         printf '{"removed":1,"method":"backup_restored"}\n'
         return 0
     fi
@@ -862,26 +973,28 @@ openclash_rollback() {
         uci commit openclash 2>/dev/null
     fi
 
-    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
+    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${STATUS_DIR}/oc_per_mapping_cache.v2.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
 
     printf '{"removed":%d}\n' "$_or_removed"
 }
 
 openclash_restart_service() {
+    _ors_mode="${1:-auto}"
+
     if [ ! -x /etc/init.d/openclash ]; then
         log_warn "OpenClash init script not found, cannot restart"
         printf '{"restarted":false,"error":"init_script_not_found"}\n'
         return 1
     fi
 
-    if ! /etc/init.d/openclash status >/dev/null 2>&1; then
+    if [ "$_ors_mode" != "force" ] && ! /etc/init.d/openclash status >/dev/null 2>&1; then
         log_info "OpenClash is not running, skipping restart (config will take effect on next start)"
         printf '{"restarted":false,"error":"not_running"}\n'
         return 0
     fi
 
     _ors_enable="$(uci -q get openclash.config.enable 2>/dev/null)"
-    if [ "${_ors_enable}" = "0" ]; then
+    if [ "$_ors_mode" != "force" ] && [ "${_ors_enable}" = "0" ]; then
         log_info "OpenClash is disabled (enable=0), skipping restart to avoid interfering with other tools"
         printf '{"restarted":false,"error":"disabled_by_other_tool"}\n'
         return 0
@@ -889,7 +1002,11 @@ openclash_restart_service() {
 
     log_info "Restarting OpenClash service..."
 
-    /etc/init.d/openclash restart >/dev/null 2>&1
+    if ! /etc/init.d/openclash restart >/dev/null 2>&1; then
+        log_warn "OpenClash init restart failed"
+        printf '{"restarted":false,"error":"init_restart_failed"}\n'
+        return 1
+    fi
 
     _ors_i=0
     while [ "$_ors_i" -lt 30 ]; do
@@ -905,6 +1022,11 @@ openclash_restart_service() {
     log_warn "OpenClash core not running after 30s (start_fail may have been triggered)"
     printf '{"restarted":false,"error":"core_not_running_after_restart"}\n'
     return 1
+}
+
+do_restart_openclash() {
+    load_config
+    openclash_restart_service force
 }
 
 openclash_per_mapping_remark() {
@@ -1253,8 +1375,13 @@ do_check_network() {
 }
 
 do_sync() {
+    _s_clear_cache="${1:-0}"
     load_config
     ensure_dirs
+
+    if [ "$_s_clear_cache" = "1" ]; then
+        remove_rule_caches
+    fi
 
     if [ -z "${cfg_bind_ip}" ] || [ -z "${cfg_downstream_wan_ip}" ] || [ -z "${cfg_upstream_wan_if}" ]; then
         _s_missing=""
@@ -1429,6 +1556,8 @@ do_sync() {
     fi
     _s_rejected_json="$_ja"
 
+    write_generated_mapping_cache "$_s_accept_file" "$_s_reject_file"
+
     if [ "${cfg_dry_run}" = "1" ]; then
         log_info "Dry run mode enabled, skipping nft rule creation"
         _s_failure_count=0
@@ -1444,27 +1573,46 @@ do_sync() {
         _sync_cleanup; trap - EXIT; return 0
     fi
 
-    if ! nft_ensure_table; then
-        _s_last_error="Failed to ensure nft table"
-        log_err "Sync failed: $_s_last_error"
-        write_status "$_s_daemon_running" "$_s_timestamp" "failed" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" 0 "" "" "$_s_last_error"
-        printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
-        _sync_cleanup; trap - EXIT; return 1
+    _s_nft_fail=0
+    _s_nft_action="updated"
+    _s_accept_fingerprint="$(accepted_mapping_fingerprint "$_s_accept_file")"
+    _s_old_accept_fingerprint=""
+    if [ -f "${NFT_APPLIED_CACHE}" ]; then
+        _s_old_accept_fingerprint="$(cat "${NFT_APPLIED_CACHE}" 2>/dev/null)"
     fi
 
-    nft_flush_chain
+    if [ "$_s_accept_fingerprint" = "$_s_old_accept_fingerprint" ] && \
+       nft_table_exists && nft list chain inet ${NFT_TABLE_NAME} ${NFT_CHAIN} >/dev/null 2>&1; then
+        _s_nft_action="unchanged"
+        log_info "DNAT rules unchanged; skipping nft rebuild"
+    else
+        if ! nft_ensure_table; then
+            _s_last_error="Failed to ensure nft table"
+            log_err "Sync failed: $_s_last_error"
+            write_status "$_s_daemon_running" "$_s_timestamp" "failed" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" 0 "" "" "$_s_last_error"
+            printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
+            _sync_cleanup; trap - EXIT; return 1
+        fi
 
-    _s_nft_fail=0
-    if [ -f "$_s_accept_file" ]; then
-        while IFS='|' read -r _s_act _s_proto _s_ext_port _s_int_ip _s_int_port _s_desc; do
-            [ "$_s_act" != "ACCEPT" ] && continue
-            if ! nft_add_dnat_rule "$_s_proto" "$_s_ext_port" "${cfg_downstream_wan_ip}" "$_s_ext_port" "${cfg_upstream_wan_if}"; then
-                log_warn "Failed to add nft rule: ${_s_proto} ${_s_ext_port} -> ${cfg_downstream_wan_ip}:${_s_ext_port}"
-                _s_nft_fail=$((_s_nft_fail + 1))
-            else
-                log_info "Added DNAT: ${_s_proto} ${_s_ext_port} -> ${cfg_downstream_wan_ip}:${_s_ext_port}"
-            fi
-        done < "$_s_accept_file"
+        nft_flush_chain
+
+        if [ -f "$_s_accept_file" ]; then
+            while IFS='|' read -r _s_act _s_proto _s_ext_port _s_int_ip _s_int_port _s_desc; do
+                [ "$_s_act" != "ACCEPT" ] && continue
+                if ! nft_add_dnat_rule "$_s_proto" "$_s_ext_port" "${cfg_downstream_wan_ip}" "$_s_ext_port" "${cfg_upstream_wan_if}"; then
+                    log_warn "Failed to add nft rule: ${_s_proto} ${_s_ext_port} -> ${cfg_downstream_wan_ip}:${_s_ext_port}"
+                    _s_nft_fail=$((_s_nft_fail + 1))
+                else
+                    log_info "Added DNAT: ${_s_proto} ${_s_ext_port} -> ${cfg_downstream_wan_ip}:${_s_ext_port}"
+                fi
+            done < "$_s_accept_file"
+        fi
+
+        if [ "$_s_nft_fail" -eq 0 ]; then
+            printf '%s' "$_s_accept_fingerprint" > "${NFT_APPLIED_CACHE}"
+        else
+            rm -f "${NFT_APPLIED_CACHE}" 2>/dev/null
+        fi
     fi
 
     if [ "${cfg_openclash_mode}" = "auto" ] && [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
@@ -1485,7 +1633,7 @@ do_sync() {
     fi
     write_status "$_s_daemon_running" "$_s_timestamp" "$_s_sync_status" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" "$_s_last_error"
 
-    log_info "Sync completed: read=${_s_read_count}, accepted=${_s_accepted_count}, rejected=${_s_rejected_count}"
+    log_info "Sync completed: read=${_s_read_count}, accepted=${_s_accepted_count}, rejected=${_s_rejected_count}, nft=${_s_nft_action}"
 
     if [ "$_s_nft_fail" -gt 0 ]; then
         printf '{"success":false,"error":"%s","timestamp":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"accepted":[%s],"rejected":[%s]}\n' \
@@ -1667,6 +1815,8 @@ do_dry_run() {
         openclash_write_suggestion_cache "$_dr_oc_suggestion"
     fi
 
+    write_generated_mapping_cache "$_dr_accept_file" "$_dr_reject_file"
+
     printf '{"success":true,"read_mappings":[%s],"accepted":[%s],"rejected":[%s],"nft_commands":[%s],"openclash_suggestion":%s}\n' \
         "$_dr_read_json" \
         "$_dr_accepted_json" \
@@ -1677,11 +1827,15 @@ do_dry_run() {
 }
 
 do_generate_openclash_rule() {
+    load_config
+    ensure_dirs
+    remove_rule_caches
     do_dry_run 1
 }
 
 do_clear() {
     if nft_delete_table; then
+        rm -f "${NFT_APPLIED_CACHE}" 2>/dev/null
         log_info "Cleared nft table ${NFT_TABLE_NAME}"
         if ! is_daemon_running; then
             write_status "false" "$(get_timestamp)" "cleared" "${cfg_backend:-unknown}" 0 0 0 0 "" "" ""
@@ -1897,61 +2051,82 @@ do_setup_openclash() {
             printf '{"success":false,"error":"bind_ip not configured"}\n'
             return 1
         fi
-        if ! command -v upnpc >/dev/null 2>&1; then
-            printf '{"success":false,"error":"upnpc not found"}\n'
-            return 1
-        fi
 
-        _so_upnpc_output="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>&1)"
-        if [ -z "$_so_upnpc_output" ]; then
-            printf '{"success":false,"error":"upnpc_read_failed"}\n'
-            return 1
-        fi
+        _so_cache_used=0
+        _so_accept_file=""
 
         ensure_dirs
-        _so_parsed_file="${STATUS_DIR}/_setup_oc_parsed.tmp"
-        _so_accept_file="${STATUS_DIR}/_setup_oc_accept.tmp"
-        : > "$_so_accept_file"
-
-        parse_upnpc_to_file "$_so_upnpc_output" "$_so_parsed_file"
-
-        _so_ruleset="$(nft list ruleset 2>/dev/null)"
-
-        while IFS='|' read -r _so_type _so_data1 _so_data2 _so_data3 _so_data4 _so_data5 _so_data6; do
-            if [ "$_so_type" != "MAPPING" ]; then
-                continue
+        if generated_mapping_cache_valid; then
+            _so_accept_file="${GENERATED_ACCEPT_CACHE}"
+            _so_cache_used=1
+            log_info "Using cached generated mappings for OpenClash apply"
+        else
+            if ! command -v upnpc >/dev/null 2>&1; then
+                printf '{"success":false,"error":"upnpc not found"}\n'
+                return 1
             fi
-            _so_proto="$_so_data1"
-            _so_ext_port="$_so_data2"
-            _so_int_ip="$_so_data3"
-            _so_int_port="$_so_data4"
-            _so_desc="$_so_data5"
 
-            _so_filter_result="$(filter_mapping "$_so_proto" "$_so_ext_port" "$_so_int_ip" "$_so_int_port" "$_so_desc")"
-            _so_action="$(echo "$_so_filter_result" | cut -d'|' -f1)"
+            _so_upnpc_output="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>&1)"
+            if [ -z "$_so_upnpc_output" ]; then
+                printf '{"success":false,"error":"upnpc_read_failed"}\n'
+                return 1
+            fi
 
-            if [ "$_so_action" = "accept" ]; then
-                _so_conflict="$(check_port_conflict_single "$_so_proto" "$_so_ext_port" "$_so_ruleset")"
-                if [ -n "$_so_conflict" ]; then
-                    _so_action="reject"
+            _so_parsed_file="${STATUS_DIR}/_setup_oc_parsed.tmp"
+            _so_accept_file="${STATUS_DIR}/_setup_oc_accept.tmp"
+            _so_reject_file="${STATUS_DIR}/_setup_oc_reject.tmp"
+            : > "$_so_accept_file"
+            : > "$_so_reject_file"
+
+            parse_upnpc_to_file "$_so_upnpc_output" "$_so_parsed_file"
+
+            _so_ruleset="$(nft list ruleset 2>/dev/null)"
+
+            while IFS='|' read -r _so_type _so_data1 _so_data2 _so_data3 _so_data4 _so_data5 _so_data6; do
+                if [ "$_so_type" != "MAPPING" ]; then
+                    continue
                 fi
-            fi
+                _so_proto="$_so_data1"
+                _so_ext_port="$_so_data2"
+                _so_int_ip="$_so_data3"
+                _so_int_port="$_so_data4"
+                _so_desc="$_so_data5"
 
-            if [ "$_so_action" = "accept" ]; then
-                _so_uci_conflict="$(check_uci_redirect_conflict "$_so_proto" "$_so_ext_port")"
-                if [ -n "$_so_uci_conflict" ]; then
-                    _so_action="reject"
+                _so_filter_result="$(filter_mapping "$_so_proto" "$_so_ext_port" "$_so_int_ip" "$_so_int_port" "$_so_desc")"
+                _so_action="$(echo "$_so_filter_result" | cut -d'|' -f1)"
+                _so_reason="$(echo "$_so_filter_result" | cut -d'|' -f2-)"
+
+                if [ "$_so_action" = "accept" ]; then
+                    _so_conflict="$(check_port_conflict_single "$_so_proto" "$_so_ext_port" "$_so_ruleset")"
+                    if [ -n "$_so_conflict" ]; then
+                        _so_action="reject"
+                        _so_reason="port_conflict:${_so_conflict}"
+                    fi
                 fi
-            fi
 
-            if [ "$_so_action" = "accept" ]; then
-                printf 'ACCEPT|%s|%s|%s|%s|%s\n' "$_so_proto" "$_so_ext_port" "$_so_int_ip" "$_so_int_port" "$_so_desc" >> "$_so_accept_file"
-            fi
-        done < "$_so_parsed_file"
-        rm -f "$_so_parsed_file"
+                if [ "$_so_action" = "accept" ]; then
+                    _so_uci_conflict="$(check_uci_redirect_conflict "$_so_proto" "$_so_ext_port")"
+                    if [ -n "$_so_uci_conflict" ]; then
+                        _so_action="reject"
+                        _so_reason="port_conflict:${_so_uci_conflict}"
+                    fi
+                fi
+
+                if [ "$_so_action" = "accept" ]; then
+                    printf 'ACCEPT|%s|%s|%s|%s|%s\n' "$_so_proto" "$_so_ext_port" "$_so_int_ip" "$_so_int_port" "$_so_desc" >> "$_so_accept_file"
+                else
+                    printf 'REJECT|%s|%s|%s|%s|%s|%s\n' "$_so_proto" "$_so_ext_port" "$_so_int_ip" "$_so_int_port" "$_so_desc" "$_so_reason" >> "$_so_reject_file"
+                fi
+            done < "$_so_parsed_file"
+            rm -f "$_so_parsed_file"
+
+            write_generated_mapping_cache "$_so_accept_file" "$_so_reject_file"
+        fi
 
         _so_result="$(openclash_sync_per_mapping "$_so_accept_file")"
-        rm -f "$_so_accept_file"
+        if [ "$_so_cache_used" -eq 0 ]; then
+            rm -f "$_so_accept_file" "$_so_reject_file" 2>/dev/null
+        fi
 
         printf '%s\n' "$_so_result"
 
@@ -2041,7 +2216,7 @@ do_rollback() {
 
     if [ -z "$_rb_errors" ]; then
         rm -f "${RESOURCES_FILE}" 2>/dev/null
-        rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" 2>/dev/null
+        remove_rule_caches
         printf '{"success":true}\n'
     else
         printf '{"success":true,"warnings":"%s"}\n' "$(json_escape "$_rb_errors")"
@@ -2103,9 +2278,10 @@ case "$1" in
         read_network_cache
         ;;
     --sync)
-        do_sync
+        do_sync 1
         ;;
     --dry-run)
+        remove_rule_caches
         do_dry_run
         ;;
     --generate-openclash-rule)
@@ -2136,6 +2312,9 @@ case "$1" in
     --setup-openclash)
         do_setup_openclash
         ;;
+    --restart-openclash)
+        do_restart_openclash
+        ;;
     --remove-openclash-rule)
         do_remove_openclash_rule
         ;;
@@ -2152,7 +2331,7 @@ case "$1" in
         do_daemon
         ;;
     *)
-        printf 'Usage: %s {--check-env|--check-network|--network-cache|--sync|--dry-run|--generate-openclash-rule|--openclash-rule-cache|--clear|--status|--refresh-env|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--remove-openclash-rule|--rollback|--read-log|--clear-log|--daemon}\n' "$0"
+        printf 'Usage: %s {--check-env|--check-network|--network-cache|--sync|--dry-run|--generate-openclash-rule|--openclash-rule-cache|--clear|--status|--refresh-env|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--restart-openclash|--remove-openclash-rule|--rollback|--read-log|--clear-log|--daemon}\n' "$0"
         exit 1
         ;;
 esac
