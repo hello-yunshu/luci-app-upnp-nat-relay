@@ -1356,8 +1356,11 @@ msgstr "自动配置防火墙区域"
 msgid "Allow automatic setup flows to create or repair the independent firewall zone before testing."
 msgstr "允许自动设置流程在测试前创建或修复独立防火墙区域。"
 
-msgid "Restart OpenClash automatically after writing RETURN rules."
-msgstr "写入 RETURN 规则后自动重启 OpenClash。"
+msgid "Automatically restart OpenClash service after writing rules so changes take effect immediately."
+msgstr "写入规则后自动重启 OpenClash 服务，使更改立即生效。"
+
+msgid "Restart OpenClash automatically after writing rules."
+msgstr "写入规则后自动重启 OpenClash。"
 
 msgid "Controls the verbosity of system log output."
 msgstr "控制系统日志输出的详细程度。"
