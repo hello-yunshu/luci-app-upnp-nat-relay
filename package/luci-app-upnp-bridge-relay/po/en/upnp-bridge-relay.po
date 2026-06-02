@@ -789,8 +789,8 @@ msgstr "Backup Before Write"
 msgid "Create a backup of OpenClash configuration before writing rules."
 msgstr "Create a backup of OpenClash configuration before writing rules."
 
-msgid "Auto Restart OpenClash"
-msgstr "Auto Restart OpenClash"
+msgid "Auto Restart OpenClash After Rule Write"
+msgstr "Auto Restart OpenClash After Rule Write"
 
 msgid "Automatically restart OpenClash service after writing rules so changes take effect immediately. Without this, you need to restart OpenClash manually."
 msgstr "Automatically restart OpenClash service after writing rules so changes take effect immediately. Without this, you need to restart OpenClash manually."
