@@ -90,6 +90,7 @@ case "$1" in
 	"setup-interface": {},
 	"fix-zone": {},
 	"setup-openclash": {},
+	"restart-openclash": {},
 	"remove-openclash-rule": {},
 	"rollback": {},
 	"version": {}
@@ -152,6 +153,9 @@ EOF
 				;;
 			setup-openclash)
 				"$UPNP_BRIDGE_RELAY_BIN" --setup-openclash 2>/dev/null
+				;;
+			restart-openclash)
+				"$UPNP_BRIDGE_RELAY_BIN" --restart-openclash 2>/dev/null || echo '{"restarted":false,"error":"restart_openclash_failed"}'
 				;;
 			remove-openclash-rule)
 				"$UPNP_BRIDGE_RELAY_BIN" --remove-openclash-rule 2>/dev/null

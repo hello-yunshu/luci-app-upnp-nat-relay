@@ -4,7 +4,7 @@
 'require rpc';
 'require uci';
 'require form';
-'require upnp-bridge-relay/utils';
+'require upnp-bridge-relay/utils as utils';
 
 var callCheckNetwork = rpc.declare({
 	object: 'upnp_bridge_relay',

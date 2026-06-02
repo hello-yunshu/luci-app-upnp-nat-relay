@@ -2,7 +2,7 @@
 'require view';
 'require ui';
 'require rpc';
-'require upnp-bridge-relay/utils';
+'require upnp-bridge-relay/utils as utils';
 
 var callStatus = rpc.declare({
 	object: 'upnp_bridge_relay',

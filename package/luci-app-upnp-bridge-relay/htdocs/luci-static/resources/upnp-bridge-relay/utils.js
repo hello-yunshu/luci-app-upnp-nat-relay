@@ -1,5 +1,6 @@
 'use strict';
 'require uci';
+'require baseclass';
 
 function safeApply() {
 	return uci.apply().catch(function(e) {
@@ -43,10 +44,10 @@ function loadSharedCSS() {
 	}
 }
 
-return {
+return baseclass.extend({
 	safeApply: safeApply,
 	setBusy: setBusy,
 	resetBusy: resetBusy,
 	reloadSoon: reloadSoon,
 	loadSharedCSS: loadSharedCSS
-};
+});
