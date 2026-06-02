@@ -795,9 +795,6 @@ msgstr "Auto Restart OpenClash"
 msgid "Automatically restart OpenClash service after writing rules so changes take effect immediately. Without this, you need to restart OpenClash manually."
 msgstr "Automatically restart OpenClash service after writing rules so changes take effect immediately. Without this, you need to restart OpenClash manually."
 
-msgid "Restart OpenClash automatically after writing rules."
-msgstr "Restart OpenClash automatically after writing rules."
-
 msgid "Backup Status"
 msgstr "Backup Status"
 
