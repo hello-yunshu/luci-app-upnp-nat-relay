@@ -45,16 +45,24 @@ log_err() {
 }
 
 json_escape() {
-    printf '%s' "$1" | sed \
-        -e 's/\\/\\\\/g' \
-        -e 's/"/\\"/g' \
-        -e 's/\t/\\t/g' \
-        -e 's/\r/\\r/g' \
-        -e 's/</\\u003c/g' \
-        -e 's/>/\\u003e/g' \
-        -e 's/&/\\u0026/g' \
-        -e 's/[\x00-\x08\x0b\x0c\x0e-\x1f]/\\ufffd/g' \
-    | awk 'BEGIN{ORS="\\n"}1' | sed 's/\\n$//'
+    printf '%s' "$1" | awk '
+        BEGIN {
+            ORS = ""
+            tab = sprintf("%c", 9)
+            cr = sprintf("%c", 13)
+        }
+        {
+            if (NR > 1)
+                printf "\\n"
+            gsub(/\\/, "\\\\")
+            gsub(/"/, "\\\"")
+            gsub(tab, "\\t")
+            gsub(cr, "\\r")
+            gsub(/</, "\\u003c")
+            gsub(/>/, "\\u003e")
+            gsub(/&/, "\\u0026")
+            printf "%s", $0
+        }'
 }
 
 _ja=""
@@ -247,24 +255,23 @@ ip_in_subnet() {
     if [ -z "$_pi_subnet" ]; then
         return 0
     fi
-    _pi_ip_int="$(printf '%s' "$_pi_ip" | awk -F. '{printf "%.0f",$1*16777216+$2*65536+$3*256+$4}')"
-    _pi_net_int="$(printf '%s' "$_pi_subnet" | awk -F'[/.]' '{printf "%.0f",$1*16777216+$2*65536+$3*256+$4}')"
-    _pi_cidr="$(printf '%s' "$_pi_subnet" | sed 's/.*\///')"
-    if [ -z "$_pi_cidr" ] || [ "$_pi_cidr" = "0" ]; then
-        return 0
-    fi
-    _pi_mask=0
-    _pi_i=0
-    while [ "$_pi_i" -lt "$_pi_cidr" ]; do
-        _pi_mask=$((_pi_mask * 2 + 1))
-        _pi_i=$((_pi_i + 1))
-    done
-    _pi_i=0
-    while [ "$_pi_i" -lt $((32 - _pi_cidr)) ]; do
-        _pi_mask=$((_pi_mask * 2))
-        _pi_i=$((_pi_i + 1))
-    done
-    [ $((_pi_ip_int & _pi_mask)) -eq $((_pi_net_int & _pi_mask)) ]
+    printf '%s\n%s\n' "$_pi_ip" "$_pi_subnet" | awk '
+        NR == 1 {
+            split($0, ip, ".")
+            ip_int = ip[1] * 16777216 + ip[2] * 65536 + ip[3] * 256 + ip[4]
+        }
+        NR == 2 {
+            split($0, subnet, "/")
+            cidr = subnet[2] + 0
+            if (subnet[2] == "" || cidr < 0 || cidr > 32)
+                exit 1
+            if (cidr == 0)
+                exit 0
+            split(subnet[1], net, ".")
+            net_int = net[1] * 16777216 + net[2] * 65536 + net[3] * 256 + net[4]
+            block = 2 ^ (32 - cidr)
+            exit (int(ip_int / block) == int(net_int / block)) ? 0 : 1
+        }'
 }
 
 protocol_allowed() {
@@ -575,9 +582,10 @@ write_resource() {
     ensure_dirs
 
     _wr_tmp="${RESOURCES_DIR}/resources.tmp"
-    grep -v "^${_wr_key}=" "${RESOURCES_FILE}" 2>/dev/null > "${_wr_tmp}"
-    printf '%s=%s\n' "$_wr_key" "$_wr_value" >> "${_wr_tmp}"
-    mv "${_wr_tmp}" "${RESOURCES_FILE}" 2>/dev/null
+    {
+        grep -v "^${_wr_key}=" "${RESOURCES_FILE}" 2>/dev/null
+        printf '%s=%s\n' "$_wr_key" "$_wr_value"
+    } 2>/dev/null > "${_wr_tmp}" && mv "${_wr_tmp}" "${RESOURCES_FILE}" 2>/dev/null
 }
 
 read_resource() {
@@ -662,13 +670,14 @@ write_generated_mapping_cache() {
     fi
 
     _wgmc_epoch="$(cache_epoch)"
-    {
+    if {
         printf 'signature=%s\n' "$(cache_signature)"
         printf 'updated_epoch=%s\n' "$_wgmc_epoch"
         printf 'updated_at=%s\n' "$(get_timestamp)"
         printf 'ttl_seconds=%s\n' "${CACHE_TTL_SECONDS}"
-    } > "${GENERATED_CACHE_META}.tmp"
-    mv "${GENERATED_CACHE_META}.tmp" "${GENERATED_CACHE_META}" 2>/dev/null
+    } 2>/dev/null > "${GENERATED_CACHE_META}.tmp"; then
+        mv "${GENERATED_CACHE_META}.tmp" "${GENERATED_CACHE_META}" 2>/dev/null
+    fi
 }
 
 accepted_mapping_fingerprint() {
@@ -913,7 +922,7 @@ openclash_write_suggestion_cache() {
     ensure_dirs
     printf '{"cached":true,"updated_at":"%s","openclash_suggestion":%s}\n' \
         "$(json_escape "$(get_timestamp)")" \
-        "$_owsc_suggestion" > "${OPENCLASH_SUGGESTION_CACHE}"
+        "$_owsc_suggestion" 2>/dev/null > "${OPENCLASH_SUGGESTION_CACHE}" || true
 }
 
 openclash_read_suggestion_cache() {
@@ -1158,7 +1167,7 @@ openclash_sync_per_mapping() {
 
     uci commit openclash
 
-    printf '%s' "$_ospm_new_fingerprint" > "$_ospm_cache_file"
+    printf '%s' "$_ospm_new_fingerprint" 2>/dev/null > "$_ospm_cache_file" || true
 
     write_resource "openclash_rule" "${cfg_openclash_rule_remark}"
 
@@ -1609,7 +1618,7 @@ do_sync() {
         fi
 
         if [ "$_s_nft_fail" -eq 0 ]; then
-            printf '%s' "$_s_accept_fingerprint" > "${NFT_APPLIED_CACHE}"
+            printf '%s' "$_s_accept_fingerprint" 2>/dev/null > "${NFT_APPLIED_CACHE}" || true
         else
             rm -f "${NFT_APPLIED_CACHE}" 2>/dev/null
         fi
@@ -1866,13 +1875,14 @@ do_full_status() {
 
     _dfs_extra=",${_dfs_env_inner}}"
 
-    _dfs_last_brace="$(printf '%s' "$_dfs_base" | sed -n 's/.*}/}/p' | tail -c 2)"
-    if [ "$_dfs_last_brace" = "}" ]; then
-        printf '%s' "$_dfs_base" | sed "s/}$/${_dfs_extra}/"
-        printf '\n'
-    else
-        printf '%s\n' "$_dfs_base"
-    fi
+    case "$_dfs_base" in
+        *})
+            printf '%s%s\n' "${_dfs_base%?}" "$_dfs_extra"
+            ;;
+        *)
+            printf '%s\n' "$_dfs_base"
+            ;;
+    esac
 }
 
 do_dump_mappings() {
@@ -2252,7 +2262,7 @@ do_read_log() {
         return 0
     fi
 
-    _rl_logs="$("$_rl_logread" 2>/dev/null | grep -E 'upnp-bridge-relay|upnp_bridge_relay' | tail -n 200)"
+    _rl_logs="$("$_rl_logread" 2>/dev/null | grep -E 'upnp-bridge-relay|upnp_bridge_relay' | tail -n 200 || true)"
     printf '{"success":true,"logs":"%s"}\n' "$(json_escape "$_rl_logs")"
 }
 
