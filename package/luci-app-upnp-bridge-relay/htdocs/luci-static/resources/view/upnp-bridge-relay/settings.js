@@ -61,7 +61,7 @@ return view.extend({
 		o.default = '0';
 
 		o = s.option(form.Flag, 'openclash_auto_restart', _('Auto Restart OpenClash'),
-			_('Restart OpenClash automatically after writing RETURN rules.'));
+			_('Restart OpenClash automatically after writing rules.'));
 		o.default = '0';
 
 		s = m.section(form.TypedSection, 'service', _('Logging'));
