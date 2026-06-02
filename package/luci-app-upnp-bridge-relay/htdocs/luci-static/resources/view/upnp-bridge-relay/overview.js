@@ -102,12 +102,16 @@ var css = `
 	}
 	.ubr-status-banner.running { border-left: 5px solid var(--success-color, #3aa657); }
 	.ubr-status-banner.stopped { border-left: 5px solid var(--warning-color, #d89b00); }
+	.ubr-status-banner.starting { border-left: 5px solid var(--warning-color, #d89b00); }
 	.ubr-status-icon { font-size: 2.5em; line-height: 1; }
 	.ubr-status-icon.running { color: var(--success-color, #3aa657); }
 	.ubr-status-icon.stopped { color: var(--warning-color, #d89b00); }
+	.ubr-status-icon.starting { color: var(--warning-color, #d89b00); animation: ubr-pulse 1.5s ease-in-out infinite; }
 	.ubr-status-text h3 { margin: 0 0 0.2em 0; font-size: 1.3em; }
 	.ubr-status-text h3.running { color: var(--success-color, #3aa657); }
 	.ubr-status-text h3.stopped { color: var(--warning-color, #d89b00); }
+	.ubr-status-text h3.starting { color: var(--warning-color, #d89b00); }
+	@keyframes ubr-pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
 	.ubr-status-text p { margin: 0; color: var(--subtext-color, #666); font-size: 0.9em; }
 	.ubr-stats-grid {
 		display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -160,20 +164,46 @@ return view.extend({
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Overview')));
 
-			var banner = E('div', {
-				'class': 'cbi-section ubr-status-banner ' + (running ? 'running' : 'stopped')
-			});
+		var isStarting = running && lastResult === 'starting';
+		var banner = E('div', {
+			'class': 'cbi-section ubr-status-banner ' + (isStarting ? 'starting' : (running ? 'running' : 'stopped'))
+		});
 		banner.appendChild(E('div', {
-			'class': 'ubr-status-icon ' + (running ? 'running' : 'stopped')
-		}, running ? '\u25CF' : '\u25CB'));
+			'class': 'ubr-status-icon ' + (isStarting ? 'starting' : (running ? 'running' : 'stopped'))
+		}, isStarting ? '\u23F3' : (running ? '\u25CF' : '\u25CB')));
 		var bannerText = E('div', { 'class': 'ubr-status-text' });
-		bannerText.appendChild(E('h3', { 'class': running ? 'running' : 'stopped' },
-			running ? _('Service Running') : _('Service Stopped')));
-		bannerText.appendChild(E('p', {}, running ?
-			_('UPnP Bridge Relay is active and syncing mappings.') :
-			_('UPnP Bridge Relay is not running. Click Start to begin.')));
+		bannerText.appendChild(E('h3', { 'class': isStarting ? 'starting' : (running ? 'running' : 'stopped') },
+			isStarting ? _('Service Starting') : (running ? _('Service Running') : _('Service Stopped'))));
+		bannerText.appendChild(E('p', {}, isStarting ?
+			_('UPnP Bridge Relay is starting up. Waiting for first sync...') :
+			(running ?
+				_('UPnP Bridge Relay is active and syncing mappings.') :
+				_('UPnP Bridge Relay is not running. Click Start to begin.'))));
 		banner.appendChild(bannerText);
 		container.appendChild(banner);
+
+		if (isStarting) {
+			var pollTimer = window.setInterval(function() {
+				if (!container.isConnected) {
+					window.clearInterval(pollTimer);
+					return;
+				}
+				callStatus().then(function(s) {
+					if (!container.isConnected) {
+						window.clearInterval(pollTimer);
+						return;
+					}
+					s = s || {};
+					if (s.last_result !== 'starting') {
+						window.clearInterval(pollTimer);
+						utils.reloadSoon(300);
+					}
+				}).catch(function() {
+					if (!container.isConnected)
+						window.clearInterval(pollTimer);
+				});
+			}, 3000);
+		}
 
 		var statsGrid = E('div', { 'class': 'ubr-stats-grid' });
 
@@ -344,7 +374,9 @@ return view.extend({
 		]));
 
 		var lastResultBadge;
-		if (lastResult === 'success' || lastResult.indexOf('success') === 0) {
+		if (lastResult === 'starting') {
+			lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u23F3 ' + _('Starting'));
+		} else if (lastResult === 'success' || lastResult.indexOf('success') === 0) {
 			lastResultBadge = E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + lastResult);
 		} else if (lastResult === '-') {
 			lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + '-');

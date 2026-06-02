@@ -1174,6 +1174,15 @@ msgstr ""
 msgid "Service Running"
 msgstr ""
 
+msgid "Service Starting"
+msgstr ""
+
+msgid "Starting"
+msgstr ""
+
+msgid "UPnP Bridge Relay is starting up. Waiting for first sync..."
+msgstr ""
+
 msgid "Service Stopped"
 msgstr ""
 
