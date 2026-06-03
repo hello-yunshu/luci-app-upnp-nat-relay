@@ -4,6 +4,7 @@
 'require rpc';
 'require uci';
 'require form';
+'require upnp-bridge-relay/utils as utils';
 
 var callStatus = rpc.declare({
 	object: 'upnp_bridge_relay',
@@ -407,6 +408,9 @@ return view.extend({
 			});
 		};
 
-		return m.render();
+		return utils.renderWithFooter(m.render(), {
+			project: 'UPnP Bridge Relay',
+			repoUrl: 'https://github.com/hello-yunshu/upnp-bridge-relay'
+		});
 	}
 });

@@ -4,6 +4,7 @@
 'require rpc';
 'require uci';
 'require form';
+'require upnp-bridge-relay/utils as utils';
 
 var css = `
 	.ubr-security textarea {
@@ -148,7 +149,10 @@ return view.extend({
 		return m.render().then(function(node) {
 			node.classList.add('ubr-security');
 			node.insertBefore(E('style', {}, css), node.firstChild);
-			return node;
+			return utils.appendFooter(node, {
+				project: 'UPnP Bridge Relay',
+				repoUrl: 'https://github.com/hello-yunshu/upnp-bridge-relay'
+			});
 		});
 	}
 });
