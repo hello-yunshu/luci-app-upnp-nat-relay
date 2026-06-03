@@ -4,6 +4,8 @@ SCRIPT_VERSION="@PKG_VERSION@"
 UCI_CONFIG="upnp_bridge_relay"
 NFT_TABLE_NAME="upnp_bridge_relay"
 NFT_CHAIN="prerouting"
+NFT_RULE_COMMENT="upnp_bridge_relay_dnat"
+OPENCLASH_RULE_COMMENT="upnp_bridge_relay_openclash"
 STATUS_DIR="/tmp/upnp_bridge_relay"
 STATUS_FILE="${STATUS_DIR}/status.json"
 ENV_CACHE_FILE="${STATUS_DIR}/env_cache.json"
@@ -399,6 +401,9 @@ check_port_conflict_single() {
             table\ *)
                 _cpc_current_table="$(echo "$_cpc_line" | awk '{print $3}')"
                 ;;
+            *"comment \"${NFT_RULE_COMMENT}\""*|*"comment ${NFT_RULE_COMMENT}"*)
+                continue
+                ;;
         esac
         _cpc_line_lower="$(echo "$_cpc_line" | tr 'A-Z' 'a-z')"
         # Skip rules from our own table
@@ -534,7 +539,7 @@ nft_add_dnat_rule() {
     _nr_iface="$5"
 
     _nr_proto_lower="$(echo "$_nr_proto" | tr 'A-Z' 'a-z')"
-    nft add rule inet ${NFT_TABLE_NAME} ${NFT_CHAIN} iifname "\"${_nr_iface}\"" "${_nr_proto_lower}" dport "${_nr_port}" dnat ip to "${_nr_dest_ip}:${_nr_dest_port}" || return 1
+    nft add rule inet ${NFT_TABLE_NAME} ${NFT_CHAIN} iifname "\"${_nr_iface}\"" "${_nr_proto_lower}" dport "${_nr_port}" dnat ip to "${_nr_dest_ip}:${_nr_dest_port}" comment "\"${NFT_RULE_COMMENT}\"" || return 1
     return 0
 }
 
@@ -815,18 +820,12 @@ read_network_cache() {
 }
 
 openclash_has_plugin_rule() {
-    _oh_prefix="${cfg_openclash_rule_remark} ["
     _oh_idx=0
     while uci -q get "openclash.@lan_ac_traffic[${_oh_idx}]" >/dev/null 2>&1; do
         _oh_label="$(openclash_rule_label "$_oh_idx")"
-        if [ "$_oh_label" = "${cfg_openclash_rule_remark}" ]; then
+        if [ "$_oh_label" = "${OPENCLASH_RULE_COMMENT}" ]; then
             return 0
         fi
-        case "$_oh_label" in
-            "${_oh_prefix}"*)
-                return 0
-                ;;
-        esac
         _oh_idx=$((_oh_idx + 1))
     done
     return 1
@@ -835,27 +834,18 @@ openclash_has_plugin_rule() {
 openclash_rule_label() {
     _orl_idx="$1"
     _orl_label="$(uci -q get "openclash.@lan_ac_traffic[${_orl_idx}].comment" 2>/dev/null)"
-    if [ -z "$_orl_label" ]; then
-        _orl_label="$(uci -q get "openclash.@lan_ac_traffic[${_orl_idx}].remark" 2>/dev/null)"
-    fi
     printf '%s' "$_orl_label"
 }
 
 openclash_remove_plugin_rules() {
-    _orpr_prefix="${cfg_openclash_rule_remark} ["
     _orpr_removed=0
     _orpr_idx=0
     while uci -q get "openclash.@lan_ac_traffic[${_orpr_idx}]" >/dev/null 2>&1; do
         _orpr_label="$(openclash_rule_label "$_orpr_idx")"
         _orpr_match=0
-        if [ "$_orpr_label" = "${cfg_openclash_rule_remark}" ]; then
+        if [ "$_orpr_label" = "${OPENCLASH_RULE_COMMENT}" ]; then
             _orpr_match=1
         fi
-        case "$_orpr_label" in
-            "${_orpr_prefix}"*)
-                _orpr_match=1
-                ;;
-        esac
         if [ "$_orpr_match" -eq 1 ]; then
             uci delete "openclash.@lan_ac_traffic[${_orpr_idx}]" 2>/dev/null
             _orpr_removed=$((_orpr_removed + 1))
@@ -868,8 +858,9 @@ openclash_remove_plugin_rules() {
 
 openclash_generate_return_rule() {
     _ogrr_proto="$(openclash_protocol_for_rule "${cfg_protocols}")"
-    printf '{"strategy":"port_pool","remark":"%s","src_ip":"%s","src_port":"%s","proto":"%s","target":"return","enabled":"1","family":"ipv4"}\n' \
+    printf '{"strategy":"port_pool","remark":"%s","comment":"%s","src_ip":"%s","src_port":"%s","proto":"%s","target":"return","enabled":"1","family":"ipv4"}\n' \
         "$(json_escape "${cfg_openclash_rule_remark}")" \
+        "$(json_escape "${OPENCLASH_RULE_COMMENT}")" \
         "$(json_escape "${cfg_downstream_wan_ip}")" \
         "$(json_escape "${cfg_allowed_external_ports}")" \
         "$(json_escape "${_ogrr_proto}")"
@@ -920,7 +911,7 @@ openclash_set_lan_ac_traffic_rule() {
     uci set "openclash.@lan_ac_traffic[-1].proto=${_osacr_proto}"
     uci set "openclash.@lan_ac_traffic[-1].target=return"
     uci set "openclash.@lan_ac_traffic[-1].family=ipv4"
-    uci set "openclash.@lan_ac_traffic[-1].comment=${_osacr_remark}"
+    uci set "openclash.@lan_ac_traffic[-1].comment=${OPENCLASH_RULE_COMMENT}"
     uci set "openclash.@lan_ac_traffic[-1].remark=${_osacr_remark}"
     return 0
 }
@@ -1079,6 +1070,37 @@ openclash_collect_ports_by_proto() {
     printf 'tcp|%s\nudp|%s' "$_ocp_tcp_ports" "$_ocp_udp_ports"
 }
 
+openclash_marked_fingerprint() {
+    _omf_idx=0
+    while uci -q get "openclash.@lan_ac_traffic[${_omf_idx}]" >/dev/null 2>&1; do
+        _omf_label="$(openclash_rule_label "$_omf_idx")"
+        if [ "$_omf_label" = "${OPENCLASH_RULE_COMMENT}" ]; then
+            _omf_src_ip="$(uci -q get "openclash.@lan_ac_traffic[${_omf_idx}].src_ip" 2>/dev/null)"
+            _omf_proto="$(uci -q get "openclash.@lan_ac_traffic[${_omf_idx}].proto" 2>/dev/null | tr 'A-Z' 'a-z')"
+            _omf_ports="$(uci -q get "openclash.@lan_ac_traffic[${_omf_idx}].src_port" 2>/dev/null | tr ',;' '  ')"
+            for _omf_port in $_omf_ports; do
+                case "$_omf_port" in
+                    ''|*[!0-9]*)
+                        continue
+                        ;;
+                esac
+                case "$_omf_proto" in
+                    tcp)
+                        printf '%s|tcp:%s\n' "$_omf_src_ip" "$_omf_port"
+                        ;;
+                    udp)
+                        printf '%s|udp:%s\n' "$_omf_src_ip" "$_omf_port"
+                        ;;
+                    both|tcpudp|all)
+                        printf '%s|tcp:%s\n%s|udp:%s\n' "$_omf_src_ip" "$_omf_port" "$_omf_src_ip" "$_omf_port"
+                        ;;
+                esac
+            done
+        fi
+        _omf_idx=$((_omf_idx + 1))
+    done | sort
+}
+
 openclash_remove_per_mapping_rules() {
     _orm_removed="$(openclash_remove_plugin_rules)"
     if [ "$_orm_removed" -gt 0 ]; then
@@ -1095,15 +1117,17 @@ openclash_generate_per_mapping_rules() {
     ja_reset
     if [ -n "$_ogpm_tcp_ports" ]; then
         _ogpm_remark="$(openclash_per_mapping_remark "TCP")"
-        ja_append "$(printf '{"remark":"%s","src_ip":"%s","src_port":"%s","proto":"tcp","target":"return","enabled":"1","family":"ipv4"}' \
+        ja_append "$(printf '{"remark":"%s","comment":"%s","src_ip":"%s","src_port":"%s","proto":"tcp","target":"return","enabled":"1","family":"ipv4"}' \
             "$(json_escape "$_ogpm_remark")" \
+            "$(json_escape "${OPENCLASH_RULE_COMMENT}")" \
             "$(json_escape "${cfg_downstream_wan_ip}")" \
             "$(json_escape "$_ogpm_tcp_ports")")"
     fi
     if [ -n "$_ogpm_udp_ports" ]; then
         _ogpm_remark="$(openclash_per_mapping_remark "UDP")"
-        ja_append "$(printf '{"remark":"%s","src_ip":"%s","src_port":"%s","proto":"udp","target":"return","enabled":"1","family":"ipv4"}' \
+        ja_append "$(printf '{"remark":"%s","comment":"%s","src_ip":"%s","src_port":"%s","proto":"udp","target":"return","enabled":"1","family":"ipv4"}' \
             "$(json_escape "$_ogpm_remark")" \
+            "$(json_escape "${OPENCLASH_RULE_COMMENT}")" \
             "$(json_escape "${cfg_downstream_wan_ip}")" \
             "$(json_escape "$_ogpm_udp_ports")")"
     fi
@@ -1122,22 +1146,19 @@ openclash_sync_per_mapping() {
     if [ -f "$_ospm_file" ]; then
         _ospm_new_fingerprint="$(while IFS='|' read -r _ospm_act _ospm_proto _ospm_ext_port _ospm_rest; do
             [ "$_ospm_act" != "ACCEPT" ] && continue
-            printf '%s:%s\n' "$(echo "$_ospm_proto" | tr 'A-Z' 'a-z')" "$_ospm_ext_port"
+            printf '%s|%s:%s\n' "${cfg_downstream_wan_ip}" "$(echo "$_ospm_proto" | tr 'A-Z' 'a-z')" "$_ospm_ext_port"
         done < "$_ospm_file" | sort)"
     fi
 
-    _ospm_cache_file="${OPENCLASH_PER_MAPPING_CACHE}"
-    _ospm_old_fingerprint=""
-    if [ -f "$_ospm_cache_file" ]; then
-        _ospm_old_fingerprint="$(cat "$_ospm_cache_file")"
-    fi
+    _ospm_existing_fingerprint="$(openclash_marked_fingerprint)"
 
     _ospm_new_count=0
     if [ -n "$_ospm_new_fingerprint" ]; then
         _ospm_new_count="$(printf '%s\n' "$_ospm_new_fingerprint" | grep -c .)"
     fi
 
-    if [ "$_ospm_new_fingerprint" = "$_ospm_old_fingerprint" ]; then
+    if [ "$_ospm_new_fingerprint" = "$_ospm_existing_fingerprint" ]; then
+        printf '%s' "$_ospm_new_fingerprint" 2>/dev/null > "${OPENCLASH_PER_MAPPING_CACHE}" || true
         printf '{"success":true,"action":"unchanged","rules_count":%d}\n' "$_ospm_new_count"
         return 0
     fi
@@ -1175,7 +1196,7 @@ openclash_sync_per_mapping() {
 
     uci commit openclash
 
-    printf '%s' "$_ospm_new_fingerprint" 2>/dev/null > "$_ospm_cache_file" || true
+    printf '%s' "$_ospm_new_fingerprint" 2>/dev/null > "${OPENCLASH_PER_MAPPING_CACHE}" || true
 
     write_resource "openclash_rule" "${cfg_openclash_rule_remark}"
 
@@ -1798,8 +1819,8 @@ do_dry_run() {
         while IFS='|' read -r _dr_act _dr_proto _dr_ext_port _dr_int_ip _dr_int_port _dr_desc; do
             [ "$_dr_act" != "ACCEPT" ] && continue
             _dr_proto_lower="$(echo "$_dr_proto" | tr 'A-Z' 'a-z')"
-            ja_append "\"$(json_escape "$(printf 'nft add rule inet %s %s iifname "\\"%s\\"" %s dport %s dnat ip to %s:%s' \
-                "${NFT_TABLE_NAME}" "${NFT_CHAIN}" "${cfg_upstream_wan_if}" "${_dr_proto_lower}" "${_dr_ext_port}" "${cfg_downstream_wan_ip}" "${_dr_ext_port}")")\""
+            ja_append "\"$(json_escape "$(printf 'nft add rule inet %s %s iifname "\\"%s\\"" %s dport %s dnat ip to %s:%s comment "\\"%s\\""' \
+                "${NFT_TABLE_NAME}" "${NFT_CHAIN}" "${cfg_upstream_wan_if}" "${_dr_proto_lower}" "${_dr_ext_port}" "${cfg_downstream_wan_ip}" "${_dr_ext_port}" "${NFT_RULE_COMMENT}")")\""
         done < "$_dr_accept_file"
     fi
     _dr_nft_json="$_ja"
