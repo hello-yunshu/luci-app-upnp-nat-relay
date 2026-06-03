@@ -25,6 +25,7 @@ return view.extend({
 	},
 
 	render: function() {
+		utils.loadSharedCSS();
 		var m, s, o;
 
 		m = new form.Map('upnp_bridge_relay', _('UPnP Bridge Relay - Settings'));

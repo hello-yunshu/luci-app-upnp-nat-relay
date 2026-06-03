@@ -163,6 +163,7 @@ return view.extend({
 	},
 
 	render: function(data) {
+		utils.loadSharedCSS();
 		var m, s, o;
 		var status = data.status || {};
 		var env = data.env || {};
