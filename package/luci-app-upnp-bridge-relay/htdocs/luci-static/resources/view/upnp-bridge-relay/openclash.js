@@ -6,6 +6,8 @@
 'require form';
 'require upnp-bridge-relay/utils as utils';
 
+var OPENCLASH_RULE_COMMENT = 'upnp_bridge_relay_openclash';
+
 var callStatus = rpc.declare({
 	object: 'upnp_bridge_relay',
 	method: 'status',
@@ -201,13 +203,11 @@ return view.extend({
 		o = s.option(form.DummyValue, '_oc_existing_rule', _('Existing Matching Rule'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			var remark = uci.get('upnp_bridge_relay', 'main', 'openclash_rule_remark') || 'UPnP Bridge Relay Auto RETURN';
 			var found = false;
 			var sections = uci.sections('openclash', 'lan_ac_traffic');
 			if (sections) {
 				for (var i = 0; i < sections.length; i++) {
-					var label = sections[i].comment || sections[i].remark || '';
-					if (label === remark || label.indexOf(remark + ' [') === 0) {
+					if ((sections[i].comment || '') === OPENCLASH_RULE_COMMENT) {
 						found = true;
 						break;
 					}
@@ -386,7 +386,6 @@ return view.extend({
 		o.inputtitle = _('Backup');
 		o.inputstyle = 'apply';
 		o.onclick = function() {
-			var remark = uci.get('upnp_bridge_relay', 'main', 'openclash_rule_remark') || 'UPnP Bridge Relay Auto RETURN';
 			var backupPath = '/etc/config/openclash.bak.upnp_bridge_relay';
 			ui.addNotification(null, E('p', _('Backup is created automatically before writing rules. To manually create a backup now, run on the router:') + '<br><code>cp /etc/config/openclash ' + backupPath + '</code>'), 'info');
 		};
