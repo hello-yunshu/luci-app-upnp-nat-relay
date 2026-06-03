@@ -392,11 +392,10 @@ check_port_conflict_single() {
                 ;;
         esac
         _cpc_line_lower="$(echo "$_cpc_line" | tr 'A-Z' 'a-z') "
-        case "$_cpc_line_lower" in
-            *"upnp_bridge_relay"*)
-                continue
-                ;;
-        esac
+        # Skip rules from our own table
+        if [ "$_cpc_current_table" = "${NFT_TABLE_NAME}" ]; then
+            continue
+        fi
         case "$_cpc_line_lower" in
             *"dnat"*)
                 _cpc_has_proto=0
@@ -1626,7 +1625,7 @@ do_sync() {
 
     if [ "${cfg_openclash_mode}" = "auto" ] && [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
         if [ -f /etc/config/openclash ]; then
-            _s_oc_result="$(openclash_sync_per_mapping "$_s_accept_file")"
+            _s_oc_result="$(openclash_sync_per_mapping "${GENERATED_ACCEPT_CACHE}")"
             _s_oc_action="$(echo "$_s_oc_result" | sed -n 's/.*"action":"\([^"]*\)".*/\1/p')"
             if [ "$_s_oc_action" = "updated" ]; then
                 log_info "OpenClash per-mapping rules updated during sync"
