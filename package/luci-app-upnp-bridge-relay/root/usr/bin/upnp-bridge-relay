@@ -378,6 +378,15 @@ check_port_conflict_single() {
         _cpc_ruleset="$(nft list ruleset 2>/dev/null)"
     fi
 
+    # Strip our own table's block from the ruleset to prevent self-conflict.
+    # This is more robust than relying on _cpc_current_table tracking inside
+    # the for loop, which can break due to pathname expansion of unquoted
+    # $nft_ruleset in the for-in loop.
+    _cpc_ruleset="$(printf '%s\n' "$_cpc_ruleset" | awk -v table="${NFT_TABLE_NAME}" '
+        /^table / { in_own = ($3 == table) }
+        !in_own { print }
+    ')"
+
     _cpc_proto_lower="$(echo "$_cpc_proto" | tr 'A-Z' 'a-z')"
     _cpc_conflict_source=""
     _cpc_current_table=""
@@ -391,7 +400,7 @@ check_port_conflict_single() {
                 _cpc_current_table="$(echo "$_cpc_line" | awk '{print $3}')"
                 ;;
         esac
-        _cpc_line_lower="$(echo "$_cpc_line" | tr 'A-Z' 'a-z') "
+        _cpc_line_lower="$(echo "$_cpc_line" | tr 'A-Z' 'a-z')"
         # Skip rules from our own table
         if [ "$_cpc_current_table" = "${NFT_TABLE_NAME}" ]; then
             continue
@@ -1508,6 +1517,7 @@ do_sync() {
         if [ "$_s_action" = "accept" ]; then
             _s_conflict="$(check_port_conflict_single "$_s_proto" "$_s_ext_port" "$_s_ruleset")"
             if [ -n "$_s_conflict" ]; then
+                log_info "nft conflict: ${_s_proto} ${_s_ext_port} -> ${_s_int_ip}:${_s_int_port}, source=${_s_conflict}"
                 _s_action="reject"
                 _s_reason="port_conflict:${_s_conflict}"
             fi
@@ -1516,6 +1526,7 @@ do_sync() {
         if [ "$_s_action" = "accept" ]; then
             _s_uci_conflict="$(check_uci_redirect_conflict "$_s_proto" "$_s_ext_port")"
             if [ -n "$_s_uci_conflict" ]; then
+                log_info "UCI conflict: ${_s_proto} ${_s_ext_port} -> ${_s_int_ip}:${_s_int_port}, source=${_s_uci_conflict}"
                 _s_action="reject"
                 _s_reason="port_conflict:${_s_uci_conflict}"
             fi

@@ -57,6 +57,7 @@
 }
 .ys-tool-footer-separator {
 	color: color-mix(in srgb, var(--subtext-color, #666) 65%, transparent);
+	margin: 0 0.15em;
 }
 .ys-tool-footer-version {
 	color: var(--subtext-color, #666);
@@ -65,24 +66,19 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 0.35em;
-	padding: 0.18em 0.55em;
-	border: 1px solid color-mix(in srgb, var(--main-color, #0069d9) 28%, var(--border-color));
+	padding: 0.18em 0.5em;
+	border: 0;
 	border-radius: 4px;
-	background: color-mix(in srgb, var(--main-color, #0069d9) 5%, transparent);
+	background: color-mix(in srgb, var(--main-color, #0069d9) 10%, transparent);
 	color: var(--main-color, #0069d9);
+	font-size: 0.86em;
+	font-weight: 700;
 	line-height: 1.6;
 	text-decoration: none;
 }
 .ys-tool-footer-link:hover {
 	background: color-mix(in srgb, var(--main-color, #0069d9) 12%, transparent);
 	text-decoration: none;
-}
-.ys-tool-footer-icon {
-	display: inline-block;
-	width: 1em;
-	height: 1em;
-	flex: 0 0 auto;
-	vertical-align: -0.125em;
 }
 @media (max-width: 600px) {
 	.ys-tool-footer {
