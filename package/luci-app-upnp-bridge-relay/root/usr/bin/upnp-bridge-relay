@@ -551,20 +551,24 @@ nft_delete_table() {
 
 nft_fast_restore() {
     if ! generated_mapping_cache_valid_no_ttl; then
+        log_info "Fast restore skipped: no valid cache found"
         return 0
     fi
 
     if [ ! -f "${GENERATED_ACCEPT_CACHE}" ]; then
+        log_info "Fast restore skipped: accept cache file missing"
         return 0
     fi
 
     if [ -z "${cfg_downstream_wan_ip}" ] || [ -z "${cfg_upstream_wan_if}" ]; then
+        log_info "Fast restore skipped: required config missing"
         return 0
     fi
 
     _nfr_fingerprint="$(accepted_mapping_fingerprint "${GENERATED_ACCEPT_CACHE}")"
 
     if [ -z "$_nfr_fingerprint" ]; then
+        log_info "Fast restore skipped: no accepted mappings in cache"
         return 0
     fi
 
@@ -592,6 +596,7 @@ nft_fast_restore() {
         if nft_add_dnat_rule "$_nfr_proto" "$_nfr_ext_port" "${cfg_downstream_wan_ip}" "$_nfr_ext_port" "${cfg_upstream_wan_if}"; then
             _nfr_count=$((_nfr_count + 1))
         else
+            log_warn "Fast restore: failed to add nft rule ${_nfr_proto} ${_nfr_ext_port} -> ${cfg_downstream_wan_ip}:${_nfr_ext_port}"
             _nfr_fail=$((_nfr_fail + 1))
         fi
     done < "${GENERATED_ACCEPT_CACHE}"
@@ -1697,6 +1702,7 @@ do_sync() {
 
         nft_flush_chain
 
+        _s_nft_added=0
         if [ -f "$_s_accept_file" ]; then
             while IFS='|' read -r _s_act _s_proto _s_ext_port _s_int_ip _s_int_port _s_desc; do
                 [ "$_s_act" != "ACCEPT" ] && continue
@@ -1704,15 +1710,17 @@ do_sync() {
                     log_warn "Failed to add nft rule: ${_s_proto} ${_s_ext_port} -> ${cfg_downstream_wan_ip}:${_s_ext_port}"
                     _s_nft_fail=$((_s_nft_fail + 1))
                 else
-                    log_info "Added DNAT: ${_s_proto} ${_s_ext_port} -> ${cfg_downstream_wan_ip}:${_s_ext_port}"
+                    _s_nft_added=$((_s_nft_added + 1))
                 fi
             done < "$_s_accept_file"
         fi
 
         if [ "$_s_nft_fail" -eq 0 ]; then
             printf '%s' "$_s_accept_fingerprint" 2>/dev/null > "${NFT_APPLIED_CACHE}" || true
+            log_info "DNAT rules rebuilt: ${_s_nft_added} rules added"
         else
             rm -f "${NFT_APPLIED_CACHE}" 2>/dev/null
+            log_warn "DNAT rules rebuild partial: ${_s_nft_added} added, ${_s_nft_fail} failed"
         fi
     fi
 
@@ -1721,9 +1729,6 @@ do_sync() {
         if [ -f /etc/config/openclash ]; then
             _s_oc_result="$(openclash_sync_per_mapping "${GENERATED_ACCEPT_CACHE}")"
             _s_oc_action="$(echo "$_s_oc_result" | sed -n 's/.*"action":"\([^"]*\)".*/\1/p')"
-            if [ "$_s_oc_action" = "updated" ]; then
-                log_info "OpenClash per-mapping rules updated during sync"
-            fi
         else
             _s_oc_action="not_installed"
         fi
