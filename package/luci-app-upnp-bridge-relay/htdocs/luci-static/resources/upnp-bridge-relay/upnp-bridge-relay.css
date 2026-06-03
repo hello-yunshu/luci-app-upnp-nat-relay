@@ -84,5 +84,19 @@
 	.ys-tool-footer {
 		align-items: flex-start;
 		flex-direction: column;
+		gap: 0.65em;
+	}
+	.ys-tool-footer-title,
+	.ys-tool-footer-title-separator,
+	.ys-tool-footer-project-link,
+	.ys-tool-footer-project-separator {
+		display: none;
+	}
+	.ys-tool-footer-links {
+		flex-wrap: wrap;
+		white-space: normal;
+	}
+	.ys-tool-footer-links .ys-tool-footer-link-label {
+		display: none;
 	}
 }
