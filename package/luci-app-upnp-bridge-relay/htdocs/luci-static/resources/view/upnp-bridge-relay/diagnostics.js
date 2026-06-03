@@ -247,6 +247,11 @@ return view.extend({
 		rollbackSection.appendChild(rollbackBtnBar);
 		container.appendChild(rollbackSection);
 
+		utils.appendFooter(container, {
+			project: 'UPnP Bridge Relay',
+			repoUrl: 'https://github.com/hello-yunshu/upnp-bridge-relay'
+		});
+
 		return container;
 	}
 });

@@ -516,10 +516,11 @@ return view.extend({
 		var depSection = buildDepSection(missingDeps, status.package_manager || 'opkg');
 		container.appendChild(depSection);
 
-		var footer = E('div', { 'style': 'margin-top:2em;padding:0.8em 0;text-align:center;color:var(--subtext-color, #666);font-size:0.85em;border-top:1px solid var(--border-color)' });
-		footer.innerHTML = 'UPnP Bridge Relay v' + version +
-			' &middot; <a href="https://github.com/hello-yunshu/upnp-bridge-relay" target="_blank" rel="noopener" style="color:var(--main-color, #0069d9);text-decoration:none">GitHub</a>';
-		container.appendChild(footer);
+		utils.appendFooter(container, {
+			project: 'UPnP Bridge Relay',
+			version: version,
+			repoUrl: 'https://github.com/hello-yunshu/upnp-bridge-relay'
+		});
 
 		return container;
 	}

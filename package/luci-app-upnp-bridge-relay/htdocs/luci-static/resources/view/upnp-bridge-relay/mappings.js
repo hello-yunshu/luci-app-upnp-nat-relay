@@ -196,6 +196,11 @@ return view.extend({
 		rejectSection.appendChild(rejectTable);
 		container.appendChild(rejectSection);
 
+		utils.appendFooter(container, {
+			project: 'UPnP Bridge Relay',
+			repoUrl: 'https://github.com/hello-yunshu/upnp-bridge-relay'
+		});
+
 		return container;
 	}
 });
