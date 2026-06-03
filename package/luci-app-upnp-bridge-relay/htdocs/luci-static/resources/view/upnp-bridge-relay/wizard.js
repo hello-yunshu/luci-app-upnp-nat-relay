@@ -148,6 +148,7 @@ return view.extend({
 	},
 
 	render: function(data) {
+		utils.loadSharedCSS();
 		var self = this;
 		var container = E('div', { 'class': 'cbi-map' });
 		container.appendChild(E('style', {}, css));

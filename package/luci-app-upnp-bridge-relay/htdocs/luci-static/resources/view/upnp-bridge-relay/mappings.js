@@ -38,6 +38,7 @@ return view.extend({
 	},
 
 	render: function(status) {
+		utils.loadSharedCSS();
 		var container = E('div', { 'class': 'cbi-map ubr-mappings' });
 		container.appendChild(E('style', {}, css));
 

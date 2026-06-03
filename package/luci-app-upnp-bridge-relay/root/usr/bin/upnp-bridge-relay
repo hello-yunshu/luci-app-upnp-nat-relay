@@ -14,7 +14,6 @@ RESOURCES_DIR="/etc/upnp_bridge_relay"
 RESOURCES_FILE="${RESOURCES_DIR}/resources.txt"
 CACHE_DIR="${RESOURCES_DIR}/cache"
 OPENCLASH_SUGGESTION_CACHE="${CACHE_DIR}/openclash_suggestion_cache.json"
-OPENCLASH_PER_MAPPING_CACHE="${CACHE_DIR}/oc_per_mapping_cache.v2.txt"
 GENERATED_ACCEPT_CACHE="${CACHE_DIR}/generated_accept.v1.txt"
 GENERATED_REJECT_CACHE="${CACHE_DIR}/generated_reject.v1.txt"
 GENERATED_CACHE_META="${CACHE_DIR}/generated_mapping_cache.v1.meta"
@@ -550,6 +549,61 @@ nft_delete_table() {
     return 0
 }
 
+nft_fast_restore() {
+    if ! generated_mapping_cache_valid_no_ttl; then
+        return 0
+    fi
+
+    if [ ! -f "${GENERATED_ACCEPT_CACHE}" ]; then
+        return 0
+    fi
+
+    if [ -z "${cfg_downstream_wan_ip}" ] || [ -z "${cfg_upstream_wan_if}" ]; then
+        return 0
+    fi
+
+    _nfr_fingerprint="$(accepted_mapping_fingerprint "${GENERATED_ACCEPT_CACHE}")"
+
+    if [ -z "$_nfr_fingerprint" ]; then
+        return 0
+    fi
+
+    if nft_table_exists && nft list chain inet ${NFT_TABLE_NAME} ${NFT_CHAIN} >/dev/null 2>&1; then
+        if [ -f "${NFT_APPLIED_CACHE}" ]; then
+            _nfr_old_fingerprint="$(cat "${NFT_APPLIED_CACHE}" 2>/dev/null)"
+            if [ "$_nfr_fingerprint" = "$_nfr_old_fingerprint" ]; then
+                log_info "Fast restore skipped: nft rules already up to date"
+                return 0
+            fi
+        fi
+    fi
+
+    if ! nft_ensure_table; then
+        log_warn "Fast restore failed: could not ensure nft table"
+        return 0
+    fi
+
+    nft_flush_chain
+
+    _nfr_count=0
+    _nfr_fail=0
+    while IFS='|' read -r _nfr_act _nfr_proto _nfr_ext_port _nfr_int_ip _nfr_int_port _nfr_desc; do
+        [ "$_nfr_act" != "ACCEPT" ] && continue
+        if nft_add_dnat_rule "$_nfr_proto" "$_nfr_ext_port" "${cfg_downstream_wan_ip}" "$_nfr_ext_port" "${cfg_upstream_wan_if}"; then
+            _nfr_count=$((_nfr_count + 1))
+        else
+            _nfr_fail=$((_nfr_fail + 1))
+        fi
+    done < "${GENERATED_ACCEPT_CACHE}"
+
+    if [ "$_nfr_fail" -eq 0 ] && [ "$_nfr_count" -gt 0 ]; then
+        printf '%s' "$_nfr_fingerprint" 2>/dev/null > "${NFT_APPLIED_CACHE}" || true
+    fi
+
+    log_info "Fast restore: ${_nfr_count} DNAT rules restored from cache (${_nfr_fail} failed)"
+    return 0
+}
+
 write_status() {
     _ws_running="$1"
     _ws_last_sync="$2"
@@ -667,6 +721,17 @@ generated_mapping_cache_valid() {
     return 0
 }
 
+generated_mapping_cache_valid_no_ttl() {
+    [ -f "${GENERATED_ACCEPT_CACHE}" ] || return 1
+    [ -f "${GENERATED_CACHE_META}" ] || return 1
+
+    _gcvnt_sig="$(sed -n 's/^signature=//p' "${GENERATED_CACHE_META}" 2>/dev/null | head -1)"
+    _gcvnt_now_sig="$(cache_signature)"
+    [ "$_gcvnt_sig" = "$_gcvnt_now_sig" ] || return 1
+
+    return 0
+}
+
 write_generated_mapping_cache() {
     _wgmc_accept="$1"
     _wgmc_reject="$2"
@@ -715,7 +780,6 @@ remove_rule_caches() {
         "${STATUS_DIR}/oc_per_mapping_cache.txt" \
         "${STATUS_DIR}/oc_per_mapping_cache.v2.txt" \
         "${OPENCLASH_SUGGESTION_CACHE}" \
-        "${OPENCLASH_PER_MAPPING_CACHE}" \
         "${GENERATED_ACCEPT_CACHE}" \
         "${GENERATED_REJECT_CACHE}" \
         "${GENERATED_CACHE_META}" \
@@ -953,7 +1017,7 @@ openclash_apply() {
     fi
     uci commit openclash
 
-    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${STATUS_DIR}/oc_per_mapping_cache.v2.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
+    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${STATUS_DIR}/oc_per_mapping_cache.v2.txt" 2>/dev/null
 
     write_resource "openclash_rule" "${cfg_openclash_rule_remark}"
 
@@ -970,7 +1034,7 @@ openclash_rollback() {
     if [ -f "${OPENCLASH_BACKUP}" ]; then
         cp "${OPENCLASH_BACKUP}" /etc/config/openclash 2>/dev/null
         rm -f "${OPENCLASH_BACKUP}" 2>/dev/null
-        rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${STATUS_DIR}/oc_per_mapping_cache.v2.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
+        rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${STATUS_DIR}/oc_per_mapping_cache.v2.txt" 2>/dev/null
         printf '{"removed":1,"method":"backup_restored"}\n'
         return 0
     fi
@@ -981,7 +1045,7 @@ openclash_rollback() {
         uci commit openclash 2>/dev/null
     fi
 
-    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${STATUS_DIR}/oc_per_mapping_cache.v2.txt" "${OPENCLASH_PER_MAPPING_CACHE}" 2>/dev/null
+    rm -f "${STATUS_DIR}/oc_per_mapping_cache.txt" "${STATUS_DIR}/oc_per_mapping_cache.v2.txt" 2>/dev/null
 
     printf '{"removed":%d}\n' "$_or_removed"
 }
@@ -1158,7 +1222,6 @@ openclash_sync_per_mapping() {
     fi
 
     if [ "$_ospm_new_fingerprint" = "$_ospm_existing_fingerprint" ]; then
-        printf '%s' "$_ospm_new_fingerprint" 2>/dev/null > "${OPENCLASH_PER_MAPPING_CACHE}" || true
         printf '{"success":true,"action":"unchanged","rules_count":%d}\n' "$_ospm_new_count"
         return 0
     fi
@@ -1195,8 +1258,6 @@ openclash_sync_per_mapping() {
     fi
 
     uci commit openclash
-
-    printf '%s' "$_ospm_new_fingerprint" 2>/dev/null > "${OPENCLASH_PER_MAPPING_CACHE}" || true
 
     write_resource "openclash_rule" "${cfg_openclash_rule_remark}"
 
@@ -1655,6 +1716,7 @@ do_sync() {
         fi
     fi
 
+    _s_oc_action="skipped"
     if [ "${cfg_openclash_mode}" = "auto" ] && [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
         if [ -f /etc/config/openclash ]; then
             _s_oc_result="$(openclash_sync_per_mapping "${GENERATED_ACCEPT_CACHE}")"
@@ -1662,6 +1724,8 @@ do_sync() {
             if [ "$_s_oc_action" = "updated" ]; then
                 log_info "OpenClash per-mapping rules updated during sync"
             fi
+        else
+            _s_oc_action="not_installed"
         fi
     fi
 
@@ -1673,7 +1737,7 @@ do_sync() {
     fi
     write_status "$_s_daemon_running" "$_s_timestamp" "$_s_sync_status" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" "$_s_last_error"
 
-    log_info "Sync completed: read=${_s_read_count}, accepted=${_s_accepted_count}, rejected=${_s_rejected_count}, nft=${_s_nft_action}"
+    log_info "Sync completed: read=${_s_read_count}, accepted=${_s_accepted_count}, rejected=${_s_rejected_count}, nft=${_s_nft_action}, openclash=${_s_oc_action}"
 
     if [ "$_s_nft_fail" -gt 0 ]; then
         printf '{"success":false,"error":"%s","timestamp":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"accepted":[%s],"rejected":[%s]}\n' \
@@ -2273,6 +2337,8 @@ do_daemon() {
     trap 'log_info "Daemon stopping"; write_status "false" "$(get_timestamp)" "stopped" "${cfg_backend}" 0 0 0 0 "" ""; exec 9>&- 2>/dev/null; exit 0' TERM INT
 
     do_refresh_env >/dev/null 2>&1
+
+    nft_fast_restore
 
     log_info "Daemon started (interval=${cfg_interval}s, backend=${cfg_backend})"
 
