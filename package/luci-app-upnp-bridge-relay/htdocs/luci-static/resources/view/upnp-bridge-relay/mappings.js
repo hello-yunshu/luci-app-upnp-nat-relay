@@ -114,13 +114,15 @@ return view.extend({
 				var statusLabel = acceptedPorts[key] ?
 					'<span style="color:var(--success-color, #3aa657)">' + _('Accepted') + '</span>' :
 					'<span style="color:var(--danger-color, #d94b4b)">' + _('Rejected') + '</span>';
+				var statusTd = E('td');
+				statusTd.innerHTML = statusLabel;
 				var row = E('tr', { 'class': 'tr' }, [
 					E('td', {}, mapping.protocol || '-'),
 					E('td', {}, String(mapping.external_port || '-')),
 					E('td', {}, mapping.internal_ip || '-'),
 					E('td', {}, String(mapping.internal_port || '-')),
 					E('td', {}, mapping.description || '-'),
-					E('td', { 'innerHTML': statusLabel })
+					statusTd
 				]);
 				rawTable.appendChild(row);
 			}
@@ -149,12 +151,14 @@ return view.extend({
 				var mapping = accepted[i];
 				var dnatTarget = mapping.dnat_target || (downstreamWanIp + ':' + mapping.external_port);
 				var sourceMapping = (mapping.internal_ip || '-') + ':' + (mapping.internal_port || '-') + ' ' + (mapping.description || '');
+				var statusTd = E('td');
+				statusTd.innerHTML = '<span style="color:var(--success-color, #3aa657)">' + _('Active') + '</span>';
 				var row = E('tr', { 'class': 'tr' }, [
 					E('td', {}, mapping.protocol || '-'),
 					E('td', {}, String(mapping.external_port || '-')),
 					E('td', {}, dnatTarget),
 					E('td', {}, sourceMapping),
-					E('td', { 'innerHTML': '<span style="color:var(--success-color, #3aa657)">' + _('Active') + '</span>' })
+					statusTd
 				]);
 				syncTable.appendChild(row);
 			}
@@ -180,12 +184,14 @@ return view.extend({
 		if (rejected.length > 0) {
 			for (var i = 0; i < rejected.length; i++) {
 				var mapping = rejected[i];
+				var reasonTd = E('td');
+				reasonTd.innerHTML = '<span style="color:var(--danger-color, #d94b4b)">' + (mapping.reason || '-') + '</span>';
 				var row = E('tr', { 'class': 'tr' }, [
 					E('td', {}, mapping.protocol || '-'),
 					E('td', {}, String(mapping.external_port || '-')),
 					E('td', {}, mapping.internal_ip || '-'),
 					E('td', {}, String(mapping.internal_port || '-')),
-					E('td', { 'innerHTML': '<span style="color:var(--danger-color, #d94b4b)">' + (mapping.reason || '-') + '</span>' })
+					reasonTd
 				]);
 				rejectTable.appendChild(row);
 			}
