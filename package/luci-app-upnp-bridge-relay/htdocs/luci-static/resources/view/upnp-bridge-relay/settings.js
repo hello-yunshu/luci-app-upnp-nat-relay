@@ -28,7 +28,7 @@ return view.extend({
 		utils.loadSharedCSS();
 		var m, s, o;
 
-		m = new form.Map('upnp_bridge_relay', _('UPnP Bridge Relay - Settings'));
+		m = new form.Map('upnp_bridge_relay', _('Settings'));
 
 		s = m.section(form.TypedSection, 'service', _('Service & Sync'));
 		s.anonymous = true;

@@ -165,7 +165,7 @@ return view.extend({
 		var container = E('div', { 'class': 'cbi-map ubr-dashboard' });
 		container.appendChild(E('style', {}, css));
 
-		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Overview')));
+		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Overview')));
 
 		var isStarting = running && lastResult === 'starting';
 		var banner = E('div', {

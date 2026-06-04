@@ -153,7 +153,7 @@ return view.extend({
 		var container = E('div', { 'class': 'cbi-map' });
 		container.appendChild(E('style', {}, css));
 
-		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Setup Wizard')));
+		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Setup Wizard')));
 
 		var modeBar = E('div', { 'class': 'cbi-section ubr-mode-bar' });
 		var safeBtn = E('button', {

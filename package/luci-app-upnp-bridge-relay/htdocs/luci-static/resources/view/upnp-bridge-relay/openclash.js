@@ -169,7 +169,7 @@ return view.extend({
 		var env = data.env || {};
 		var ruleCache = data.ruleCache || {};
 
-		m = new form.Map('upnp_bridge_relay', _('UPnP Bridge Relay - OpenClash Compatibility'));
+		m = new form.Map('upnp_bridge_relay', _('OpenClash Compatibility'));
 
 		s = m.section(form.TypedSection, 'service', _('OpenClash Status'));
 		s.anonymous = true;
