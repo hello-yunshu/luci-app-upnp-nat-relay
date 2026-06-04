@@ -73,7 +73,7 @@ function loadSharedCSS() {
 		var link = E('link', {
 			'id': 'ubr-shared-css',
 			'rel': 'stylesheet',
-			'href': L.resource('upnp-bridge-relay/upnp-bridge-relay.css') + '?t=' + Date.now()
+			'href': L.resource('upnp-bridge-relay/upnp-bridge-relay.css') + '?v=@PKG_VERSION@'
 		});
 		document.head.appendChild(link);
 	}
