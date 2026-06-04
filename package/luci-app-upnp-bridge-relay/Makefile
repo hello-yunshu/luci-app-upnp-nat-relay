@@ -47,6 +47,7 @@ define Build/Compile
 	done; \
 	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/bin/upnp-bridge-relay
 	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/root/usr/libexec/rpcd/upnp_bridge_relay
+	sed -i 's/@PKG_VERSION@/$(PKG_VERSION)/g' $(PKG_BUILD_DIR)/htdocs/luci-static/resources/upnp-bridge-relay/utils.js
 endef
 
 define Package/luci-app-upnp-bridge-relay/install
