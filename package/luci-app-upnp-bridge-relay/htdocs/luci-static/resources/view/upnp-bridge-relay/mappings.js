@@ -42,7 +42,7 @@ return view.extend({
 		var container = E('div', { 'class': 'cbi-map ubr-mappings' });
 		container.appendChild(E('style', {}, css));
 
-		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Mappings')));
+		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Mappings')));
 
 		var btnBar = E('div', { 'class': 'cbi-section ubr-btn-bar' });
 		btnBar.appendChild(E('button', {

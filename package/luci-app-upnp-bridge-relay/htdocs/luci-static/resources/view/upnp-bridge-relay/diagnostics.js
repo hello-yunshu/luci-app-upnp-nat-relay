@@ -81,7 +81,7 @@ return view.extend({
 		var container = E('div', { 'class': 'cbi-map ubr-dashboard' });
 		container.appendChild(E('style', {}, css));
 
-		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('UPnP Bridge Relay - Logs & Maintenance')));
+		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Logs & Maintenance')));
 
 		var logSection = E('div', { 'class': 'cbi-section ubr-section' });
 		logSection.appendChild(E('h3', {}, _('Recent Logs')));

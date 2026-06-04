@@ -36,9 +36,6 @@ msgstr "诊断"
 msgid "Logs & Maintenance"
 msgstr "日志与维护"
 
-msgid "UPnP Bridge Relay - Overview"
-msgstr "UPnP 桥接中继 - 概览"
-
 msgid "Service Status"
 msgstr "服务状态"
 
@@ -77,9 +74,6 @@ msgstr "nftables 表状态"
 
 msgid "Present"
 msgstr "存在"
-
-msgid "OpenClash Compatibility"
-msgstr "OpenClash 兼容性"
 
 msgid "Installed (Stopped)"
 msgstr "已安装（已停止）"
@@ -170,9 +164,6 @@ msgstr "动态规则已清除。"
 
 msgid "Failed to clear rules: "
 msgstr "清除规则失败："
-
-msgid "UPnP Bridge Relay - Setup Wizard"
-msgstr "UPnP 桥接中继 - 设置向导"
 
 msgid "Wizard Mode:"
 msgstr "向导模式："
@@ -356,9 +347,6 @@ msgstr "自动配置已应用。"
 
 msgid "Configuration failed: "
 msgstr "配置失败："
-
-msgid "UPnP Bridge Relay - Network & Firewall"
-msgstr "UPnP 桥接中继 - 网络与防火墙"
 
 msgid "Network Interface"
 msgstr "网络接口"
@@ -570,9 +558,6 @@ msgstr "区域创建成功。"
 msgid "Zone creation failed: "
 msgstr "区域创建失败："
 
-msgid "UPnP Bridge Relay - Security Filter"
-msgstr "UPnP 桥接中继 - 安全过滤"
-
 msgid "Port Range & Protocol"
 msgstr "端口范围与协议"
 
@@ -645,9 +630,6 @@ msgstr "宽范围警告"
 msgid "It is NOT recommended to use 1-65535 as the allowed port range. This would effectively create a DMZ, which defeats the purpose of this plugin."
 msgstr "不建议使用 1-65535 作为允许端口范围。这实际上等同于创建 DMZ，违背了本插件的目的。"
 
-msgid "UPnP Bridge Relay - Mappings"
-msgstr "UPnP 桥接中继 - 映射表"
-
 msgid "Refresh"
 msgstr "刷新"
 
@@ -702,8 +684,8 @@ msgstr "拒绝原因"
 msgid "No rejected mappings."
 msgstr "无已拒绝映射。"
 
-msgid "UPnP Bridge Relay - OpenClash Compatibility"
-msgstr "UPnP 桥接中继 - OpenClash 兼容性"
+msgid "OpenClash Compatibility"
+msgstr "OpenClash 兼容性"
 
 msgid "OpenClash Status"
 msgstr "OpenClash 状态"
@@ -893,12 +875,6 @@ msgstr "已通过 UCI 从 OpenClash 移除插件规则。"
 
 msgid "Restore failed: "
 msgstr "恢复失败："
-
-msgid "UPnP Bridge Relay - Diagnostics & Rollback"
-msgstr "UPnP 桥接中继 - 诊断与回滚"
-
-msgid "UPnP Bridge Relay - Logs & Maintenance"
-msgstr "UPnP 桥接中继 - 日志与维护"
 
 msgid "Environment Detection"
 msgstr "环境检测"
@@ -1335,8 +1311,8 @@ msgstr "保存并应用"
 msgid "Reset"
 msgstr "重置"
 
-msgid "UPnP Bridge Relay - Settings"
-msgstr "UPnP Bridge Relay - 设置"
+msgid "Settings"
+msgstr "设置"
 
 msgid "Service & Sync"
 msgstr "服务与同步"

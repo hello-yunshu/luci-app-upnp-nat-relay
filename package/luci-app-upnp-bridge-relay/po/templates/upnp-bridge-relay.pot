@@ -34,9 +34,6 @@ msgstr ""
 msgid "Diagnostics"
 msgstr ""
 
-msgid "UPnP Bridge Relay - Overview"
-msgstr ""
-
 msgid "Service Status"
 msgstr ""
 
@@ -74,9 +71,6 @@ msgid "nftables Table Status"
 msgstr ""
 
 msgid "Present"
-msgstr ""
-
-msgid "OpenClash Compatibility"
 msgstr ""
 
 msgid "Installed (Stopped)"
@@ -158,9 +152,6 @@ msgid "Dynamic rules cleared."
 msgstr ""
 
 msgid "Failed to clear rules: "
-msgstr ""
-
-msgid "UPnP Bridge Relay - Setup Wizard"
 msgstr ""
 
 msgid "Wizard Mode:"
@@ -344,9 +335,6 @@ msgid "Auto configuration applied."
 msgstr ""
 
 msgid "Configuration failed: "
-msgstr ""
-
-msgid "UPnP Bridge Relay - Network & Firewall"
 msgstr ""
 
 msgid "Network Interface"
@@ -559,9 +547,6 @@ msgstr ""
 msgid "Zone creation failed: "
 msgstr ""
 
-msgid "UPnP Bridge Relay - Security Filter"
-msgstr ""
-
 msgid "Port Range & Protocol"
 msgstr ""
 
@@ -634,9 +619,6 @@ msgstr ""
 msgid "It is NOT recommended to use 1-65535 as the allowed port range. This would effectively create a DMZ, which defeats the purpose of this plugin."
 msgstr ""
 
-msgid "UPnP Bridge Relay - Mappings"
-msgstr ""
-
 msgid "Refresh"
 msgstr ""
 
@@ -691,7 +673,7 @@ msgstr ""
 msgid "No rejected mappings."
 msgstr ""
 
-msgid "UPnP Bridge Relay - OpenClash Compatibility"
+msgid "OpenClash Compatibility"
 msgstr ""
 
 msgid "OpenClash Status"
@@ -881,9 +863,6 @@ msgid "Plugin rules removed from OpenClash via UCI."
 msgstr ""
 
 msgid "Restore failed: "
-msgstr ""
-
-msgid "UPnP Bridge Relay - Diagnostics & Rollback"
 msgstr ""
 
 msgid "Environment Detection"
@@ -1228,9 +1207,6 @@ msgstr ""
 msgid "Logs & Maintenance"
 msgstr ""
 
-msgid "UPnP Bridge Relay - Logs & Maintenance"
-msgstr ""
-
 msgid "Clear Logs"
 msgstr ""
 
@@ -1300,7 +1276,7 @@ msgstr ""
 msgid "Reset"
 msgstr ""
 
-msgid "UPnP Bridge Relay - Settings"
+msgid "Settings"
 msgstr ""
 
 msgid "Sync Behavior"

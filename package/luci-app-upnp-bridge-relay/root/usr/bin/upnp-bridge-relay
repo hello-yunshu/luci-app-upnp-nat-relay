@@ -900,6 +900,25 @@ openclash_has_plugin_rule() {
     return 1
 }
 
+openclash_port_pool_matches() {
+    _oppm_idx=0
+    _oppm_expected_proto="$(openclash_protocol_for_rule "${cfg_protocols}")"
+    while uci -q get "openclash.@lan_ac_traffic[${_oppm_idx}]" >/dev/null 2>&1; do
+        _oppm_label="$(openclash_rule_label "$_oppm_idx")"
+        if [ "$_oppm_label" = "${OPENCLASH_RULE_COMMENT}" ]; then
+            _oppm_src_ip="$(uci -q get "openclash.@lan_ac_traffic[${_oppm_idx}].src_ip" 2>/dev/null)"
+            _oppm_src_port="$(uci -q get "openclash.@lan_ac_traffic[${_oppm_idx}].src_port" 2>/dev/null)"
+            _oppm_proto="$(uci -q get "openclash.@lan_ac_traffic[${_oppm_idx}].proto" 2>/dev/null | tr 'A-Z' 'a-z')"
+            if [ "$_oppm_src_ip" = "${cfg_downstream_wan_ip}" ] && [ "$_oppm_src_port" = "${cfg_allowed_external_ports}" ] && [ "$_oppm_proto" = "$_oppm_expected_proto" ]; then
+                return 0
+            fi
+            return 1
+        fi
+        _oppm_idx=$((_oppm_idx + 1))
+    done
+    return 1
+}
+
 openclash_rule_label() {
     _orl_idx="$1"
     _orl_label="$(uci -q get "openclash.@lan_ac_traffic[${_orl_idx}].comment" 2>/dev/null)"
@@ -1227,6 +1246,7 @@ openclash_sync_per_mapping() {
     fi
 
     if [ "$_ospm_new_fingerprint" = "$_ospm_existing_fingerprint" ]; then
+        log_info "OpenClash per-mapping rules unchanged (${_ospm_new_count} rules)"
         printf '{"success":true,"action":"unchanged","rules_count":%d}\n' "$_ospm_new_count"
         return 0
     fi
@@ -1725,12 +1745,29 @@ do_sync() {
     fi
 
     _s_oc_action="skipped"
-    if [ "${cfg_openclash_mode}" = "auto" ] && [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
+    if [ "${cfg_openclash_mode}" = "auto" ]; then
         if [ -f /etc/config/openclash ]; then
-            _s_oc_result="$(openclash_sync_per_mapping "${GENERATED_ACCEPT_CACHE}")"
-            _s_oc_action="$(echo "$_s_oc_result" | sed -n 's/.*"action":"\([^"]*\)".*/\1/p')"
+            if [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
+                _s_oc_result="$(openclash_sync_per_mapping "${GENERATED_ACCEPT_CACHE}")"
+                _s_oc_action="$(echo "$_s_oc_result" | sed -n 's/.*"action":"\([^"]*\)".*/\1/p')"
+            else
+                if openclash_port_pool_matches; then
+                    _s_oc_action="unchanged"
+                    log_info "OpenClash port_pool rule unchanged"
+                else
+                    _s_oc_result="$(openclash_apply)"
+                    if [ "${_s_oc_result}" != "${_s_oc_result#*success\":true}" ]; then
+                        _s_oc_action="updated"
+                        log_info "OpenClash port_pool rule updated"
+                    else
+                        _s_oc_action="failed"
+                        log_warn "OpenClash port_pool auto sync failed: ${_s_oc_result}"
+                    fi
+                fi
+            fi
         else
             _s_oc_action="not_installed"
+            log_info "OpenClash not installed, skipping auto sync"
         fi
     fi
 
