@@ -33,16 +33,59 @@ is_daemon_running() {
     return 1
 }
 
+log_level_priority() {
+    case "${1:-info}" in
+        debug)
+            printf '0'
+            ;;
+        info|notice)
+            printf '1'
+            ;;
+        warn|warning)
+            printf '2'
+            ;;
+        error|err)
+            printf '3'
+            ;;
+        *)
+            printf '1'
+            ;;
+    esac
+}
+
+log_enabled() {
+    _le_msg_level="$1"
+    _le_cfg_level="${cfg_log_level:-info}"
+    _le_msg_priority="$(log_level_priority "$_le_msg_level")"
+    _le_cfg_priority="$(log_level_priority "$_le_cfg_level")"
+
+    [ "$_le_msg_priority" -ge "$_le_cfg_priority" ]
+}
+
+log_emit() {
+    _lem_level="$1"
+    _lem_priority="$2"
+    _lem_message="$3"
+
+    if log_enabled "$_lem_level"; then
+        logger -t upnp-bridge-relay -p "$_lem_priority" "$_lem_message"
+    fi
+}
+
+log_debug() {
+    log_emit debug daemon.debug "$1"
+}
+
 log_info() {
-    logger -t upnp-bridge-relay -p daemon.info "$1"
+    log_emit info daemon.info "$1"
 }
 
 log_warn() {
-    logger -t upnp-bridge-relay -p daemon.warn "$1"
+    log_emit warn daemon.warn "$1"
 }
 
 log_err() {
-    logger -t upnp-bridge-relay -p daemon.err "$1"
+    log_emit error daemon.err "$1"
 }
 
 json_escape() {
@@ -551,24 +594,24 @@ nft_delete_table() {
 
 nft_fast_restore() {
     if ! generated_mapping_cache_valid_no_ttl; then
-        log_info "Fast restore skipped: no valid cache found"
+        log_debug "Fast restore skipped: no valid cache found"
         return 0
     fi
 
     if [ ! -f "${GENERATED_ACCEPT_CACHE}" ]; then
-        log_info "Fast restore skipped: accept cache file missing"
+        log_debug "Fast restore skipped: accept cache file missing"
         return 0
     fi
 
     if [ -z "${cfg_downstream_wan_ip}" ] || [ -z "${cfg_upstream_wan_if}" ]; then
-        log_info "Fast restore skipped: required config missing"
+        log_debug "Fast restore skipped: required config missing"
         return 0
     fi
 
     _nfr_fingerprint="$(accepted_mapping_fingerprint "${GENERATED_ACCEPT_CACHE}")"
 
     if [ -z "$_nfr_fingerprint" ]; then
-        log_info "Fast restore skipped: no accepted mappings in cache"
+        log_debug "Fast restore skipped: no accepted mappings in cache"
         return 0
     fi
 
@@ -576,7 +619,7 @@ nft_fast_restore() {
         if [ -f "${NFT_APPLIED_CACHE}" ]; then
             _nfr_old_fingerprint="$(cat "${NFT_APPLIED_CACHE}" 2>/dev/null)"
             if [ "$_nfr_fingerprint" = "$_nfr_old_fingerprint" ]; then
-                log_info "Fast restore skipped: nft rules already up to date"
+                log_debug "Fast restore skipped: nft rules already up to date"
                 return 0
             fi
         fi
@@ -1246,7 +1289,7 @@ openclash_sync_per_mapping() {
     fi
 
     if [ "$_ospm_new_fingerprint" = "$_ospm_existing_fingerprint" ]; then
-        log_info "OpenClash per-mapping rules unchanged (${_ospm_new_count} rules)"
+        log_debug "OpenClash per-mapping rules unchanged (${_ospm_new_count} rules)"
         printf '{"success":true,"action":"unchanged","rules_count":%d}\n' "$_ospm_new_count"
         return 0
     fi
@@ -1710,7 +1753,7 @@ do_sync() {
     if [ "$_s_accept_fingerprint" = "$_s_old_accept_fingerprint" ] && \
        nft_table_exists && nft list chain inet ${NFT_TABLE_NAME} ${NFT_CHAIN} >/dev/null 2>&1; then
         _s_nft_action="unchanged"
-        log_info "DNAT rules unchanged; skipping nft rebuild"
+        log_debug "DNAT rules unchanged; skipping nft rebuild"
     else
         if ! nft_ensure_table; then
             _s_last_error="Failed to ensure nft table"
@@ -1753,7 +1796,7 @@ do_sync() {
             else
                 if openclash_port_pool_matches; then
                     _s_oc_action="unchanged"
-                    log_info "OpenClash port_pool rule unchanged"
+                    log_debug "OpenClash port_pool rule unchanged"
                 else
                     _s_oc_result="$(openclash_apply)"
                     if [ "${_s_oc_result}" != "${_s_oc_result#*success\":true}" ]; then
@@ -1767,7 +1810,7 @@ do_sync() {
             fi
         else
             _s_oc_action="not_installed"
-            log_info "OpenClash not installed, skipping auto sync"
+            log_debug "OpenClash not installed, skipping auto sync"
         fi
     fi
 
@@ -1779,7 +1822,7 @@ do_sync() {
     fi
     write_status "$_s_daemon_running" "$_s_timestamp" "$_s_sync_status" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" "$_s_last_error"
 
-    log_info "Sync completed: read=${_s_read_count}, accepted=${_s_accepted_count}, rejected=${_s_rejected_count}, nft=${_s_nft_action}, openclash=${_s_oc_action}"
+    log_debug "Sync completed: read=${_s_read_count}, accepted=${_s_accepted_count}, rejected=${_s_rejected_count}, nft=${_s_nft_action}, openclash=${_s_oc_action}"
 
     if [ "$_s_nft_fail" -gt 0 ]; then
         printf '{"success":false,"error":"%s","timestamp":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"accepted":[%s],"rejected":[%s]}\n' \
@@ -2395,13 +2438,29 @@ do_daemon() {
 }
 
 do_read_log() {
+    load_config
+
     _rl_logread="$(command -v logread 2>/dev/null || true)"
     if [ -z "$_rl_logread" ]; then
         printf '{"success":false,"error":"logread_not_found","logs":""}\n'
         return 0
     fi
 
-    _rl_logs="$("$_rl_logread" 2>/dev/null | grep -E 'upnp-bridge-relay|upnp_bridge_relay' | tail -n 200 || true)"
+    _rl_min_priority="$(log_level_priority "${cfg_log_level:-info}")"
+    _rl_logs="$("$_rl_logread" 2>/dev/null | grep -E 'upnp-bridge-relay|upnp_bridge_relay' | awk -v min="$_rl_min_priority" '
+        function line_priority(line) {
+            if (line ~ /\.debug([[:space:]]|$)/)
+                return 0
+            if (line ~ /\.(info|notice)([[:space:]]|$)/)
+                return 1
+            if (line ~ /\.(warn|warning)([[:space:]]|$)/)
+                return 2
+            if (line ~ /\.(err|error|crit|alert|emerg)([[:space:]]|$)/)
+                return 3
+            return 1
+        }
+        line_priority($0) >= min
+    ' | tail -n 200 || true)"
     printf '{"success":true,"logs":"%s"}\n' "$(json_escape "$_rl_logs")"
 }
 
