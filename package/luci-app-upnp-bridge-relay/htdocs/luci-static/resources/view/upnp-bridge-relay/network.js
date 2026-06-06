@@ -262,10 +262,16 @@ return view.extend({
 				btn.node.textContent = _('Configuring...');
 			}
 			return callSetupInterface().then(function(result) {
+				result = result || {};
+				if (result.success !== true) {
+					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || 'unknown')), 'error');
+					return;
+				}
 				return callCheckNetwork().catch(function() {
 					return result;
 				});
 			}).then(function(result) {
+				if (!result) return;
 				ui.addNotification(null, E('p', _('Interface configured. Click the Status tab to view details.')), 'info');
 				utils.reloadSoon();
 			}).catch(function(e) {
@@ -386,10 +392,16 @@ return view.extend({
 				btn.node.textContent = _('Applying...');
 			}
 			return callFixZone().then(function(result) {
+				result = result || {};
+				if (result.success !== true) {
+					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || 'unknown')), 'error');
+					return;
+				}
 				return callCheckNetwork().catch(function() {
 					return result;
 				});
 			}).then(function(result) {
+				if (!result) return;
 				ui.addNotification(null, E('p', _('Zone settings fixed.')), 'info');
 				utils.reloadSoon();
 			}).catch(function(e) {
@@ -418,10 +430,16 @@ return view.extend({
 				btn.node.textContent = _('Creating...');
 			}
 			return callFixZone().then(function(result) {
+				result = result || {};
+				if (result.success !== true) {
+					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || 'unknown')), 'error');
+					return;
+				}
 				return callCheckNetwork().catch(function() {
 					return result;
 				});
 			}).then(function(result) {
+				if (!result) return;
 				ui.addNotification(null, E('p', _('Zone created successfully.')), 'info');
 				utils.reloadSoon();
 			}).catch(function(e) {

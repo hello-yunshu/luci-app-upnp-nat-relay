@@ -101,40 +101,52 @@ EOF
 		method="$2"
 		case "$method" in
 			status)
-				"$UPNP_BRIDGE_RELAY_BIN" --status 2>/dev/null || echo '{"running":false,"last_sync":"","last_result":"unknown","backend":"","read_count":0,"accepted_count":0,"rejected_count":0,"failure_count":0,"accepted":[],"rejected":[],"last_error":"Status file not found"}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --status 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"running\":false,\"last_sync\":\"\",\"last_result\":\"unknown\",\"backend\":\"\",\"read_count\":0,\"accepted_count\":0,\"rejected_count\":0,\"failure_count\":0,\"accepted\":[],\"rejected\":[],\"last_error\":\"Status file not found\"}}"
 				;;
 			refresh-env)
-				"$UPNP_BRIDGE_RELAY_BIN" --refresh-env 2>/dev/null || echo '{"nft_table_status":"-","openclash_status":"-","version":"-","openwrt_version":"","package_manager":"unknown","firewall":"unknown","fw4":0,"nft":0,"upnpc":0,"luci":0,"openclash_installed":0,"openclash_running":0,"openclash_has_access_control":0,"updated_at":""}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --refresh-env 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"nft_table_status\":\"-\",\"openclash_status\":\"-\",\"version\":\"-\",\"openwrt_version\":\"\",\"package_manager\":\"unknown\",\"firewall\":\"unknown\",\"fw4\":0,\"nft\":0,\"upnpc\":0,\"luci\":0,\"openclash_installed\":0,\"openclash_running\":0,\"openclash_has_access_control\":0,\"updated_at\":\"\"}}"
 				;;
 			check-env)
-				"$UPNP_BRIDGE_RELAY_BIN" --check-env 2>/dev/null || echo '{"error":"check-env failed"}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --check-env 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"error\":\"check-env failed\"}}"
 				;;
 			check-network)
-				"$UPNP_BRIDGE_RELAY_BIN" --check-network 2>/dev/null || echo '{"error":"check-network failed"}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --check-network 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"error\":\"check-network failed\"}}"
 				;;
 			network-cache)
-				"$UPNP_BRIDGE_RELAY_BIN" --network-cache 2>/dev/null || echo '{"cached":0,"updated_at":""}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --network-cache 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"cached\":0,\"updated_at\":\"\"}}"
 				;;
 			dry-run)
-				"$UPNP_BRIDGE_RELAY_BIN" --dry-run 2>/dev/null || echo '{"error":"dry-run failed"}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --dry-run 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"error\":\"dry-run failed\"}}"
 				;;
 			generate-openclash-rule)
-				"$UPNP_BRIDGE_RELAY_BIN" --generate-openclash-rule 2>/dev/null || echo '{"error":"generate-openclash-rule failed"}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --generate-openclash-rule 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"error\":\"generate-openclash-rule failed\"}}"
 				;;
 			openclash-rule-cache)
-				"$UPNP_BRIDGE_RELAY_BIN" --openclash-rule-cache 2>/dev/null || echo '{"cached":false,"updated_at":"","openclash_suggestion":{}}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --openclash-rule-cache 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"cached\":false,\"updated_at\":\"\",\"openclash_suggestion\":{}}}"
 				;;
 			read-log)
-				"$UPNP_BRIDGE_RELAY_BIN" --read-log 2>/dev/null || echo '{"success":false,"error":"read-log failed","logs":""}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --read-log 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"read-log failed\",\"logs\":\"\"}}"
 				;;
 			clear-log)
-				"$UPNP_BRIDGE_RELAY_BIN" --clear-log 2>/dev/null || echo '{"success":false,"error":"clear-log failed"}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --clear-log 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"clear-log failed\"}}"
 				;;
 			sync-now)
-				"$UPNP_BRIDGE_RELAY_BIN" --sync 2>/dev/null || echo '{"success":false,"error":"sync_failed"}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --sync 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"sync_failed\"}}"
 				;;
 			clear)
-				"$UPNP_BRIDGE_RELAY_BIN" --clear 2>/dev/null
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --clear 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"clear failed\"}}"
 				;;
 			start)
 				service_action start
@@ -146,22 +158,28 @@ EOF
 				service_action restart
 				;;
 			setup-interface)
-				"$UPNP_BRIDGE_RELAY_BIN" --setup-interface 2>/dev/null
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --setup-interface 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"setup-interface failed\"}}"
 				;;
 			fix-zone)
-				"$UPNP_BRIDGE_RELAY_BIN" --fix-zone 2>/dev/null
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --fix-zone 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"fix-zone failed\"}}"
 				;;
 			setup-openclash)
-				"$UPNP_BRIDGE_RELAY_BIN" --setup-openclash 2>/dev/null
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --setup-openclash 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"setup-openclash failed\"}}"
 				;;
 			restart-openclash)
-				"$UPNP_BRIDGE_RELAY_BIN" --restart-openclash 2>/dev/null || echo '{"restarted":false,"error":"restart_openclash_failed"}'
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --restart-openclash 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"restarted\":false,\"error\":\"restart_openclash_failed\"}}"
 				;;
 			remove-openclash-rule)
-				"$UPNP_BRIDGE_RELAY_BIN" --remove-openclash-rule 2>/dev/null
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --remove-openclash-rule 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"remove-openclash-rule failed\"}}"
 				;;
 			rollback)
-				"$UPNP_BRIDGE_RELAY_BIN" --rollback 2>/dev/null
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --rollback 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"rollback failed\"}}"
 				;;
 			version)
 				printf '{"version":"%s"}\n' "$RPCD_VERSION"

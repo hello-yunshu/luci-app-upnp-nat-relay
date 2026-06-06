@@ -109,7 +109,7 @@ return view.extend({
 				btn.textContent = _('Loading...');
 				setLogArea(_('Loading...'), 'is-loading');
 				return callReadLog().then(function(result) {
-					if (result && result.success === false) {
+					if (!result || result.success !== true) {
 						var msg = result.error === 'logread_not_found' ?
 							_('System log reader is not available on this device.') :
 							_('Failed to read logs: ') + (result.error || '');
@@ -155,7 +155,7 @@ return view.extend({
 
 		var initialLogText;
 		var initialLogState;
-		if (logData.success === false) {
+		if (!logData || logData.success !== true) {
 			initialLogText = logData.error === 'logread_not_found' ?
 				_('System log reader is not available on this device.') :
 				_('Failed to read logs: ') + (logData.error || '');
@@ -198,9 +198,20 @@ return view.extend({
 					return;
 				var btn = this;
 				btn.disabled = true;
-				return callRollback().then(function() {
+				return callRollback().then(function(result) {
+					result = result || {};
+					if (result.success !== true) {
+						ui.addNotification(null, E('p', _('Rollback failed: ') + (result.error || 'unknown')), 'error');
+						return;
+					}
 					return callClear();
-				}).then(function() {
+				}).then(function(result) {
+					if (!result) return;
+					result = result || {};
+					if (result.success !== true) {
+						ui.addNotification(null, E('p', _('Clear failed: ') + (result.error || 'unknown')), 'error');
+						return;
+					}
 					ui.addNotification(null, E('p', _('All plugin configurations and rules have been removed.')), 'info');
 				}).catch(function(e) {
 					ui.addNotification(null, E('p', _('Rollback failed: ') + e.message), 'error');
@@ -234,7 +245,12 @@ return view.extend({
 					return;
 				var btn = this;
 				btn.disabled = true;
-				return callClear().then(function() {
+				return callClear().then(function(result) {
+					result = result || {};
+					if (result.success !== true) {
+						ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || 'unknown')), 'error');
+						return;
+					}
 					ui.addNotification(null, E('p', _('Dynamic rules cleared.')), 'info');
 				}).catch(function(e) {
 					ui.addNotification(null, E('p', _('Failed: ') + e.message), 'error');

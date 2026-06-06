@@ -66,7 +66,7 @@ return view.extend({
 							msg = _('Sync completed: 0 mappings read from downstream router. Ensure the downstream router has UPnP mappings.');
 							msgType = 'warning';
 						}
-					} else if (result && result.success === false) {
+					} else if (!result || result.success !== true) {
 						msg = _('Sync failed: %s').format(result.error || 'unknown');
 						msgType = 'error';
 					} else {

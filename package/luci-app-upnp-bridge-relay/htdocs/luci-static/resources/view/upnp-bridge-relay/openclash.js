@@ -319,7 +319,7 @@ return view.extend({
 						}
 					} else if (result && result.action === 'unchanged') {
 						msg = _('Per-mapping rules are already up to date (%d rules).').format(result.rules_count || 0);
-					} else if (result && result.success === false) {
+					} else if (!result || result.success !== true) {
 						msg = _('Failed to write per-mapping rules: ') + (result.error || 'unknown');
 					} else {
 						msg = _('Per-mapping rules written. You need to restart OpenClash for changes to take effect.');
@@ -350,6 +350,11 @@ return view.extend({
 		o.inputstyle = 'reset';
 		o.onclick = function() {
 			return callRemoveOpenclashRule().then(function(result) {
+				result = result || {};
+				if (result.success !== true) {
+					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || 'unknown')), 'error');
+					return;
+				}
 				ui.addNotification(null, E('p', _('Plugin rule removed from OpenClash.')), 'info');
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Failed to remove rule: ') + e.message), 'error');
