@@ -2,6 +2,8 @@
 'require uci';
 'require baseclass';
 
+var FOOTER_VERSION = '@PKG_VERSION@' === '@' + 'PKG_VERSION@' ? '1.1.7' : '@PKG_VERSION@';
+
 function safeApply() {
 	return uci.apply().catch(function(e) {
 		var message = e && e.message ? e.message : String(e);
@@ -128,10 +130,17 @@ function footerLink(href, label, icon) {
 	}, children);
 }
 
+function footerVersion(version) {
+	var value = version && version !== '-' ? version : FOOTER_VERSION;
+	if (!value || value === '-')
+		return '';
+	return /^v/i.test(value) ? value : 'v' + value;
+}
+
 function renderFooter(options) {
 	options = options || {};
 	var project = options.project || 'UPnP Bridge Relay';
-	var version = options.version && options.version !== '-' ? 'v' + options.version : '';
+	var version = footerVersion(options.version);
 	var repoUrl = options.repoUrl || 'https://github.com/hello-yunshu/upnp-bridge-relay';
 
 	return E('footer', { 'class': 'ys-tool-footer' }, [
