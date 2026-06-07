@@ -3,7 +3,7 @@
 'require baseclass';
 
 var FOOTER_VERSION = '@PKG_VERSION@';
-var FOOTER_VERSION_FALLBACK = '1.1.7';
+var FOOTER_VERSION_FALLBACK = '1.1.8';
 
 function safeApply() {
 	return uci.apply().catch(function(e) {
