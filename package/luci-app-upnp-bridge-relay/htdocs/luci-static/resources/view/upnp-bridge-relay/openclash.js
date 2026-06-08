@@ -50,6 +50,12 @@ var callOpenclashRuleCache = rpc.declare({
 	expect: { '': {} }
 });
 
+var callSyncOpenclash = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'sync-openclash',
+	expect: { '': {} }
+});
+
 var callRollback = rpc.declare({
 	object: 'upnp_bridge_relay',
 	method: 'rollback',
@@ -220,6 +226,35 @@ return view.extend({
 			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + _('No matching rule found') + '</span>';
 		};
 
+		o = s.option(form.DummyValue, '_oc_last_sync', _('Last OpenClash Sync'));
+		o.rawhtml = true;
+		o.cfgvalue = function() {
+			var lastOcSync = status.last_oc_sync;
+			if (!lastOcSync) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Never') + '</span>';
+			}
+			var syncInterval = uci.get('upnp_bridge_relay', 'main', 'openclash_sync_interval') || '0';
+			var ts = parseInt(lastOcSync, 10);
+			if (isNaN(ts) || ts === 0) {
+				return '<span style="color:var(--subtext-color, #666)">' + _('Never') + '</span>';
+			}
+			var d = new Date(ts * 1000);
+			var timeStr = d.toLocaleString();
+			if (syncInterval !== '0') {
+				var now = Math.floor(Date.now() / 1000);
+				var elapsed = now - ts;
+				var remaining = parseInt(syncInterval, 10) - elapsed;
+				if (remaining > 0) {
+					return '<span style="color:var(--success-color, #3aa657)">' + timeStr + '</span>' +
+						' <span style="color:var(--subtext-color, #666)">(' + _('next in %ds').format(remaining) + ')</span>';
+				} else {
+					return '<span style="color:var(--success-color, #3aa657)">' + timeStr + '</span>' +
+						' <span style="color:var(--main-color, #0069d9)">(' + _('due now') + ')</span>';
+				}
+			}
+			return '<span style="color:var(--success-color, #3aa657)">' + timeStr + '</span>';
+		};
+
 		s = m.section(form.TypedSection, 'service', _('Suggested RETURN Rule'));
 		s.anonymous = true;
 
@@ -263,6 +298,12 @@ return view.extend({
 		o.default = '0';
 		o.rmempty = false;
 
+		o = s.option(form.Value, 'openclash_sync_interval', _('OpenClash Sync Interval (seconds)'),
+			_('How often to sync OpenClash RETURN rules. Set to 0 to sync every main sync cycle (default). Set higher values (e.g., 300) to reduce OpenClash config writes and restarts when mappings change frequently.'));
+		o.datatype = 'range(0,86400)';
+		o.placeholder = '0';
+		o.rmempty = false;
+
 		o = s.option(form.DummyValue, '_oc_backup_status', _('Backup Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
@@ -271,6 +312,35 @@ return view.extend({
 
 		s = m.section(form.TypedSection, 'service', _('OpenClash Actions'));
 		s.anonymous = true;
+
+		o = s.option(form.Button, '_sync_oc_now', _('Sync OpenClash Now'));
+		o.inputtitle = _('Sync OpenClash');
+		o.inputstyle = 'apply';
+		o.onclick = function() {
+			return callSyncOpenclash().then(function(result) {
+				result = result || {};
+				if (result.success === true) {
+					var action = result.action || 'updated';
+					var rulesCount = result.rules_count || 0;
+					if (action === 'unchanged') {
+						ui.addNotification(null, E('p', _('OpenClash rules are already up to date (%d rules).').format(rulesCount)), 'info');
+					} else {
+						ui.addNotification(null, E('p', _('OpenClash rules synced successfully (%d rules).').format(rulesCount)), 'info');
+					}
+				} else {
+					var errorMsg = result.message || result.error || 'unknown';
+					if (result.error === 'main_sync_running') {
+						ui.addNotification(null, E('p', _('Main sync is currently running, please try again later.')), 'warning');
+					} else if (result.error === 'openclash_operation_running') {
+						ui.addNotification(null, E('p', _('Another OpenClash operation is currently running.')), 'warning');
+					} else {
+						ui.addNotification(null, E('p', _('Failed to sync OpenClash: ') + errorMsg), 'error');
+					}
+				}
+			}).catch(function(e) {
+				ui.addNotification(null, E('p', _('Failed to sync OpenClash: ') + e.message), 'error');
+			});
+		};
 
 		o = s.option(form.Button, '_generate_rule', _('Generate Rule'));
 		o.inputtitle = _('Generate RETURN Rule');

@@ -20,7 +20,9 @@ GENERATED_CACHE_META="${CACHE_DIR}/generated_mapping_cache.v1.meta"
 NFT_APPLIED_CACHE="${CACHE_DIR}/nft_applied_fingerprint.v1.txt"
 CACHE_TTL_SECONDS=300
 LOCK_FILE="/tmp/upnp_bridge_relay.lock"
+OPENCLASH_LOCK_FILE="/tmp/upnp_bridge_relay_oc.lock"
 OPENCLASH_BACKUP="/etc/config/openclash.bak.upnp_bridge_relay"
+OC_SYNC_TIMESTAMP_FILE="${CACHE_DIR}/openclash_last_sync.txt"
 
 uci_get() {
     uci -q get "${UCI_CONFIG}.$1" 2>/dev/null
@@ -31,6 +33,49 @@ is_daemon_running() {
         return 0
     fi
     return 1
+}
+
+is_main_sync_running() {
+    exec 8>"${LOCK_FILE}"
+    if ! flock -n 8; then
+        exec 8>&- 2>/dev/null
+        return 0
+    fi
+    exec 8>&- 2>/dev/null
+    return 1
+}
+
+openclash_sync_needed() {
+    _osn_interval="${cfg_openclash_sync_interval:-0}"
+    if [ "$_osn_interval" = "0" ]; then
+        return 0
+    fi
+
+    if [ ! -f "${OC_SYNC_TIMESTAMP_FILE}" ]; then
+        return 0
+    fi
+
+    _osn_last="$(cat "${OC_SYNC_TIMESTAMP_FILE}" 2>/dev/null)"
+    if [ -z "$_osn_last" ]; then
+        return 0
+    fi
+
+    _osn_now="$(date '+%s' 2>/dev/null || printf '0')"
+    if [ "$_osn_now" = "0" ] || [ "$_osn_last" = "0" ]; then
+        return 0
+    fi
+
+    _osn_elapsed=$((_osn_now - _osn_last))
+    if [ "$_osn_elapsed" -ge "$_osn_interval" ]; then
+        return 0
+    fi
+
+    return 1
+}
+
+openclash_record_sync_time() {
+    _orst_now="$(date '+%s' 2>/dev/null || printf '0')"
+    printf '%s' "$_orst_now" > "${OC_SYNC_TIMESTAMP_FILE}" 2>/dev/null
 }
 
 log_level_priority() {
@@ -218,6 +263,7 @@ load_config() {
     cfg_openclash_backup="$(uci_get 'main.openclash_backup')"
     cfg_openclash_rule_remark="$(uci_get 'main.openclash_rule_remark')"
     cfg_openclash_auto_restart="$(uci_get 'main.openclash_auto_restart')"
+    cfg_openclash_sync_interval="$(uci_get 'main.openclash_sync_interval')"
     cfg_backend_command="$(uci_get 'upnpc.command')"
     cfg_backend_timeout="$(uci_get 'upnpc.timeout')"
 
@@ -236,6 +282,7 @@ load_config() {
     [ -z "${cfg_openclash_backup}" ] && cfg_openclash_backup="1"
     [ -z "${cfg_openclash_rule_remark}" ] && cfg_openclash_rule_remark="UPnP Bridge Relay Auto RETURN"
     [ -z "${cfg_openclash_auto_restart}" ] && cfg_openclash_auto_restart="0"
+    [ -z "${cfg_openclash_sync_interval}" ] && cfg_openclash_sync_interval="0"
     [ -z "${cfg_firewall_zone_name}" ] && cfg_firewall_zone_name="upnp_bridge"
 
     cfg_deny_ports=""
@@ -664,10 +711,16 @@ write_status() {
     _ws_accepted_json="$9"
     _ws_rejected_json="${10}"
     _ws_last_error="${11}"
+    _ws_last_oc_sync="${12:-}"
 
     ensure_dirs
 
-    printf '{"running":%s,"last_sync":"%s","last_result":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"failure_count":%d,"accepted":[%s],"rejected":[%s],"last_error":"%s"}\n' \
+    if [ -z "$_ws_last_oc_sync" ] && [ -f "${OC_SYNC_TIMESTAMP_FILE}" ]; then
+        _ws_last_oc_sync="$(cat "${OC_SYNC_TIMESTAMP_FILE}" 2>/dev/null)"
+    fi
+    [ -z "$_ws_last_oc_sync" ] && _ws_last_oc_sync=""
+
+    printf '{"running":%s,"last_sync":"%s","last_result":"%s","backend":"%s","read_count":%d,"accepted_count":%d,"rejected_count":%d,"failure_count":%d,"accepted":[%s],"rejected":[%s],"last_error":"%s","last_oc_sync":"%s"}\n' \
         "$_ws_running" \
         "$(json_escape "$_ws_last_sync")" \
         "$(json_escape "$_ws_last_result")" \
@@ -679,6 +732,7 @@ write_status() {
         "$_ws_accepted_json" \
         "$_ws_rejected_json" \
         "$(json_escape "$_ws_last_error")" \
+        "$(json_escape "$_ws_last_oc_sync")" \
         > "${STATUS_FILE}"
 }
 
@@ -686,7 +740,7 @@ read_status() {
     if [ -f "${STATUS_FILE}" ]; then
         cat "${STATUS_FILE}"
     else
-        printf '{"running":false,"last_sync":"","last_result":"","backend":"","read_count":0,"accepted_count":0,"rejected_count":0,"failure_count":0,"accepted":[],"rejected":[],"last_error":""}\n'
+        printf '{"running":false,"last_sync":"","last_result":"","backend":"","read_count":0,"accepted_count":0,"rejected_count":0,"failure_count":0,"accepted":[],"rejected":[],"last_error":"","last_oc_sync":""}\n'
     fi
 }
 
@@ -832,6 +886,7 @@ remove_rule_caches() {
         "${GENERATED_REJECT_CACHE}" \
         "${GENERATED_CACHE_META}" \
         "${NFT_APPLIED_CACHE}" \
+        "${OC_SYNC_TIMESTAMP_FILE}" \
         2>/dev/null
 }
 
@@ -1789,7 +1844,10 @@ do_sync() {
 
     _s_oc_action="skipped"
     if [ "${cfg_openclash_mode}" = "auto" ]; then
-        if [ -f /etc/config/openclash ]; then
+        if ! openclash_sync_needed; then
+            _s_oc_action="deferred"
+            log_debug "OpenClash sync deferred (interval=${cfg_openclash_sync_interval}s not elapsed)"
+        elif [ -f /etc/config/openclash ]; then
             if [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
                 _s_oc_result="$(openclash_sync_per_mapping "${GENERATED_ACCEPT_CACHE}")"
                 _s_oc_action="$(echo "$_s_oc_result" | sed -n 's/.*"action":"\([^"]*\)".*/\1/p')"
@@ -1807,6 +1865,9 @@ do_sync() {
                         log_warn "OpenClash port_pool auto sync failed: ${_s_oc_result}"
                     fi
                 fi
+            fi
+            if [ "$_s_oc_action" != "deferred" ] && [ "$_s_oc_action" != "unchanged" ] && [ "$_s_oc_action" != "failed" ]; then
+                openclash_record_sync_time
             fi
         else
             _s_oc_action="not_installed"
@@ -2236,9 +2297,24 @@ do_fix_zone() {
 do_setup_openclash() {
     load_config
 
+    if is_main_sync_running; then
+        log_warn "Main sync is running, cannot modify OpenClash config now"
+        printf '{"success":false,"error":"main_sync_running","message":"Main sync is currently running, please try again later"}\n'
+        return 1
+    fi
+
+    exec 10>"${OPENCLASH_LOCK_FILE}"
+    if ! flock -n 10; then
+        log_warn "Another OpenClash operation is running, skipping"
+        printf '{"success":false,"error":"openclash_operation_running","message":"Another OpenClash operation is currently running"}\n'
+        exec 10>&- 2>/dev/null
+        return 1
+    fi
+
     if [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
         if [ -z "${cfg_bind_ip}" ]; then
             printf '{"success":false,"error":"bind_ip not configured"}\n'
+            exec 10>&- 2>/dev/null
             return 1
         fi
 
@@ -2253,12 +2329,14 @@ do_setup_openclash() {
         else
             if ! command -v upnpc >/dev/null 2>&1; then
                 printf '{"success":false,"error":"upnpc not found"}\n'
+                exec 10>&- 2>/dev/null
                 return 1
             fi
 
             _so_upnpc_output="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>&1)"
             if [ -z "$_so_upnpc_output" ]; then
                 printf '{"success":false,"error":"upnpc_read_failed"}\n'
+                exec 10>&- 2>/dev/null
                 return 1
             fi
 
@@ -2337,13 +2415,167 @@ do_setup_openclash() {
             log_warn "OpenClash RETURN rule failed: $_so_result"
         fi
     fi
+
+    if [ "$_so_success" = "true" ]; then
+        openclash_record_sync_time
+    fi
+    exec 10>&- 2>/dev/null
 }
 
 do_remove_openclash_rule() {
     load_config
+
+    if is_main_sync_running; then
+        log_warn "Main sync is running, cannot modify OpenClash config now"
+        printf '{"success":false,"error":"main_sync_running","message":"Main sync is currently running, please try again later"}\n'
+        return 1
+    fi
+
+    exec 10>"${OPENCLASH_LOCK_FILE}"
+    if ! flock -n 10; then
+        log_warn "Another OpenClash operation is running, skipping"
+        printf '{"success":false,"error":"openclash_operation_running","message":"Another OpenClash operation is currently running"}\n'
+        exec 10>&- 2>/dev/null
+        return 1
+    fi
+
     _ror_result="$(openclash_rollback)"
     printf '%s\n' "$_ror_result"
     log_info "OpenClash rule removed"
+
+    rm -f "${OC_SYNC_TIMESTAMP_FILE}" 2>/dev/null
+    exec 10>&- 2>/dev/null
+}
+
+do_sync_openclash() {
+    load_config
+
+    if [ "${cfg_openclash_mode}" = "off" ]; then
+        printf '{"success":false,"error":"openclash_mode_off","message":"OpenClash sync is disabled (mode=off)"}\n'
+        return 1
+    fi
+
+    if [ ! -f /etc/config/openclash ]; then
+        printf '{"success":false,"error":"openclash_not_installed","message":"OpenClash is not installed"}\n'
+        return 1
+    fi
+
+    if is_main_sync_running; then
+        log_warn "Main sync is running, waiting for it to finish..."
+        _dsoc_wait=0
+        while [ "$_dsoc_wait" -lt 10 ]; do
+            sleep 1
+            if ! is_main_sync_running; then
+                break
+            fi
+            _dsoc_wait=$((_dsoc_wait + 1))
+        done
+        if is_main_sync_running; then
+            log_warn "Main sync still running after 10s, aborting OpenClash sync"
+            printf '{"success":false,"error":"main_sync_running","message":"Main sync is still running after waiting 10 seconds"}\n'
+            return 1
+        fi
+        log_info "Main sync finished, proceeding with OpenClash sync"
+    fi
+
+    exec 10>"${OPENCLASH_LOCK_FILE}"
+    if ! flock -n 10; then
+        log_warn "Another OpenClash operation is running, skipping"
+        printf '{"success":false,"error":"openclash_operation_running","message":"Another OpenClash operation is currently running"}\n'
+        exec 10>&- 2>/dev/null
+        return 1
+    fi
+
+    _dsoc_result=""
+    if [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
+        if [ -z "${cfg_bind_ip}" ]; then
+            printf '{"success":false,"error":"bind_ip not configured"}\n'
+            exec 10>&- 2>/dev/null
+            return 1
+        fi
+
+        ensure_dirs
+        _dsoc_accept_file=""
+
+        if generated_mapping_cache_valid; then
+            _dsoc_accept_file="${GENERATED_ACCEPT_CACHE}"
+            log_info "Using cached generated mappings for OpenClash sync"
+        else
+            if ! command -v upnpc >/dev/null 2>&1; then
+                printf '{"success":false,"error":"upnpc not found"}\n'
+                exec 10>&- 2>/dev/null
+                return 1
+            fi
+
+            _dsoc_upnpc_output="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>&1)"
+            if [ -z "$_dsoc_upnpc_output" ]; then
+                printf '{"success":false,"error":"upnpc_read_failed"}\n'
+                exec 10>&- 2>/dev/null
+                return 1
+            fi
+
+            _dsoc_parsed_file="${STATUS_DIR}/_sync_oc_parsed.tmp"
+            _dsoc_reject_file="${STATUS_DIR}/_sync_oc_reject.tmp"
+            _dsoc_accept_file="${STATUS_DIR}/_sync_oc_accept.tmp"
+            : > "$_dsoc_accept_file"
+            : > "$_dsoc_reject_file"
+
+            parse_upnpc_to_file "$_dsoc_upnpc_output" "$_dsoc_parsed_file"
+
+            _dsoc_ruleset="$(nft list ruleset 2>/dev/null)"
+
+            while IFS='|' read -r _dsoc_type _dsoc_data1 _dsoc_data2 _dsoc_data3 _dsoc_data4 _dsoc_data5 _dsoc_data6; do
+                if [ "$_dsoc_type" != "MAPPING" ]; then
+                    continue
+                fi
+                _dsoc_proto="$_dsoc_data1"
+                _dsoc_ext_port="$_dsoc_data2"
+                _dsoc_int_ip="$_dsoc_data3"
+                _dsoc_int_port="$_dsoc_data4"
+                _dsoc_desc="$_dsoc_data5"
+
+                _dsoc_filter_result="$(filter_mapping "$_dsoc_proto" "$_dsoc_ext_port" "$_dsoc_int_ip" "$_dsoc_int_port" "$_dsoc_desc")"
+                _dsoc_action="$(echo "$_dsoc_filter_result" | cut -d'|' -f1)"
+
+                if [ "$_dsoc_action" = "accept" ]; then
+                    _dsoc_conflict="$(check_port_conflict_single "$_dsoc_proto" "$_dsoc_ext_port" "$_dsoc_ruleset")"
+                    if [ -n "$_dsoc_conflict" ]; then
+                        _dsoc_action="reject"
+                    fi
+                fi
+
+                if [ "$_dsoc_action" = "accept" ]; then
+                    _dsoc_uci_conflict="$(check_uci_redirect_conflict "$_dsoc_proto" "$_dsoc_ext_port")"
+                    if [ -n "$_dsoc_uci_conflict" ]; then
+                        _dsoc_action="reject"
+                    fi
+                fi
+
+                if [ "$_dsoc_action" = "accept" ]; then
+                    printf 'ACCEPT|%s|%s|%s|%s|%s\n' "$_dsoc_proto" "$_dsoc_ext_port" "$_dsoc_int_ip" "$_dsoc_int_port" "$_dsoc_desc" >> "$_dsoc_accept_file"
+                fi
+            done < "$_dsoc_parsed_file"
+
+            write_generated_mapping_cache "$_dsoc_accept_file" "$_dsoc_reject_file"
+            rm -f "$_dsoc_parsed_file" "$_dsoc_reject_file" 2>/dev/null
+        fi
+
+        _dsoc_result="$(openclash_sync_per_mapping "$_dsoc_accept_file")"
+        rm -f "${STATUS_DIR}/_sync_oc_accept.tmp" "${STATUS_DIR}/_sync_oc_reject.tmp" 2>/dev/null
+    else
+        _dsoc_result="$(openclash_apply)"
+    fi
+
+    _dsoc_success="$(echo "$_dsoc_result" | sed -n 's/.*"success":\([a-z]*\).*/\1/p')"
+    if [ "$_dsoc_success" = "true" ]; then
+        openclash_record_sync_time
+        log_info "OpenClash standalone sync completed"
+    else
+        log_warn "OpenClash standalone sync failed: $_dsoc_result"
+    fi
+
+    printf '%s\n' "$_dsoc_result"
+    exec 10>&- 2>/dev/null
 }
 
 do_rollback() {
@@ -2526,6 +2758,9 @@ case "$1" in
     --remove-openclash-rule)
         do_remove_openclash_rule
         ;;
+    --sync-openclash)
+        do_sync_openclash
+        ;;
     --rollback)
         do_rollback
         ;;
@@ -2539,7 +2774,7 @@ case "$1" in
         do_daemon
         ;;
     *)
-        printf 'Usage: %s {--check-env|--check-network|--network-cache|--sync|--dry-run|--generate-openclash-rule|--openclash-rule-cache|--clear|--status|--refresh-env|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--restart-openclash|--remove-openclash-rule|--rollback|--read-log|--clear-log|--daemon}\n' "$0"
+        printf 'Usage: %s {--check-env|--check-network|--network-cache|--sync|--dry-run|--generate-openclash-rule|--openclash-rule-cache|--clear|--status|--refresh-env|--dump-mappings|--setup-interface|--fix-zone|--setup-openclash|--restart-openclash|--remove-openclash-rule|--sync-openclash|--rollback|--read-log|--clear-log|--daemon}\n' "$0"
         exit 1
         ;;
 esac
