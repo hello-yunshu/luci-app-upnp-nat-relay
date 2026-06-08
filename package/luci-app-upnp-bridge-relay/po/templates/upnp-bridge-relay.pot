@@ -1342,6 +1342,48 @@ msgstr ""
 msgid "Per-mapping rules written. You need to restart OpenClash for changes to take effect."
 msgstr ""
 
+msgid "Last OpenClash Sync"
+msgstr ""
+
+msgid "Not yet synced"
+msgstr ""
+
+msgid "next in %ds"
+msgstr ""
+
+msgid "due now"
+msgstr ""
+
+msgid "OpenClash Sync Interval (seconds)"
+msgstr ""
+
+msgid "How often to sync OpenClash RETURN rules. Set to 0 to sync every main sync cycle (default). Set higher values (e.g., 300) to reduce OpenClash config writes and restarts when mappings change frequently."
+msgstr ""
+
+msgid "Sync OpenClash Now"
+msgstr ""
+
+msgid "Sync OpenClash"
+msgstr ""
+
+msgid "OpenClash rules are already up to date (%d rules)."
+msgstr ""
+
+msgid "OpenClash rules synced successfully (%d rules)."
+msgstr ""
+
+msgid "Main sync is currently running, please try again later."
+msgstr ""
+
+msgid "Another OpenClash operation is currently running."
+msgstr ""
+
+msgid "Failed to sync OpenClash: "
+msgstr ""
+
+msgid "Auto-created before each rule write"
+msgstr ""
+
 msgid "Last Env Check"
 msgstr ""
 
