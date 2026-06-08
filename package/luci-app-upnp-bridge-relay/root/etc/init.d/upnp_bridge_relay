@@ -65,7 +65,7 @@ validate_upnp_bridge_relay() {
 		'deny_empty_description:bool' 'log_rejected:bool' \
 		'openclash_mode:string' 'openclash_return_strategy:string' \
 		'openclash_backup:bool' 'openclash_rule_remark:string' \
-		'openclash_auto_restart:bool'
+		'openclash_auto_restart:bool' 'openclash_sync_interval:uinteger'
 
 	uci_validate_section upnp_bridge_relay deny_ports default \
 		'port:list(port)'

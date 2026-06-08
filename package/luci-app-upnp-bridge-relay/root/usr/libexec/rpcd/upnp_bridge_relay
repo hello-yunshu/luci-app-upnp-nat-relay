@@ -92,6 +92,7 @@ case "$1" in
 	"setup-openclash": {},
 	"restart-openclash": {},
 	"remove-openclash-rule": {},
+	"sync-openclash": {},
 	"rollback": {},
 	"version": {}
 }
@@ -176,6 +177,10 @@ EOF
 			remove-openclash-rule)
 				_out="$("$UPNP_BRIDGE_RELAY_BIN" --remove-openclash-rule 2>/dev/null)" || true
 				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"remove-openclash-rule failed\"}}"
+				;;
+			sync-openclash)
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --sync-openclash 2>/dev/null)" || true
+				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"sync-openclash failed\"}}"
 				;;
 			rollback)
 				_out="$("$UPNP_BRIDGE_RELAY_BIN" --rollback 2>/dev/null)" || true
