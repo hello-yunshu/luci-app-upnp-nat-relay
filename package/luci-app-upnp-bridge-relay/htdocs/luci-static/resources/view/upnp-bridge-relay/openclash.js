@@ -231,12 +231,12 @@ return view.extend({
 		o.cfgvalue = function() {
 			var lastOcSync = status.last_oc_sync;
 			if (!lastOcSync) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Never') + '</span>';
+				return '<span style="color:var(--subtext-color, #666)">' + _('Not yet synced') + '</span>';
 			}
 			var syncInterval = uci.get('upnp_bridge_relay', 'main', 'openclash_sync_interval') || '0';
 			var ts = parseInt(lastOcSync, 10);
 			if (isNaN(ts) || ts === 0) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Never') + '</span>';
+				return '<span style="color:var(--subtext-color, #666)">' + _('Not yet synced') + '</span>';
 			}
 			var d = new Date(ts * 1000);
 			var timeStr = d.toLocaleString();
@@ -307,7 +307,7 @@ return view.extend({
 		o = s.option(form.DummyValue, '_oc_backup_status', _('Backup Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			return '<span style="color:var(--subtext-color, #666)">' + _('Check via Logs & Maintenance page') + '</span>';
+			return '<span style="color:var(--subtext-color, #666)">' + _('Auto-created before each rule write') + '</span>';
 		};
 
 		s = m.section(form.TypedSection, 'service', _('OpenClash Actions'));

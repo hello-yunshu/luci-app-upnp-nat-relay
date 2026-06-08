@@ -796,7 +796,7 @@ msgid "Backup Status"
 msgstr "备份状态"
 
 msgid "Check via Logs & Maintenance page"
-msgstr "通过日志与维护页面查看"
+msgstr "每次写入规则前自动创建"
 
 msgid "OpenClash Actions"
 msgstr "OpenClash 操作"
@@ -1427,3 +1427,45 @@ msgstr "写入逐映射规则失败："
 
 msgid "Per-mapping rules written. You need to restart OpenClash for changes to take effect."
 msgstr "逐映射规则已写入。需要手动重启 OpenClash 才能生效。"
+
+msgid "Last OpenClash Sync"
+msgstr "上次 OpenClash 同步"
+
+msgid "Not yet synced"
+msgstr "尚未同步"
+
+msgid "next in %ds"
+msgstr "下次同步 %d 秒后"
+
+msgid "due now"
+msgstr "已到同步时间"
+
+msgid "OpenClash Sync Interval (seconds)"
+msgstr "OpenClash 同步间隔（秒）"
+
+msgid "How often to sync OpenClash RETURN rules. Set to 0 to sync every main sync cycle (default). Set higher values (e.g., 300) to reduce OpenClash config writes and restarts when mappings change frequently."
+msgstr "OpenClash RETURN 规则的同步频率。设为 0 表示每次主同步都同步（默认）。设为较大值（如 300）可在映射频繁变化时减少 OpenClash 配置写入和重启次数。"
+
+msgid "Sync OpenClash Now"
+msgstr "立即同步 OpenClash"
+
+msgid "Sync OpenClash"
+msgstr "同步 OpenClash"
+
+msgid "OpenClash rules are already up to date (%d rules)."
+msgstr "OpenClash 规则已是最新（%d 条规则）。"
+
+msgid "OpenClash rules synced successfully (%d rules)."
+msgstr "OpenClash 规则同步成功（%d 条规则）。"
+
+msgid "Main sync is currently running, please try again later."
+msgstr "主同步正在运行中，请稍后重试。"
+
+msgid "Another OpenClash operation is currently running."
+msgstr "另一个 OpenClash 操作正在运行中。"
+
+msgid "Failed to sync OpenClash: "
+msgstr "同步 OpenClash 失败："
+
+msgid "Auto-created before each rule write"
+msgstr "每次写入规则前自动创建"
