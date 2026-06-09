@@ -88,54 +88,15 @@ function buildDepSection(missingDeps, pkgManager) {
 		var installCmd = pkgManager === 'apk' ?
 			'apk add --allow-untrusted ' + missingDeps.join(' ') :
 			'opkg install ' + missingDeps.join(' ');
-		section.appendChild(E('p', { 'style': 'color:var(--warning-color, #d89b00);margin-bottom:0.5em' },
+		section.appendChild(E('p', { 'class': 'ubr-text-warning', 'style': 'margin-bottom:0.5em' },
 			'\u2718 ' + _('Missing dependencies: ') + missingDeps.join(', ')));
 		section.appendChild(E('div', { 'class': 'ubr-cmd-box' }, installCmd));
 	} else {
-		section.appendChild(E('p', { 'style': 'color:var(--success-color, #3aa657)' },
+		section.appendChild(E('p', { 'class': 'ubr-text-success' },
 			'\u2714 ' + _('All dependencies are installed.')));
 	}
 	return section;
 }
-
-var css = `
-	.ubr-status-banner {
-		display: flex; align-items: center; gap: 1.2em;
-		padding: 1.5em; margin-bottom: 1.5em;
-	}
-	.ubr-status-banner.running { border-left: 5px solid var(--success-color, #3aa657); }
-	.ubr-status-banner.stopped { border-left: 5px solid var(--warning-color, #d89b00); }
-	.ubr-status-banner.starting { border-left: 5px solid var(--warning-color, #d89b00); }
-	.ubr-status-icon { font-size: 2.5em; line-height: 1; }
-	.ubr-status-icon.running { color: var(--success-color, #3aa657); }
-	.ubr-status-icon.stopped { color: var(--warning-color, #d89b00); }
-	.ubr-status-icon.starting { color: var(--warning-color, #d89b00); animation: ubr-pulse 1.5s ease-in-out infinite; }
-	.ubr-status-text h3 { margin: 0 0 0.2em 0; font-size: 1.3em; }
-	.ubr-status-text h3.running { color: var(--success-color, #3aa657); }
-	.ubr-status-text h3.stopped { color: var(--warning-color, #d89b00); }
-	.ubr-status-text h3.starting { color: var(--warning-color, #d89b00); }
-	@keyframes ubr-pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-	.ubr-status-text p { margin: 0; color: var(--subtext-color, #666); font-size: 0.9em; }
-	.ubr-stats-grid {
-		display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-		gap: 1em; margin-bottom: 1.5em;
-	}
-	.ubr-stat-card {
-		padding: 1em 1.2em; border-radius: 8px;
-		text-align: center;
-	}
-	.ubr-stat-card .ubr-stat-value {
-		font-size: 1.8em; font-weight: bold; line-height: 1.2;
-		color: var(--main-color, #0069d9);
-	}
-	.ubr-stat-card .ubr-stat-value.green { color: var(--success-color, #3aa657); }
-	.ubr-stat-card .ubr-stat-value.red { color: var(--danger-color, #d94b4b); }
-	.ubr-stat-card .ubr-stat-value.orange { color: var(--warning-color, #d89b00); }
-	.ubr-stat-card .ubr-stat-label {
-		font-size: 0.85em; color: var(--subtext-color, #666);
-		margin-top: 0.3em;
-	}
-	`;
 
 return view.extend({
 	load: function() {
@@ -163,7 +124,6 @@ return view.extend({
 		var version = status.version || '-';
 
 		var container = E('div', { 'class': 'cbi-map ubr-dashboard' });
-		container.appendChild(E('style', {}, css));
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Overview')));
 
@@ -353,7 +313,7 @@ return view.extend({
 				'href': 'https://github.com/hello-yunshu/upnp-bridge-relay',
 				'target': '_blank',
 				'rel': 'noopener',
-				'style': 'color:var(--main-color, #0069d9);text-decoration:none'
+				'class': 'ubr-link'
 			}, 'hello-yunshu/upnp-bridge-relay'))
 		]));
 
@@ -454,7 +414,7 @@ return view.extend({
 		}
 		envSection.appendChild(envTable);
 
-		var envBtnBar = E('div', { 'class': 'ubr-btn-group', 'style': 'margin-top:1em' });
+		var envBtnBar = E('div', { 'class': 'ubr-btn-group ubr-mt-1' });
 		envBtnBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
 			'click': function() {

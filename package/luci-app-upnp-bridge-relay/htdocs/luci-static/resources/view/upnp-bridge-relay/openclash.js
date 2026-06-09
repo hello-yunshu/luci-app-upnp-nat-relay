@@ -94,13 +94,13 @@ function buildFallbackRuleText(strategy, downstreamWanIp, allowedPorts, remark) 
 
 function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark, dryRun) {
 	var downstreamWanIpText = downstreamWanIp === '-' ?
-		'<span style="color:var(--warning-color, #d89b00)">&#9888; -</span>' :
-		'<span style="color:var(--success-color, #3aa657)">' + htmlEscape(downstreamWanIp) + '</span>';
+		'<span class="ubr-text-warning">&#9888; -</span>' :
+		'<span class="ubr-text-success">' + htmlEscape(downstreamWanIp) + '</span>';
 	var suggestion = dryRun && dryRun.openclash_suggestion ? dryRun.openclash_suggestion : null;
-	var html = '<div id="ubr-oc-suggested-rule" class="cbi-section" style="font-family:monospace">';
+	var html = '<div id="ubr-oc-suggested-rule" class="cbi-section">';
 
 	if (suggestion && suggestion.strategy === 'per_mapping' && Array.isArray(suggestion.rules) && suggestion.rules.length > 0) {
-		html += '<b>' + _('Strategy:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Per-Mapping') + '</span><br>';
+		html += '<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Per-Mapping') + '</span><br>';
 		for (var i = 0; i < suggestion.rules.length; i++) {
 			var rule = suggestion.rules[i] || {};
 			var srcIp = rule.src_ip || rule.internal_address || downstreamWanIp;
@@ -108,9 +108,9 @@ function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark,
 			var proto = rule.proto || rule.protocols || '-';
 			html += '<br><b>' + _('Rule') + ' ' + (i + 1) + '</b><br>' +
 				'<b>' + _('Source Address:') + '</b> ' + htmlEscape(srcIp) + '<br>' +
-				'<b>' + _('Source Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + htmlEscape(srcPort) + '</span><br>' +
+				'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + htmlEscape(srcPort) + '</span><br>' +
 				'<b>' + _('Protocol:') + '</b> ' + htmlEscape(proto) + '<br>' +
-				'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">' + htmlEscape(rule.target || 'return') + '</span><br>' +
+				'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + htmlEscape(rule.target || 'return') + '</span><br>' +
 				'<b>' + _('Remark:') + '</b> ' + htmlEscape(rule.remark || '');
 		}
 		return html + '</div>';
@@ -121,32 +121,32 @@ function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark,
 		var poolSrcPort = suggestion.src_port || suggestion.internal_ports || allowedPorts;
 		var poolProto = suggestion.proto || suggestion.protocols || 'both';
 		return html +
-			'<b>' + _('Strategy:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Port Pool') + '</span><br>' +
+			'<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Port Pool') + '</span><br>' +
 			'<b>' + _('Source Address:') + '</b> ' + htmlEscape(poolSrcIp) + '<br>' +
-			'<b>' + _('Source Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + htmlEscape(poolSrcPort) + '</span><br>' +
+			'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + htmlEscape(poolSrcPort) + '</span><br>' +
 			'<b>' + _('Protocol:') + '</b> ' + htmlEscape(poolProto) + '<br>' +
-			'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">' + htmlEscape(suggestion.target || 'return') + '</span><br>' +
+			'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + htmlEscape(suggestion.target || 'return') + '</span><br>' +
 			'<b>' + _('Remark:') + '</b> ' + htmlEscape(suggestion.remark || remark) +
 			'</div>';
 	}
 
 	if (strategy === 'per_mapping') {
 		return html +
-			'<b>' + _('Strategy:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Per-Mapping') + '</span><br>' +
+			'<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Per-Mapping') + '</span><br>' +
 			'<b>' + _('Source Address:') + '</b> ' + downstreamWanIpText + '<br>' +
-			'<b>' + _('Source Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Dynamic (comma-separated, grouped by protocol)') + '</span><br>' +
+			'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + _('Dynamic (comma-separated, grouped by protocol)') + '</span><br>' +
 			'<b>' + _('Protocol:') + '</b> ' + _('Per protocol (1 rule for TCP, 1 rule for UDP)') + '<br>' +
-			'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">return</span><br>' +
+			'<b>' + _('Action:') + '</b> <span class="ubr-text-success">return</span><br>' +
 			'<b>' + _('Remark:') + '</b> ' + htmlEscape(remark) + ' [TCP] / ' + htmlEscape(remark) + ' [UDP]' +
 			'</div>';
 	}
 
 	return html +
-		'<b>' + _('Strategy:') + '</b> <span style="color:var(--main-color, #0069d9)">' + _('Port Pool') + '</span><br>' +
+		'<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Port Pool') + '</span><br>' +
 		'<b>' + _('Source Address:') + '</b> ' + downstreamWanIpText + '<br>' +
-		'<b>' + _('Source Ports:') + '</b> <span style="color:var(--main-color, #0069d9)">' + htmlEscape(allowedPorts) + '</span><br>' +
+		'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + htmlEscape(allowedPorts) + '</span><br>' +
 		'<b>' + _('Protocol:') + '</b> both<br>' +
-		'<b>' + _('Action:') + '</b> <span style="color:var(--success-color, #3aa657)">return</span><br>' +
+		'<b>' + _('Action:') + '</b> <span class="ubr-text-success">return</span><br>' +
 		'<b>' + _('Remark:') + '</b> ' + htmlEscape(remark) +
 		'</div>';
 }
@@ -184,27 +184,27 @@ return view.extend({
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (env.openclash_installed === 1 || env.openclash_installed === true) {
-				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Installed') + '</span>';
+				return '<span class="ubr-text-success">&#10004; ' + _('Installed') + '</span>';
 			}
-			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + _('Not Installed') + '</span>';
+			return '<span class="ubr-text-warning">&#10008; ' + _('Not Installed') + '</span>';
 		};
 
 		o = s.option(form.DummyValue, '_oc_running', _('OpenClash Running'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (env.openclash_running === 1 || env.openclash_running === true) {
-				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Running') + '</span>';
+				return '<span class="ubr-text-success">&#10004; ' + _('Running') + '</span>';
 			}
-			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + _('Not Running') + '</span>';
+			return '<span class="ubr-text-warning">&#10008; ' + _('Not Running') + '</span>';
 		};
 
 		o = s.option(form.DummyValue, '_oc_access_control', _('Source Access Control Detected'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (env.openclash_has_access_control === 1 || env.openclash_has_access_control === true) {
-				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Detected') + '</span>';
+				return '<span class="ubr-text-success">&#10004; ' + _('Detected') + '</span>';
 			}
-			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + _('Not Detected') + '</span>';
+			return '<span class="ubr-text-warning">&#10008; ' + _('Not Detected') + '</span>';
 		};
 
 		o = s.option(form.DummyValue, '_oc_existing_rule', _('Existing Matching Rule'));
@@ -221,9 +221,9 @@ return view.extend({
 				}
 			}
 			if (found) {
-				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Rule exists') + '</span>';
+				return '<span class="ubr-text-success">&#10004; ' + _('Rule exists') + '</span>';
 			}
-			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + _('No matching rule found') + '</span>';
+			return '<span class="ubr-text-warning">&#10008; ' + _('No matching rule found') + '</span>';
 		};
 
 		o = s.option(form.DummyValue, '_oc_last_sync', _('Last OpenClash Sync'));
@@ -231,12 +231,12 @@ return view.extend({
 		o.cfgvalue = function() {
 			var lastOcSync = status.last_oc_sync;
 			if (!lastOcSync) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Not yet synced') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Not yet synced') + '</span>';
 			}
 			var syncInterval = uci.get('upnp_bridge_relay', 'main', 'openclash_sync_interval') || '0';
 			var ts = parseInt(lastOcSync, 10);
 			if (isNaN(ts) || ts === 0) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Not yet synced') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Not yet synced') + '</span>';
 			}
 			var d = new Date(ts * 1000);
 			var timeStr = d.toLocaleString();
@@ -245,14 +245,14 @@ return view.extend({
 				var elapsed = now - ts;
 				var remaining = parseInt(syncInterval, 10) - elapsed;
 				if (remaining > 0) {
-					return '<span style="color:var(--success-color, #3aa657)">' + timeStr + '</span>' +
-						' <span style="color:var(--subtext-color, #666)">(' + _('next in %ds').format(remaining) + ')</span>';
+					return '<span class="ubr-text-success">' + timeStr + '</span>' +
+						' <span class="ubr-text-muted">(' + _('next in %ds').format(remaining) + ')</span>';
 				} else {
-					return '<span style="color:var(--success-color, #3aa657)">' + timeStr + '</span>' +
-						' <span style="color:var(--main-color, #0069d9)">(' + _('due now') + ')</span>';
+					return '<span class="ubr-text-success">' + timeStr + '</span>' +
+						' <span class="ubr-text-primary">(' + _('due now') + ')</span>';
 				}
 			}
-			return '<span style="color:var(--success-color, #3aa657)">' + timeStr + '</span>';
+			return '<span class="ubr-text-success">' + timeStr + '</span>';
 		};
 
 		s = m.section(form.TypedSection, 'service', _('Suggested RETURN Rule'));
@@ -307,7 +307,7 @@ return view.extend({
 		o = s.option(form.DummyValue, '_oc_backup_status', _('Backup Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			return '<span style="color:var(--subtext-color, #666)">' + _('Auto-created before each rule write') + '</span>';
+			return '<span class="ubr-text-muted">' + _('Auto-created before each rule write') + '</span>';
 		};
 
 		s = m.section(form.TypedSection, 'service', _('OpenClash Actions'));
@@ -353,7 +353,7 @@ return view.extend({
 			var preview = document.getElementById('ubr-oc-suggested-rule');
 
 			if (preview)
-				preview.innerHTML = '<span style="color:var(--subtext-color, #666)">' + _('Generating...') + '</span>';
+				preview.innerHTML = '<span class="ubr-text-muted">' + _('Generating...') + '</span>';
 
 			return callGenerateOpenclashRule().then(function(result) {
 				if (preview)
@@ -362,7 +362,7 @@ return view.extend({
 			}).catch(function(e) {
 				if (preview)
 					preview.outerHTML = buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark);
-				ui.addNotification(null, E('pre', { 'style': 'white-space:pre-wrap;padding:1em;background:var(--background-color-a);border:1px solid var(--border-color)' }, buildFallbackRuleText(strategy, downstreamWanIp, allowedPorts, remark)), 'warning');
+				ui.addNotification(null, E('div', { 'class': 'ubr-cmd-box' }, buildFallbackRuleText(strategy, downstreamWanIp, allowedPorts, remark)), 'warning');
 			});
 		};
 

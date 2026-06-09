@@ -6,15 +6,6 @@
 'require form';
 'require upnp-bridge-relay/utils as utils';
 
-var css = `
-	.ubr-security textarea {
-		font-family: monospace;
-		line-height: 1.5;
-		min-height: 4.8em;
-		resize: vertical;
-	}
-`;
-
 return view.extend({
 	load: function() {
 		return uci.load('upnp_bridge_relay');
@@ -149,7 +140,6 @@ return view.extend({
 
 		return m.render().then(function(node) {
 			node.classList.add('ubr-security');
-			node.insertBefore(E('style', {}, css), node.firstChild);
 			return utils.appendFooter(node, {
 				project: 'UPnP Bridge Relay',
 				repoUrl: 'https://github.com/hello-yunshu/upnp-bridge-relay'

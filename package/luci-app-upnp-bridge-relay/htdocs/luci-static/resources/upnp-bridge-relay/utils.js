@@ -93,13 +93,12 @@ function footerIcon(name) {
 	var svg = document.createElementNS(svgNS, 'svg');
 	var path = document.createElementNS(svgNS, 'path');
 
-	svg.setAttribute('class', 'ys-tool-footer-link-icon ' + name);
+	svg.setAttribute('class', 'ubr-icon ys-tool-footer-link-icon ' + name);
 	svg.setAttribute('viewBox', '0 0 24 24');
 	svg.setAttribute('width', '14');
 	svg.setAttribute('height', '14');
 	svg.setAttribute('aria-hidden', 'true');
 	svg.setAttribute('focusable', 'false');
-	svg.setAttribute('style', 'width:1em;height:1em;max-width:1em;max-height:1em;display:inline-block;flex:0 0 auto;vertical-align:-0.125em');
 
 	if (name === 'github') {
 		path.setAttribute('fill', 'currentColor');
