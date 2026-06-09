@@ -100,7 +100,7 @@
 .ubr-wizard-dot {
 	display: flex; align-items: center; justify-content: center;
 	width: 28px; height: 28px; border-radius: 50%;
-	font-size: 0.8em; font-weight: bold; color: #fff;
+	font-size: 0.8em; font-weight: bold; color: var(--background-color, #fff);
 	background: var(--border-color); transition: all 0.2s;
 }
 .ubr-wizard-dot.done { background: var(--success-color, #3aa657); }

@@ -6,6 +6,18 @@
 'require form';
 'require upnp-bridge-relay/utils as utils';
 
+var callStatus = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'status',
+	expect: { '': {} }
+});
+
+var callServiceRestart = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'restart',
+	expect: { '': {} }
+});
+
 return view.extend({
 	load: function() {
 		return uci.load('upnp_bridge_relay');
@@ -25,6 +37,15 @@ return view.extend({
 		o.datatype = 'string';
 		o.placeholder = '40000-65535';
 		o.rmempty = false;
+		o.validate = function(section_id, value) {
+			if (!value) return _('Port range is required.');
+			if (!/^\d+-\d+$/.test(value)) return _('Invalid format. Use format like 40000-65535.');
+			var lo = parseInt(value.split('-')[0], 10);
+			var hi = parseInt(value.split('-')[1], 10);
+			if (lo < 1 || lo > 65535 || hi < 1 || hi > 65535) return _('Port values must be between 1 and 65535.');
+			if (lo > hi) return _('Start port must not exceed end port.');
+			return true;
+		};
 
 		o = s.option(form.MultiValue, 'protocols', _('Allowed Protocols'),
 			_('Select which protocols to allow for synchronization.'));
@@ -144,6 +165,30 @@ return view.extend({
 				project: 'UPnP Bridge Relay',
 				repoUrl: 'https://github.com/hello-yunshu/upnp-bridge-relay'
 			});
+		});
+	},
+
+	handleSaveApply: function(ev, mode) {
+		return this.handleSave(ev).then(function() {
+			return utils.safeApply();
+		}).then(function() {
+			return uci.load('upnp_bridge_relay');
+		}).then(function() {
+			if (uci.get('upnp_bridge_relay', 'main', 'enabled') !== '1') {
+				ui.addNotification(null, E('p', _('Configuration saved and applied.')), 'info');
+				utils.reloadSoon(600);
+				return;
+			}
+
+			ui.addNotification(null, E('p', _('Configuration saved. Restarting service...')), 'info');
+			return callServiceRestart().then(utils.requireSuccess).then(function() {
+				return utils.waitForServiceReady(callStatus);
+			}).then(function() {
+				ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
+				utils.reloadSoon(300);
+			});
+		}).catch(function(e) {
+			ui.addNotification(null, E('p', _('Failed to apply configuration: ') + e.message), 'error');
 		});
 	}
 });

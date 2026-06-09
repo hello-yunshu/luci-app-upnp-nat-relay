@@ -6,6 +6,18 @@
 'require form';
 'require upnp-bridge-relay/utils as utils';
 
+var callStatus = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'status',
+	expect: { '': {} }
+});
+
+var callServiceRestart = rpc.declare({
+	object: 'upnp_bridge_relay',
+	method: 'restart',
+	expect: { '': {} }
+});
+
 var callCheckNetwork = rpc.declare({
 	object: 'upnp_bridge_relay',
 	method: 'check-network',
@@ -455,6 +467,30 @@ return view.extend({
 		return utils.renderWithFooter(m.render(), {
 			project: 'UPnP Bridge Relay',
 			repoUrl: 'https://github.com/hello-yunshu/upnp-bridge-relay'
+		});
+	},
+
+	handleSaveApply: function(ev, mode) {
+		return this.handleSave(ev).then(function() {
+			return utils.safeApply();
+		}).then(function() {
+			return uci.load('upnp_bridge_relay');
+		}).then(function() {
+			if (uci.get('upnp_bridge_relay', 'main', 'enabled') !== '1') {
+				ui.addNotification(null, E('p', _('Configuration saved and applied.')), 'info');
+				utils.reloadSoon(600);
+				return;
+			}
+
+			ui.addNotification(null, E('p', _('Configuration saved. Restarting service...')), 'info');
+			return callServiceRestart().then(utils.requireSuccess).then(function() {
+				return utils.waitForServiceReady(callStatus);
+			}).then(function() {
+				ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
+				utils.reloadSoon(300);
+			});
+		}).catch(function(e) {
+			ui.addNotification(null, E('p', _('Failed to apply configuration: ') + e.message), 'error');
 		});
 	}
 });

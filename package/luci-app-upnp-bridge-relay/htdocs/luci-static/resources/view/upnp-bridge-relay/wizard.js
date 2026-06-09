@@ -689,6 +689,9 @@ return view.extend({
 
 	applyTempUci: function() {
 		var self = this;
+		if (self.wizardMode !== 'auto') {
+			return Promise.resolve();
+		}
 		if (self.wizardData.bind_ifname)
 			uci.set('upnp_bridge_relay', 'main', 'bind_ifname', self.wizardData.bind_ifname);
 		if (self.wizardData.bind_ip)
@@ -724,7 +727,10 @@ return view.extend({
 
 	validatePortRange: function(value) {
 		if (!value) return false;
-		return /^\d+-\d+$/.test(value) && parseInt(value.split('-')[0], 10) <= parseInt(value.split('-')[1], 10);
+		if (!/^\d+-\d+$/.test(value)) return false;
+		var lo = parseInt(value.split('-')[0], 10);
+		var hi = parseInt(value.split('-')[1], 10);
+		return lo >= 1 && lo <= 65535 && hi >= 1 && hi <= 65535 && lo <= hi;
 	},
 
 	applyWizard: function() {
