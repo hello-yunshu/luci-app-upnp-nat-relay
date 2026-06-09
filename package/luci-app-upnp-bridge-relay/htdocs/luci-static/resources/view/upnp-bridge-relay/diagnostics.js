@@ -40,26 +40,6 @@ var callClearLog = rpc.declare({
 	expect: { '': {} }
 });
 
-var css = `
-	.ubr-log-area {
-		min-height: 16em; max-height: 26em; overflow: auto; padding: 1em;
-		background: var(--background-color-low);
-		color: inherit;
-		font-size: 0.85em; line-height: 1.45; border-radius: 6px;
-		border: 1px solid var(--border-color);
-		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-		white-space: pre;
-		tab-size: 4;
-	}
-	.ubr-log-area.is-empty,
-	.ubr-log-area.is-loading { color: var(--subtext-color); font-style: italic; }
-	.ubr-log-area.is-error { color: var(--danger-color); }
-	.ubr-danger-zone {
-		margin-bottom: 1.5em;
-		border-left: 5px solid var(--danger-color, #d94b4b);
-	}
-`;
-
 return view.extend({
 	load: function() {
 		return Promise.all([
@@ -79,7 +59,6 @@ return view.extend({
 		var logData = data.logData || {};
 
 		var container = E('div', { 'class': 'cbi-map ubr-dashboard' });
-		container.appendChild(E('style', {}, css));
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Logs & Maintenance')));
 
@@ -99,7 +78,7 @@ return view.extend({
 				logArea.scrollTop = logArea.scrollHeight;
 		};
 
-		var logBtnBar = E('div', { 'class': 'ubr-btn-group', 'style': 'margin-bottom:1em' });
+		var logBtnBar = E('div', { 'class': 'ubr-btn-group ubr-mb-1' });
 
 		logBtnBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
@@ -178,7 +157,7 @@ return view.extend({
 		}
 
 		if (status.last_error) {
-			logSection.appendChild(E('div', { 'class': 'alert-message danger', 'style': 'margin-top:1em' },
+			logSection.appendChild(E('div', { 'class': 'alert-message danger ubr-mt-1' },
 				E('p', {}, '\u2718 ' + _('Last Error: ') + status.last_error)));
 		}
 		container.appendChild(logSection);
@@ -186,7 +165,7 @@ return view.extend({
 		var rollbackSection = E('div', { 'class': 'cbi-section ubr-danger-zone' });
 		rollbackSection.appendChild(E('h3', {}, _('Rollback & Cleanup')));
 
-		rollbackSection.appendChild(E('div', { 'class': 'alert-message warning', 'style': 'margin-bottom:1em' },
+		rollbackSection.appendChild(E('div', { 'class': 'alert-message warning ubr-mb-1' },
 			E('p', {}, _('Warning: Rollback operations will remove configurations created by this plugin. Proceed with caution.'))));
 
 		var rollbackBtnBar = E('div', { 'class': 'ubr-btn-group' });

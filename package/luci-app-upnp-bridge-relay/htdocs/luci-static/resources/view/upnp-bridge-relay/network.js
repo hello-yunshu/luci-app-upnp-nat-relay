@@ -99,122 +99,122 @@ return view.extend({
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (hasNetCheckData() && netCheckData.iface_exists === 1) {
-				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Interface exists') + '</span>';
+				return '<span class="ubr-text-success">&#10004; ' + _('Interface exists') + '</span>';
 			}
 			if (hasNetCheckData()) {
-				return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Interface not found') + '</span>';
+				return '<span class="ubr-text-danger">&#10008; ' + _('Interface not found') + '</span>';
 			}
-			return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_ip_status', _('IP Status'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (hasNetCheckData() && netCheckData.bind_ip_configured === 1) {
-				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('IP configured') + '</span>';
+				return '<span class="ubr-text-success">&#10004; ' + _('IP configured') + '</span>';
 			}
 			if (hasNetCheckData()) {
-				return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('IP not configured') + '</span>';
+				return '<span class="ubr-text-danger">&#10008; ' + _('IP not configured') + '</span>';
 			}
-			return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+			return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_gateway_reachable', _('Downstream LAN Gateway'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.gateway_reachable === 1 || netCheckData.gateway_reachable === 'ok' || netCheckData.gateway_reachable === true) {
-				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Reachable') + '</span>';
+				return '<span class="ubr-text-success">&#10004; ' + _('Reachable') + '</span>';
 			}
-			return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Unreachable') + '</span>';
+			return '<span class="ubr-text-danger">&#10008; ' + _('Unreachable') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_upnpc_readable', _('UPnP IGD Read'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.upnpc_readable === 1 || netCheckData.upnpc_readable === 'ok' || netCheckData.upnpc_readable === true) {
-				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Readable') + '</span>';
+				return '<span class="ubr-text-success">&#10004; ' + _('Readable') + '</span>';
 			}
-			return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Failed') + '</span>';
+			return '<span class="ubr-text-danger">&#10008; ' + _('Failed') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_wan_ip_reachable', _('Downstream WAN IP'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.wan_ip_reachable === 1 || netCheckData.wan_ip_reachable === 'ok' || netCheckData.wan_ip_reachable === true) {
-				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Reachable') + '</span>';
+				return '<span class="ubr-text-success">&#10004; ' + _('Reachable') + '</span>';
 			}
-			return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Unreachable') + '</span>';
+			return '<span class="ubr-text-danger">&#10008; ' + _('Unreachable') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_upstream_wan', _('Upstream WAN Interface'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.upstream_wan_exists === 1 || netCheckData.upstream_wan_exists === 'ok' || netCheckData.upstream_wan_exists === true) {
-				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('Exists') + '</span>';
+				return '<span class="ubr-text-success">&#10004; ' + _('Exists') + '</span>';
 			}
-			return '<span style="color:var(--danger-color, #d94b4b)">&#10008; ' + _('Not found') + '</span>';
+			return '<span class="ubr-text-danger">&#10008; ' + _('Not found') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_default_route', _('Default Route Risk'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.default_route_on_bind === 1) {
-				return '<span style="color:var(--danger-color, #d94b4b);font-weight:bold">&#9888; ' + _('Default route points to read interface!') + '</span>' +
-					'<p style="color:var(--warning-color, #d89b00)">' + _('The read interface should NOT be a default gateway.') + '</p>';
+				return '<span class="ubr-text-danger ubr-text-bold">&#9888; ' + _('Default route points to read interface!') + '</span>' +
+					'<p class="ubr-text-warning">' + _('The read interface should NOT be a default gateway.') + '</p>';
 			}
-			return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('No default route risk') + '</span>';
+			return '<span class="ubr-text-success">&#10004; ' + _('No default route risk') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_gateway_set', _('Gateway Setting'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.gateway_set === 1) {
-				return '<span style="color:var(--danger-color, #d94b4b)">&#9888; ' + _('Gateway is set: %s').format(netCheckData.gateway_value || '-') + '</span>' +
-					'<p style="color:var(--warning-color, #d89b00)">' + _('The read interface should not have a gateway configured.') + '</p>';
+				return '<span class="ubr-text-danger">&#9888; ' + _('Gateway is set: %s').format(netCheckData.gateway_value || '-') + '</span>' +
+					'<p class="ubr-text-warning">' + _('The read interface should not have a gateway configured.') + '</p>';
 			}
-			return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('No gateway set') + '</span>';
+			return '<span class="ubr-text-success">&#10004; ' + _('No gateway set') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_dns_set', _('DNS Setting'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.dns_set === 1) {
-				return '<span style="color:var(--warning-color, #d89b00)">&#9888; ' + _('DNS is set: %s').format(netCheckData.dns_value || '-') + '</span>';
+				return '<span class="ubr-text-warning">&#9888; ' + _('DNS is set: %s').format(netCheckData.dns_value || '-') + '</span>';
 			}
-			return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('No DNS set') + '</span>';
+			return '<span class="ubr-text-success">&#10004; ' + _('No DNS set') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_forwarding', _('Extra Forwarding'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.bad_forwarding === 1) {
-				return '<span style="color:var(--warning-color, #d89b00)">&#9888; ' + _('Unnecessary forwarding detected') + '</span>';
+				return '<span class="ubr-text-warning">&#9888; ' + _('Unnecessary forwarding detected') + '</span>';
 			}
-			return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + _('No extra forwarding') + '</span>';
+			return '<span class="ubr-text-success">&#10004; ' + _('No extra forwarding') + '</span>';
 		};
 
 		o = s.taboption('status', form.DummyValue, '_hint', _('Hint'));
@@ -294,76 +294,76 @@ return view.extend({
 		o.cfgvalue = function() {
 			var zoneName = uci.get('upnp_bridge_relay', 'main', 'firewall_zone_name') || 'upnp_bridge';
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.zone_exists === 1) {
-				return '<span style="color:var(--success-color, #3aa657)">&#10004; ' + (netCheckData.zone_name || zoneName) + '</span>';
+				return '<span class="ubr-text-success">&#10004; ' + (netCheckData.zone_name || zoneName) + '</span>';
 			}
-			return '<span style="color:var(--warning-color, #d89b00)">&#10008; ' + zoneName + ' (' + _('Zone not found') + ')</span>';
+			return '<span class="ubr-text-warning">&#10008; ' + zoneName + ' (' + _('Zone not found') + ')</span>';
 		};
 
 		o = s.taboption('zone_status', form.DummyValue, '_zone_input', _('Input Policy'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.zone_exists === 1) {
 				var input = netCheckData.zone_input || '-';
 				if (input === 'ACCEPT') {
-					return '<span style="color:var(--success-color, #3aa657)">' + input + '</span>';
+					return '<span class="ubr-text-success">' + input + '</span>';
 				}
-				return '<span style="color:var(--danger-color, #d94b4b)">' + input + ' ' + _('(should be ACCEPT)') + '</span>';
+				return '<span class="ubr-text-danger">' + input + ' ' + _('(should be ACCEPT)') + '</span>';
 			}
-			return '<span style="color:var(--warning-color, #d89b00)">' + _('Zone not found') + '</span>';
+			return '<span class="ubr-text-warning">' + _('Zone not found') + '</span>';
 		};
 
 		o = s.taboption('zone_status', form.DummyValue, '_zone_output', _('Output Policy'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.zone_exists === 1) {
 				var output = netCheckData.zone_output || '-';
 				if (output === 'ACCEPT') {
-					return '<span style="color:var(--success-color, #3aa657)">' + output + '</span>';
+					return '<span class="ubr-text-success">' + output + '</span>';
 				}
-				return '<span style="color:var(--danger-color, #d94b4b)">' + output + ' ' + _('(should be ACCEPT)') + '</span>';
+				return '<span class="ubr-text-danger">' + output + ' ' + _('(should be ACCEPT)') + '</span>';
 			}
-			return '<span style="color:var(--warning-color, #d89b00)">' + _('Zone not found') + '</span>';
+			return '<span class="ubr-text-warning">' + _('Zone not found') + '</span>';
 		};
 
 		o = s.taboption('zone_status', form.DummyValue, '_zone_forward', _('Forward Policy'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.zone_exists === 1) {
 				var forward = netCheckData.zone_forward || '-';
 				if (forward === 'REJECT') {
-					return '<span style="color:var(--success-color, #3aa657)">' + forward + '</span>';
+					return '<span class="ubr-text-success">' + forward + '</span>';
 				}
-				return '<span style="color:var(--danger-color, #d94b4b)">' + forward + ' ' + _('(should be REJECT)') + '</span>';
+				return '<span class="ubr-text-danger">' + forward + ' ' + _('(should be REJECT)') + '</span>';
 			}
-			return '<span style="color:var(--warning-color, #d89b00)">' + _('Zone not found') + '</span>';
+			return '<span class="ubr-text-warning">' + _('Zone not found') + '</span>';
 		};
 
 		o = s.taboption('zone_status', form.DummyValue, '_zone_maq', _('Masquerading'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			if (!hasNetCheckData()) {
-				return '<span style="color:var(--subtext-color, #666)">' + _('Click "Detect" to check status.') + '</span>';
+				return '<span class="ubr-text-muted">' + _('Click "Detect" to check status.') + '</span>';
 			}
 			if (netCheckData.zone_exists === 1) {
 				var masq = netCheckData.zone_masq || '0';
 				if (masq === '0') {
-					return '<span style="color:var(--success-color, #3aa657)">' + _('Disabled') + '</span>';
+					return '<span class="ubr-text-success">' + _('Disabled') + '</span>';
 				}
-				return '<span style="color:var(--danger-color, #d94b4b)">' + _('Enabled (should be Disabled)') + '</span>';
+				return '<span class="ubr-text-danger">' + _('Enabled (should be Disabled)') + '</span>';
 			}
-			return '<span style="color:var(--warning-color, #d89b00)">' + _('Zone not found') + '</span>';
+			return '<span class="ubr-text-warning">' + _('Zone not found') + '</span>';
 		};
 
 		o = s.taboption('zone_status', form.DummyValue, '_zone_recommendation', _('Recommendation'));

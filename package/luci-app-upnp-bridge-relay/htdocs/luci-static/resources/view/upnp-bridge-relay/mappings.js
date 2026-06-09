@@ -17,16 +17,6 @@ var callSyncNow = rpc.declare({
 	expect: { '': {} }
 });
 
-var css = `
-	.ubr-mappings { max-width: 100%; }
-	.ubr-mappings .cbi-section {
-		margin-bottom: 1.5em;
-	}
-	.ubr-btn-bar {
-		display: flex; gap: 1em;
-	}
-`;
-
 return view.extend({
 	load: function() {
 		return Promise.all([
@@ -40,7 +30,6 @@ return view.extend({
 	render: function(status) {
 		utils.loadSharedCSS();
 		var container = E('div', { 'class': 'cbi-map ubr-mappings' });
-		container.appendChild(E('style', {}, css));
 
 		container.appendChild(E('h2', { 'class': 'cbi-map-title' }, _('Mappings')));
 
@@ -112,8 +101,8 @@ return view.extend({
 				var mapping = rawMappings[i];
 				var key = mapping.protocol + ':' + mapping.external_port;
 				var statusLabel = acceptedPorts[key] ?
-					'<span style="color:var(--success-color, #3aa657)">' + _('Accepted') + '</span>' :
-					'<span style="color:var(--danger-color, #d94b4b)">' + _('Rejected') + '</span>';
+					'<span class="ubr-text-success">' + _('Accepted') + '</span>' :
+					'<span class="ubr-text-danger">' + _('Rejected') + '</span>';
 				var statusTd = E('td');
 				statusTd.innerHTML = statusLabel;
 				var row = E('tr', { 'class': 'tr' }, [
@@ -127,7 +116,7 @@ return view.extend({
 				rawTable.appendChild(row);
 			}
 		} else {
-			rawTable.appendChild(E('tr', {}, E('td', { 'colspan': '6', 'style': 'color:var(--subtext-color, #666)' }, _('No mappings found.'))));
+			rawTable.appendChild(E('tr', {}, E('td', { 'colspan': '6', 'class': 'ubr-text-muted' }, _('No mappings found.'))));
 		}
 		var rawSection = E('div', { 'class': 'cbi-section' });
 		rawSection.appendChild(E('h3', {}, _('Read UPnP Mappings (Raw)')));
@@ -152,7 +141,7 @@ return view.extend({
 				var dnatTarget = mapping.dnat_target || (downstreamWanIp + ':' + mapping.external_port);
 				var sourceMapping = (mapping.internal_ip || '-') + ':' + (mapping.internal_port || '-') + ' ' + (mapping.description || '');
 				var statusTd = E('td');
-				statusTd.innerHTML = '<span style="color:var(--success-color, #3aa657)">' + _('Active') + '</span>';
+				statusTd.innerHTML = '<span class="ubr-text-success">' + _('Active') + '</span>';
 				var row = E('tr', { 'class': 'tr' }, [
 					E('td', {}, mapping.protocol || '-'),
 					E('td', {}, String(mapping.external_port || '-')),
@@ -163,7 +152,7 @@ return view.extend({
 				syncTable.appendChild(row);
 			}
 		} else {
-			syncTable.appendChild(E('tr', {}, E('td', { 'colspan': '5', 'style': 'color:var(--subtext-color, #666)' }, _('No synced mappings.'))));
+			syncTable.appendChild(E('tr', {}, E('td', { 'colspan': '5', 'class': 'ubr-text-muted' }, _('No synced mappings.'))));
 		}
 		var syncSection = E('div', { 'class': 'cbi-section' });
 		syncSection.appendChild(E('h3', {}, _('Synced Mappings (DNAT)')));
@@ -185,7 +174,7 @@ return view.extend({
 			for (var i = 0; i < rejected.length; i++) {
 				var mapping = rejected[i];
 				var reasonTd = E('td');
-				reasonTd.innerHTML = '<span style="color:var(--danger-color, #d94b4b)">' + (mapping.reason || '-') + '</span>';
+				reasonTd.innerHTML = '<span class="ubr-text-danger">' + (mapping.reason || '-') + '</span>';
 				var row = E('tr', { 'class': 'tr' }, [
 					E('td', {}, mapping.protocol || '-'),
 					E('td', {}, String(mapping.external_port || '-')),
@@ -196,7 +185,7 @@ return view.extend({
 				rejectTable.appendChild(row);
 			}
 		} else {
-			rejectTable.appendChild(E('tr', {}, E('td', { 'colspan': '5', 'style': 'color:var(--success-color, #3aa657)' }, '\u2714 ' + _('No rejected mappings.'))));
+			rejectTable.appendChild(E('tr', {}, E('td', { 'colspan': '5', 'class': 'ubr-text-success' }, '\u2714 ' + _('No rejected mappings.'))));
 		}
 		var rejectSection = E('div', { 'class': 'cbi-section' });
 		rejectSection.appendChild(E('h3', {}, _('Rejected Mappings')));
