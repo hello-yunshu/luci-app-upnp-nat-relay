@@ -73,7 +73,7 @@ return view.extend({
 			if (state)
 				logArea.classList.add(state);
 
-			logArea.textContent = text;
+			logArea.value = text;
 			if (!state)
 				logArea.scrollTop = logArea.scrollHeight;
 		};
@@ -145,8 +145,13 @@ return view.extend({
 			initialLogState = logs ? null : 'is-empty';
 		}
 
-		var logArea = E('pre', { 'class': 'ubr-log-area' + (initialLogState ? ' ' + initialLogState : ''), 'id': 'log-area' },
-			initialLogText);
+		var logArea = E('textarea', {
+			'class': 'cbi-input-textarea ubr-log-area' + (initialLogState ? ' ' + initialLogState : ''),
+			'id': 'log-area',
+			'rows': 20,
+			'readonly': 'readonly'
+		});
+		logArea.value = initialLogText;
 		logSection.appendChild(logArea);
 
 		if (!initialLogState) {
