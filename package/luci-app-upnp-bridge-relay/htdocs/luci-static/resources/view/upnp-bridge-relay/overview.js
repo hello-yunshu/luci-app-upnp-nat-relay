@@ -330,7 +330,7 @@ return view.extend({
 		var lastResultBadge;
 		if (lastResult === 'starting') {
 			lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u23F3 ' + _('Starting'));
-		} else if (lastResult === 'success' || lastResult.indexOf('success') === 0) {
+		} else if (lastResult === 'success' || (typeof lastResult === 'string' && lastResult.indexOf('success') === 0)) {
 			lastResultBadge = E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + lastResult);
 		} else if (lastResult === '-') {
 			lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + '-');
