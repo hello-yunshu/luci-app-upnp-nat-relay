@@ -155,6 +155,8 @@ The plugin can auto-create this interface via the Setup Wizard, or you can confi
 |---------|---------|
 | miniupnpc | Provides `upnpc` command to read downstream UPnP IGD mappings |
 | nftables | Creates and manages the plugin's own nftables DNAT table |
+| coreutils-timeout | Provides `timeout` limits for slow probe commands |
+| flock | Provides file locking for sync tasks to avoid concurrent runs |
 | uci | Reads/writes OpenWrt UCI configuration |
 | ubus | LuCI status and action RPC interface |
 | rpcd | LuCI backend RPC daemon |
@@ -166,14 +168,14 @@ OpenWrt 25.12+:
 
 ```sh
 apk update
-apk add miniupnpc nftables luci-base rpcd uci
+apk add miniupnpc nftables coreutils-timeout flock luci-base rpcd uci
 ```
 
 OpenWrt 24.10 / 23.05:
 
 ```sh
 opkg update
-opkg install miniupnpc nftables luci-base rpcd uci
+opkg install miniupnpc nftables coreutils-timeout flock luci-base rpcd uci
 ```
 
 ## LuCI Usage
