@@ -13,7 +13,7 @@ define Package/luci-app-upnp-bridge-relay
   SECTION:=luci
   CATEGORY:=LuCI
   TITLE:=UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT
-  DEPENDS:=+luci-base +miniupnpc +nftables
+  DEPENDS:=+luci-base +miniupnpc +nftables +coreutils-timeout +util-linux-flock
   PKGARCH:=all
 endef
 

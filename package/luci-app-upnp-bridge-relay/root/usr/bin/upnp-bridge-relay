@@ -790,7 +790,7 @@ cache_signature() {
         printf 'deny_empty_description=%s\n' "${cfg_deny_empty_description}"
         printf 'openclash_return_strategy=%s\n' "${cfg_openclash_return_strategy}"
         printf 'openclash_rule_remark=%s\n' "${cfg_openclash_rule_remark}"
-    } | cksum | awk '{print $1}'
+    } | md5sum | awk '{print $1}'
 }
 
 cache_epoch() {
