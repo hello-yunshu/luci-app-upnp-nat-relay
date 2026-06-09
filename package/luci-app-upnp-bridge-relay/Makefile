@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-upnp-bridge-relay
 PKG_VERSION:=1.1.12
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_MAINTAINER:=yunshu
 PKG_LICENSE:=GPL-3.0
@@ -13,7 +13,7 @@ define Package/luci-app-upnp-bridge-relay
   SECTION:=luci
   CATEGORY:=LuCI
   TITLE:=UPnP Bridge Relay - Bridge downstream UPnP mappings through upstream NAT
-  DEPENDS:=+luci-base +miniupnpc +nftables +coreutils-timeout +util-linux-flock
+  DEPENDS:=+luci-base +miniupnpc +nftables +coreutils-timeout +flock
   PKGARCH:=all
 endef
 

@@ -155,6 +155,8 @@ DNS：       （留空）
 |---|------|
 | miniupnpc | 提供 `upnpc` 命令，读取下游 UPnP IGD 映射 |
 | nftables | 创建和管理插件专属的 nftables DNAT 表 |
+| coreutils-timeout | 为耗时探测命令提供 `timeout` 限制 |
+| flock | 为同步任务提供文件锁，避免并发执行 |
 | uci | 读写 OpenWrt UCI 配置 |
 | ubus | LuCI 状态和操作 RPC 接口 |
 | rpcd | LuCI 后端 RPC 守护进程 |
@@ -166,14 +168,14 @@ OpenWrt 25.12+：
 
 ```sh
 apk update
-apk add miniupnpc nftables luci-base rpcd uci
+apk add miniupnpc nftables coreutils-timeout flock luci-base rpcd uci
 ```
 
 OpenWrt 24.10 / 23.05：
 
 ```sh
 opkg update
-opkg install miniupnpc nftables luci-base rpcd uci
+opkg install miniupnpc nftables coreutils-timeout flock luci-base rpcd uci
 ```
 
 ## LuCI 使用

@@ -96,7 +96,7 @@ jobs:
         working-directory: ${{ env.SDKDIR }}
         run: |
           ./scripts/feeds update base packages luci
-          ./scripts/feeds install luci-base miniupnpc nftables
+          ./scripts/feeds install luci-base miniupnpc nftables coreutils-timeout flock
 
       - name: Prepare package source
         working-directory: ${{ env.SDKDIR }}

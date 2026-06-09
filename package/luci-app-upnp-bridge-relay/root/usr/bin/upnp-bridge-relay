@@ -2303,18 +2303,18 @@ do_setup_openclash() {
         return 1
     fi
 
-    exec 10>"${OPENCLASH_LOCK_FILE}"
-    if ! flock -n 10; then
+    exec 7>"${OPENCLASH_LOCK_FILE}"
+    if ! flock -n 7; then
         log_warn "Another OpenClash operation is running, skipping"
         printf '{"success":false,"error":"openclash_operation_running","message":"Another OpenClash operation is currently running"}\n'
-        exec 10>&- 2>/dev/null
+        exec 7>&- 2>/dev/null
         return 1
     fi
 
     if [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
         if [ -z "${cfg_bind_ip}" ]; then
             printf '{"success":false,"error":"bind_ip not configured"}\n'
-            exec 10>&- 2>/dev/null
+            exec 7>&- 2>/dev/null
             return 1
         fi
 
@@ -2329,14 +2329,14 @@ do_setup_openclash() {
         else
             if ! command -v upnpc >/dev/null 2>&1; then
                 printf '{"success":false,"error":"upnpc not found"}\n'
-                exec 10>&- 2>/dev/null
+                exec 7>&- 2>/dev/null
                 return 1
             fi
 
             _so_upnpc_output="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>&1)"
             if [ -z "$_so_upnpc_output" ]; then
                 printf '{"success":false,"error":"upnpc_read_failed"}\n'
-                exec 10>&- 2>/dev/null
+                exec 7>&- 2>/dev/null
                 return 1
             fi
 
@@ -2419,7 +2419,7 @@ do_setup_openclash() {
     if [ "$_so_success" = "true" ]; then
         openclash_record_sync_time
     fi
-    exec 10>&- 2>/dev/null
+    exec 7>&- 2>/dev/null
 }
 
 do_remove_openclash_rule() {
@@ -2431,11 +2431,11 @@ do_remove_openclash_rule() {
         return 1
     fi
 
-    exec 10>"${OPENCLASH_LOCK_FILE}"
-    if ! flock -n 10; then
+    exec 7>"${OPENCLASH_LOCK_FILE}"
+    if ! flock -n 7; then
         log_warn "Another OpenClash operation is running, skipping"
         printf '{"success":false,"error":"openclash_operation_running","message":"Another OpenClash operation is currently running"}\n'
-        exec 10>&- 2>/dev/null
+        exec 7>&- 2>/dev/null
         return 1
     fi
 
@@ -2444,7 +2444,7 @@ do_remove_openclash_rule() {
     log_info "OpenClash rule removed"
 
     rm -f "${OC_SYNC_TIMESTAMP_FILE}" 2>/dev/null
-    exec 10>&- 2>/dev/null
+    exec 7>&- 2>/dev/null
 }
 
 do_sync_openclash() {
@@ -2478,11 +2478,11 @@ do_sync_openclash() {
         log_info "Main sync finished, proceeding with OpenClash sync"
     fi
 
-    exec 10>"${OPENCLASH_LOCK_FILE}"
-    if ! flock -n 10; then
+    exec 7>"${OPENCLASH_LOCK_FILE}"
+    if ! flock -n 7; then
         log_warn "Another OpenClash operation is running, skipping"
         printf '{"success":false,"error":"openclash_operation_running","message":"Another OpenClash operation is currently running"}\n'
-        exec 10>&- 2>/dev/null
+        exec 7>&- 2>/dev/null
         return 1
     fi
 
@@ -2490,7 +2490,7 @@ do_sync_openclash() {
     if [ "${cfg_openclash_return_strategy}" = "per_mapping" ]; then
         if [ -z "${cfg_bind_ip}" ]; then
             printf '{"success":false,"error":"bind_ip not configured"}\n'
-            exec 10>&- 2>/dev/null
+            exec 7>&- 2>/dev/null
             return 1
         fi
 
@@ -2503,14 +2503,14 @@ do_sync_openclash() {
         else
             if ! command -v upnpc >/dev/null 2>&1; then
                 printf '{"success":false,"error":"upnpc not found"}\n'
-                exec 10>&- 2>/dev/null
+                exec 7>&- 2>/dev/null
                 return 1
             fi
 
             _dsoc_upnpc_output="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>&1)"
             if [ -z "$_dsoc_upnpc_output" ]; then
                 printf '{"success":false,"error":"upnpc_read_failed"}\n'
-                exec 10>&- 2>/dev/null
+                exec 7>&- 2>/dev/null
                 return 1
             fi
 
@@ -2575,7 +2575,7 @@ do_sync_openclash() {
     fi
 
     printf '%s\n' "$_dsoc_result"
-    exec 10>&- 2>/dev/null
+    exec 7>&- 2>/dev/null
 }
 
 do_rollback() {
