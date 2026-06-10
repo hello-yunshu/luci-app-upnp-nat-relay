@@ -25,7 +25,7 @@ OpenWrt LuCI 插件，用于在双路由器（多级 NAT）网络环境中，将
 ```sh
 cd /path/to/openwrt-sdk
 
-echo "src-git luci_app_upnp_bridge_relay https://github.com/yunshu/upnp-bridge-relay.git" >> feeds.conf.default
+echo "src-git luci_app_upnp_bridge_relay https://github.com/hello-yunshu/upnp-bridge-relay.git" >> feeds.conf.default
 ./scripts/feeds update luci_app_upnp_bridge_relay
 ./scripts/feeds install luci-app-upnp-bridge-relay
 
@@ -33,7 +33,7 @@ make menuconfig
 make package/luci-app-upnp-bridge-relay/compile V=s
 ```
 
-**方式二：从 [Releases](https://github.com/yunshu/upnp-bridge-relay/releases) 下载预编译包**
+**方式二：从 [Releases](https://github.com/hello-yunshu/upnp-bridge-relay/releases) 下载预编译包**
 
 每次推送到 main 分支，CI 会自动构建 `.ipk`（opkg）和 `.apk`（apk）两种格式的包。
 

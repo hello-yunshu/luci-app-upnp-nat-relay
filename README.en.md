@@ -25,7 +25,7 @@ This replaces the need for wide-range DMZ or manual port forwarding on the upstr
 ```sh
 cd /path/to/openwrt-sdk
 
-echo "src-git luci_app_upnp_bridge_relay https://github.com/yunshu/upnp-bridge-relay.git" >> feeds.conf.default
+echo "src-git luci_app_upnp_bridge_relay https://github.com/hello-yunshu/upnp-bridge-relay.git" >> feeds.conf.default
 ./scripts/feeds update luci_app_upnp_bridge_relay
 ./scripts/feeds install luci-app-upnp-bridge-relay
 
@@ -33,7 +33,7 @@ make menuconfig
 make package/luci-app-upnp-bridge-relay/compile V=s
 ```
 
-**Method 2: Download pre-built from [Releases](https://github.com/yunshu/upnp-bridge-relay/releases)**
+**Method 2: Download pre-built from [Releases](https://github.com/hello-yunshu/upnp-bridge-relay/releases)**
 
 CI automatically builds both `.ipk` (opkg) and `.apk` (apk) format packages on every push to main.
 
