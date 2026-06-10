@@ -365,7 +365,9 @@ return view.extend({
 			envTimeTd
 		]));
 
-		infoSection.appendChild(infoTable);
+		var infoTableWrap = E('div', { 'class': 'ubr-table-wrap' });
+		infoTableWrap.appendChild(infoTable);
+		infoSection.appendChild(infoTableWrap);
 		container.appendChild(infoSection);
 
 		var envSection = E('div', { 'class': 'cbi-section ubr-section' });
@@ -412,7 +414,10 @@ return view.extend({
 				td
 			]));
 		}
-		envSection.appendChild(envTable);
+
+		var envTableWrap = E('div', { 'class': 'ubr-table-wrap' });
+		envTableWrap.appendChild(envTable);
+		envSection.appendChild(envTableWrap);
 
 		var envBtnBar = E('div', { 'class': 'ubr-btn-group ubr-mt-1' });
 		envBtnBar.appendChild(E('button', {
