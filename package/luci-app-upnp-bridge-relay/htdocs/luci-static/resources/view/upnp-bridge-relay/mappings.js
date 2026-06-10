@@ -78,15 +78,11 @@ return view.extend({
 		container.appendChild(btnBar);
 
 		var rawTableWrap = E('div', { 'class': 'ubr-table-wrap' });
-		var rawTable = E('table', { 'class': 'table', 'id': 'raw-mappings-table' }, [
-			E('thead', {}, E('tr', {}, [
-				E('th', {}, _('Protocol')),
-				E('th', {}, _('External Port')),
-				E('th', {}, _('Internal IP')),
-				E('th', {}, _('Internal Port')),
-				E('th', {}, _('Description')),
-				E('th', {}, _('Status'))
-			]))
+		var rawHeaders = [_('Protocol'), _('External Port'), _('Internal IP'), _('Internal Port'), _('Description'), _('Status')];
+		var rawTable = E('table', { 'class': 'table ubr-responsive-table', 'id': 'raw-mappings-table' }, [
+			E('thead', {}, E('tr', {}, rawHeaders.map(function(title) {
+				return E('th', {}, title);
+			})))
 		]);
 
 		var rawMappings = (status && status.accepted) ? status.accepted.concat(status.rejected || []) : [];
@@ -107,13 +103,14 @@ return view.extend({
 				var statusTd = E('td');
 				statusTd.innerHTML = statusLabel;
 				var row = E('tr', { 'class': 'tr' }, [
-					E('td', {}, mapping.protocol || '-'),
-					E('td', {}, String(mapping.external_port || '-')),
-					E('td', {}, mapping.internal_ip || '-'),
-					E('td', {}, String(mapping.internal_port || '-')),
-					E('td', {}, mapping.description || '-'),
+					E('td', { 'data-label': rawHeaders[0] }, mapping.protocol || '-'),
+					E('td', { 'data-label': rawHeaders[1] }, String(mapping.external_port || '-')),
+					E('td', { 'data-label': rawHeaders[2] }, mapping.internal_ip || '-'),
+					E('td', { 'data-label': rawHeaders[3] }, String(mapping.internal_port || '-')),
+					E('td', { 'data-label': rawHeaders[4] }, mapping.description || '-'),
 					statusTd
 				]);
+				statusTd.setAttribute('data-label', rawHeaders[5]);
 				rawTable.appendChild(row);
 			}
 		} else {
@@ -126,14 +123,11 @@ return view.extend({
 		container.appendChild(rawSection);
 
 		var syncTableWrap = E('div', { 'class': 'ubr-table-wrap' });
-		var syncTable = E('table', { 'class': 'table', 'id': 'synced-mappings-table' }, [
-			E('thead', {}, E('tr', {}, [
-				E('th', {}, _('Protocol')),
-				E('th', {}, _('Public Port')),
-				E('th', {}, _('DNAT Target')),
-				E('th', {}, _('Source Mapping')),
-				E('th', {}, _('Status'))
-			]))
+		var syncHeaders = [_('Protocol'), _('Public Port'), _('DNAT Target'), _('Source Mapping'), _('Status')];
+		var syncTable = E('table', { 'class': 'table ubr-responsive-table', 'id': 'synced-mappings-table' }, [
+			E('thead', {}, E('tr', {}, syncHeaders.map(function(title) {
+				return E('th', {}, title);
+			})))
 		]);
 
 		var accepted = (status && status.accepted) ? status.accepted : [];
@@ -146,12 +140,13 @@ return view.extend({
 				var statusTd = E('td');
 				statusTd.innerHTML = '<span class="ubr-text-success">' + _('Active') + '</span>';
 				var row = E('tr', { 'class': 'tr' }, [
-					E('td', {}, mapping.protocol || '-'),
-					E('td', {}, String(mapping.external_port || '-')),
-					E('td', {}, dnatTarget),
-					E('td', {}, sourceMapping),
+					E('td', { 'data-label': syncHeaders[0] }, mapping.protocol || '-'),
+					E('td', { 'data-label': syncHeaders[1] }, String(mapping.external_port || '-')),
+					E('td', { 'data-label': syncHeaders[2] }, dnatTarget),
+					E('td', { 'data-label': syncHeaders[3] }, sourceMapping),
 					statusTd
 				]);
+				statusTd.setAttribute('data-label', syncHeaders[4]);
 				syncTable.appendChild(row);
 			}
 		} else {
@@ -164,14 +159,11 @@ return view.extend({
 		container.appendChild(syncSection);
 
 		var rejectTableWrap = E('div', { 'class': 'ubr-table-wrap' });
-		var rejectTable = E('table', { 'class': 'table', 'id': 'rejected-mappings-table' }, [
-			E('thead', {}, E('tr', {}, [
-				E('th', {}, _('Protocol')),
-				E('th', {}, _('External Port')),
-				E('th', {}, _('Internal IP')),
-				E('th', {}, _('Internal Port')),
-				E('th', {}, _('Reject Reason'))
-			]))
+		var rejectHeaders = [_('Protocol'), _('External Port'), _('Internal IP'), _('Internal Port'), _('Reject Reason')];
+		var rejectTable = E('table', { 'class': 'table ubr-responsive-table', 'id': 'rejected-mappings-table' }, [
+			E('thead', {}, E('tr', {}, rejectHeaders.map(function(title) {
+				return E('th', {}, title);
+			})))
 		]);
 
 		var rejected = (status && status.rejected) ? status.rejected : [];
@@ -181,12 +173,13 @@ return view.extend({
 				var reasonTd = E('td');
 				reasonTd.innerHTML = '<span class="ubr-text-danger">' + (mapping.reason || '-') + '</span>';
 				var row = E('tr', { 'class': 'tr' }, [
-					E('td', {}, mapping.protocol || '-'),
-					E('td', {}, String(mapping.external_port || '-')),
-					E('td', {}, mapping.internal_ip || '-'),
-					E('td', {}, String(mapping.internal_port || '-')),
+					E('td', { 'data-label': rejectHeaders[0] }, mapping.protocol || '-'),
+					E('td', { 'data-label': rejectHeaders[1] }, String(mapping.external_port || '-')),
+					E('td', { 'data-label': rejectHeaders[2] }, mapping.internal_ip || '-'),
+					E('td', { 'data-label': rejectHeaders[3] }, String(mapping.internal_port || '-')),
 					reasonTd
 				]);
+				reasonTd.setAttribute('data-label', rejectHeaders[4]);
 				rejectTable.appendChild(row);
 			}
 		} else {
