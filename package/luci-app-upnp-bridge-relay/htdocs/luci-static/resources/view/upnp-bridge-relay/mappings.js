@@ -77,6 +77,7 @@ return view.extend({
 		}, _('Refresh')));
 		container.appendChild(btnBar);
 
+		var rawTableWrap = E('div', { 'class': 'ubr-table-wrap' });
 		var rawTable = E('table', { 'class': 'table', 'id': 'raw-mappings-table' }, [
 			E('thead', {}, E('tr', {}, [
 				E('th', {}, _('Protocol')),
@@ -120,9 +121,11 @@ return view.extend({
 		}
 		var rawSection = E('div', { 'class': 'cbi-section' });
 		rawSection.appendChild(E('h3', {}, _('Read UPnP Mappings (Raw)')));
-		rawSection.appendChild(rawTable);
+		rawTableWrap.appendChild(rawTable);
+		rawSection.appendChild(rawTableWrap);
 		container.appendChild(rawSection);
 
+		var syncTableWrap = E('div', { 'class': 'ubr-table-wrap' });
 		var syncTable = E('table', { 'class': 'table', 'id': 'synced-mappings-table' }, [
 			E('thead', {}, E('tr', {}, [
 				E('th', {}, _('Protocol')),
@@ -156,9 +159,11 @@ return view.extend({
 		}
 		var syncSection = E('div', { 'class': 'cbi-section' });
 		syncSection.appendChild(E('h3', {}, _('Synced Mappings (DNAT)')));
-		syncSection.appendChild(syncTable);
+		syncTableWrap.appendChild(syncTable);
+		syncSection.appendChild(syncTableWrap);
 		container.appendChild(syncSection);
 
+		var rejectTableWrap = E('div', { 'class': 'ubr-table-wrap' });
 		var rejectTable = E('table', { 'class': 'table', 'id': 'rejected-mappings-table' }, [
 			E('thead', {}, E('tr', {}, [
 				E('th', {}, _('Protocol')),
@@ -189,7 +194,8 @@ return view.extend({
 		}
 		var rejectSection = E('div', { 'class': 'cbi-section' });
 		rejectSection.appendChild(E('h3', {}, _('Rejected Mappings')));
-		rejectSection.appendChild(rejectTable);
+		rejectTableWrap.appendChild(rejectTable);
+		rejectSection.appendChild(rejectTableWrap);
 		container.appendChild(rejectSection);
 
 		utils.appendFooter(container, {

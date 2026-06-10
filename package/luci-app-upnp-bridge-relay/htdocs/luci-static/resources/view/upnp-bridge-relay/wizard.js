@@ -80,12 +80,7 @@ return view.extend({
 	uciChanges: [],
 
 	load: function() {
-		return Promise.all([
-			uci.load('upnp_bridge_relay'),
-			network.getDevices()
-		]).then(function(results) {
-			return results;
-		});
+		return uci.load('upnp_bridge_relay');
 	},
 
 	render: function(data) {
@@ -446,7 +441,7 @@ return view.extend({
 			s.appendChild(E('p', {}, _('Review your configuration and enable the service.')));
 
 			var summary = E('div', { 'class': 'cbi-section' });
-			summary.innerHTML = '<table>' +
+			summary.innerHTML = '<table class="ubr-summary-table">' +
 				'<tr><td><b>' + _('Interface') + '</b></td><td>' + (self.wizardData.bind_ifname || '-') + '</td></tr>' +
 				'<tr><td><b>' + _('Bind IP') + '</b></td><td>' + (self.wizardData.bind_ip || '-') + '</td></tr>' +
 				'<tr><td><b>' + _('Downstream LAN Gateway') + '</b></td><td>' + (self.wizardData.downstream_lan_gateway || '-') + '</td></tr>' +
@@ -518,10 +513,18 @@ return view.extend({
 			var applyLabel = self.wizardMode === 'auto' ? _('Apply Configuration') : _('Save Configuration');
 			navBar.appendChild(E('button', {
 				'class': 'cbi-button cbi-button-apply',
+				'id': 'wiz-apply-btn',
 				'click': function() {
+					var btn = this;
+					if (btn.disabled) return;
 					self.collectStepData();
 					if (!self.validateAllSteps()) return;
-					self.applyWizard();
+					btn.disabled = true;
+					btn.textContent = _('Applying...');
+					self.applyWizard().finally(function() {
+						btn.disabled = false;
+						btn.textContent = applyLabel;
+					});
 				}
 			}, applyLabel));
 		}
@@ -668,25 +671,6 @@ return view.extend({
 		}
 	},
 
-	saveToUci: function() {
-		var self = this;
-		if (self.wizardData.bind_ifname)
-			uci.set('upnp_bridge_relay', 'main', 'bind_ifname', self.wizardData.bind_ifname);
-		if (self.wizardData.bind_ip)
-			uci.set('upnp_bridge_relay', 'main', 'bind_ip', self.wizardData.bind_ip);
-		if (self.wizardData.downstream_lan_gateway)
-			uci.set('upnp_bridge_relay', 'main', 'downstream_lan_gateway', self.wizardData.downstream_lan_gateway);
-		if (self.wizardData.downstream_lan_subnet)
-			uci.set('upnp_bridge_relay', 'main', 'downstream_lan_subnet', self.wizardData.downstream_lan_subnet);
-		if (self.wizardData.downstream_wan_ip)
-			uci.set('upnp_bridge_relay', 'main', 'downstream_wan_ip', self.wizardData.downstream_wan_ip);
-		if (self.wizardData.upstream_wan_if)
-			uci.set('upnp_bridge_relay', 'main', 'upstream_wan_if', self.wizardData.upstream_wan_if);
-		return uci.save().then(function() {
-			return utils.safeApply();
-		});
-	},
-
 	applyTempUci: function() {
 		var self = this;
 		if (self.wizardMode !== 'auto') {
@@ -746,7 +730,7 @@ return view.extend({
 		uci.set('upnp_bridge_relay', 'main', 'openclash_mode', self.wizardData.openclash_mode);
 		uci.set('upnp_bridge_relay', 'main', 'enabled', self.wizardData.enabled);
 
-		uci.save()
+		return uci.save()
 			.then(function() {
 				return utils.safeApply();
 			})
