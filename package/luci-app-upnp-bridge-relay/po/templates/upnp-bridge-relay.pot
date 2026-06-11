@@ -709,10 +709,7 @@ msgstr ""
 msgid "No matching rule found"
 msgstr ""
 
-msgid "Suggested RETURN Rule"
-msgstr ""
-
-msgid "Suggested Rule"
+msgid "Rule Preview"
 msgstr ""
 
 msgid "Internal Address:"
@@ -802,7 +799,7 @@ msgstr ""
 msgid "Generating..."
 msgstr ""
 
-msgid "Suggested RETURN rule refreshed."
+msgid "Rule preview refreshed."
 msgstr ""
 
 msgid "Write to OpenClash"
