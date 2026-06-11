@@ -1869,6 +1869,15 @@ do_sync() {
             if [ "$_s_oc_action" != "deferred" ] && [ "$_s_oc_action" != "unchanged" ] && [ "$_s_oc_action" != "failed" ]; then
                 openclash_record_sync_time
             fi
+            # Update suggestion cache after sync
+            if [ "$_s_oc_action" = "updated" ] || [ "$_s_oc_action" = "unchanged" ]; then
+                if [ "${cfg_openclash_return_strategy}" = "per_mapping" ] && [ -f "${GENERATED_ACCEPT_CACHE}" ]; then
+                    _s_oc_suggestion="$(openclash_generate_per_mapping_rules "${GENERATED_ACCEPT_CACHE}")"
+                else
+                    _s_oc_suggestion="$(openclash_generate_return_rule)"
+                fi
+                openclash_write_suggestion_cache "$_s_oc_suggestion"
+            fi
         else
             _s_oc_action="not_installed"
             log_debug "OpenClash not installed, skipping auto sync"
@@ -2418,6 +2427,13 @@ do_setup_openclash() {
 
     if [ "$_so_success" = "true" ]; then
         openclash_record_sync_time
+        # Update suggestion cache after writing rules
+        if [ "${cfg_openclash_return_strategy}" = "per_mapping" ] && [ -f "${GENERATED_ACCEPT_CACHE}" ]; then
+            _so_suggestion="$(openclash_generate_per_mapping_rules "${GENERATED_ACCEPT_CACHE}")"
+        else
+            _so_suggestion="$(openclash_generate_return_rule)"
+        fi
+        openclash_write_suggestion_cache "$_so_suggestion"
     fi
     exec 7>&- 2>/dev/null
 }
@@ -2444,6 +2460,7 @@ do_remove_openclash_rule() {
     log_info "OpenClash rule removed"
 
     rm -f "${OC_SYNC_TIMESTAMP_FILE}" 2>/dev/null
+    openclash_write_suggestion_cache "{}"
     exec 7>&- 2>/dev/null
 }
 
@@ -2570,6 +2587,13 @@ do_sync_openclash() {
     if [ "$_dsoc_success" = "true" ]; then
         openclash_record_sync_time
         log_info "OpenClash standalone sync completed"
+        # Update suggestion cache after sync
+        if [ "${cfg_openclash_return_strategy}" = "per_mapping" ] && [ -f "${GENERATED_ACCEPT_CACHE}" ]; then
+            _dsoc_suggestion="$(openclash_generate_per_mapping_rules "${GENERATED_ACCEPT_CACHE}")"
+        else
+            _dsoc_suggestion="$(openclash_generate_return_rule)"
+        fi
+        openclash_write_suggestion_cache "$_dsoc_suggestion"
     else
         log_warn "OpenClash standalone sync failed: $_dsoc_result"
     fi

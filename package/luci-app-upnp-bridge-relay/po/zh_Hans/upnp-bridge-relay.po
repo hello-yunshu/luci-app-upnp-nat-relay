@@ -720,11 +720,8 @@ msgstr "规则存在"
 msgid "No matching rule found"
 msgstr "未找到匹配规则"
 
-msgid "Suggested RETURN Rule"
-msgstr "建议的 RETURN 规则"
-
-msgid "Suggested Rule"
-msgstr "建议规则"
+msgid "Rule Preview"
+msgstr "规则预览"
 
 msgid "Internal Address:"
 msgstr "内部地址："
@@ -813,8 +810,8 @@ msgstr "规则"
 msgid "Generating..."
 msgstr "正在生成..."
 
-msgid "Suggested RETURN rule refreshed."
-msgstr "建议 RETURN 规则已刷新。"
+msgid "Rule preview refreshed."
+msgstr "规则预览已刷新。"
 
 msgid "Write to OpenClash"
 msgstr "写入 OpenClash"

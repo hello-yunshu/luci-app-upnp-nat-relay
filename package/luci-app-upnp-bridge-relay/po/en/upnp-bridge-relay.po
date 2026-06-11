@@ -705,11 +705,8 @@ msgstr "Rule exists"
 msgid "No matching rule found"
 msgstr "No matching rule found"
 
-msgid "Suggested RETURN Rule"
-msgstr "Suggested RETURN Rule"
-
-msgid "Suggested Rule"
-msgstr "Suggested Rule"
+msgid "Rule Preview"
+msgstr "Rule Preview"
 
 msgid "Internal Address:"
 msgstr "Internal Address:"
@@ -798,8 +795,8 @@ msgstr "Rule"
 msgid "Generating..."
 msgstr "Generating..."
 
-msgid "Suggested RETURN rule refreshed."
-msgstr "Suggested RETURN rule refreshed."
+msgid "Rule preview refreshed."
+msgstr "Rule preview refreshed."
 
 msgid "Write to OpenClash"
 msgstr "Write to OpenClash"

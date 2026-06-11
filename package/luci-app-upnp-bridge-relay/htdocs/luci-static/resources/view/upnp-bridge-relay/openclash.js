@@ -261,10 +261,10 @@ return view.extend({
 			return '<span class="ubr-text-success">' + timeStr + '</span>';
 		};
 
-		s = m.section(form.TypedSection, 'service', _('Suggested RETURN Rule'));
+		s = m.section(form.TypedSection, 'service', _('Rule Preview'));
 		s.anonymous = true;
 
-		o = s.option(form.DummyValue, '_oc_suggested_rule', _('Suggested Rule'));
+		o = s.option(form.DummyValue, '_oc_suggested_rule', _('Rule Preview'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
 			var strategy = uci.get('upnp_bridge_relay', 'main', 'openclash_return_strategy') || 'per_mapping';
@@ -364,7 +364,7 @@ return view.extend({
 			return callGenerateOpenclashRule().then(function(result) {
 				if (preview)
 					preview.outerHTML = buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark, result);
-				ui.addNotification(null, E('p', _('Suggested RETURN rule refreshed.')), 'info');
+				ui.addNotification(null, E('p', _('Rule preview refreshed.')), 'info');
 			}).catch(function(e) {
 				if (preview)
 					preview.outerHTML = buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark);
