@@ -18,11 +18,11 @@ msgstr "概览"
 msgid "Setup Wizard"
 msgstr "设置向导"
 
-msgid "Network & Firewall"
-msgstr "网络与防火墙"
+msgid "Network"
+msgstr "网络"
 
-msgid "Security Filter"
-msgstr "安全过滤"
+msgid "Security"
+msgstr "安全"
 
 msgid "Mappings"
 msgstr "映射表"
@@ -33,8 +33,8 @@ msgstr "OpenClash"
 msgid "Diagnostics"
 msgstr "诊断"
 
-msgid "Logs & Maintenance"
-msgstr "日志与维护"
+msgid "Logs"
+msgstr "日志"
 
 msgid "Service Status"
 msgstr "服务状态"
@@ -792,7 +792,7 @@ msgstr "写入规则后自动重启 OpenClash 服务，使更改立即生效。�
 msgid "Backup Status"
 msgstr "备份状态"
 
-msgid "Check via Logs & Maintenance page"
+msgid "Check via Logs page"
 msgstr "每次写入规则前自动创建"
 
 msgid "OpenClash Actions"

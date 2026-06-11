@@ -19,10 +19,10 @@ msgstr ""
 msgid "Setup Wizard"
 msgstr ""
 
-msgid "Network & Firewall"
+msgid "Network"
 msgstr ""
 
-msgid "Security Filter"
+msgid "Security"
 msgstr ""
 
 msgid "Mappings"
@@ -781,7 +781,7 @@ msgstr ""
 msgid "Backup Status"
 msgstr ""
 
-msgid "Check via Logs & Maintenance page"
+msgid "Check via Logs page"
 msgstr ""
 
 msgid "OpenClash Actions"
@@ -1201,7 +1201,7 @@ msgstr ""
 msgid "Invalid port range format."
 msgstr ""
 
-msgid "Logs & Maintenance"
+msgid "Logs"
 msgstr ""
 
 msgid "Clear Logs"

@@ -27,7 +27,7 @@ return view.extend({
 		utils.loadSharedCSS();
 		var m, s, o;
 
-		m = new form.Map('upnp_bridge_relay', _('Security Filter'));
+		m = new form.Map('upnp_bridge_relay', _('Security'));
 
 		s = m.section(form.TypedSection, 'service', _('Port Range & Protocol'));
 		s.anonymous = true;

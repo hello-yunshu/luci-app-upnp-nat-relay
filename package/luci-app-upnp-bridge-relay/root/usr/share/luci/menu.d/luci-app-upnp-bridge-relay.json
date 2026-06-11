@@ -36,7 +36,7 @@
 		}
 	},
 	"admin/services/upnp_bridge_relay/network": {
-		"title": "Network & Firewall",
+		"title": "Network",
 		"order": 30,
 		"action": {
 			"type": "view",
@@ -44,7 +44,7 @@
 		}
 	},
 	"admin/services/upnp_bridge_relay/security": {
-		"title": "Security Filter",
+		"title": "Security",
 		"order": 40,
 		"action": {
 			"type": "view",
@@ -68,7 +68,7 @@
 		}
 	},
 	"admin/services/upnp_bridge_relay/diagnostics": {
-		"title": "Logs & Maintenance",
+		"title": "Logs",
 		"order": 70,
 		"action": {
 			"type": "view",
