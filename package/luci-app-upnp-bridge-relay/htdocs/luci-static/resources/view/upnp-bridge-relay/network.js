@@ -60,7 +60,7 @@ return view.extend({
 		utils.loadSharedCSS();
 		var m, s, o;
 
-		m = new form.Map('upnp_bridge_relay', _('Network & Firewall'));
+		m = new form.Map('upnp_bridge_relay', _('Network'));
 
 		s = m.section(form.TypedSection, 'service', _('Network Interface'));
 		s.anonymous = true;

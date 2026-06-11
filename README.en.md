@@ -197,11 +197,11 @@ Step-by-step guide to configure the plugin:
 - Configure OpenClash RETURN
 - Enable the service
 
-### 3. Network & Firewall
+### 3. Network
 
 View and configure the reading interface and firewall zone. Detects misconfigurations such as default routes on the reading interface or incorrect zone settings.
 
-### 4. Security Filter
+### 4. Security
 
 Configure allowed port ranges, denied port list, allowed protocols, and allowed internal subnets. Default: allow ports 40000-65535, deny well-known sensitive ports.
 
@@ -302,7 +302,7 @@ uci commit firewall
 fw4 reload
 ```
 
-Or use the **Fix Zone** button in the LuCI Network & Firewall page.
+Or use the **Fix Zone** button in the LuCI Network page.
 
 ### 4. Downstream Router WAN IP Unreachable
 
