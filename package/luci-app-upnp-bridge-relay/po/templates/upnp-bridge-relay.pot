@@ -1392,3 +1392,15 @@ msgstr ""
 
 msgid "Failed to refresh environment: "
 msgstr ""
+
+msgid "All"
+msgstr ""
+
+msgid "Debug"
+msgstr ""
+
+msgid "Info"
+msgstr ""
+
+msgid "Error"
+msgstr ""

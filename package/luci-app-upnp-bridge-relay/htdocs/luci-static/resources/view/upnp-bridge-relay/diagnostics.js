@@ -44,7 +44,7 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			callStatus(),
-			callReadLog().catch(function() { return { success: false, logs: '' }; })
+			callReadLog({ level: 'all' }).catch(function() { return { success: false, logs: '' }; })
 		]).then(function(results) {
 			return {
 				status: results[0],
@@ -80,6 +80,25 @@ return view.extend({
 
 		var logBtnBar = E('div', { 'class': 'ubr-btn-group ubr-mb-1' });
 
+		var levelSelect = E('select', {
+			'class': 'cbi-input-select',
+			'id': 'log-level-select',
+			'style': 'width:auto;margin-right:4px;'
+		}, [
+			E('option', { 'value': 'all', 'selected': 'selected' }, _('All')),
+			E('option', { 'value': 'debug' }, _('Debug')),
+			E('option', { 'value': 'info' }, _('Info')),
+			E('option', { 'value': 'warn' }, _('Warning')),
+			E('option', { 'value': 'error' }, _('Error'))
+		]);
+
+		var getLogLevel = function() {
+			var sel = document.getElementById('log-level-select');
+			return sel ? sel.value : 'all';
+		};
+
+		logBtnBar.appendChild(levelSelect);
+
 		logBtnBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
 			'click': function() {
@@ -87,7 +106,7 @@ return view.extend({
 				btn.disabled = true;
 				btn.textContent = _('Loading...');
 				setLogArea(_('Loading...'), 'is-loading');
-				return callReadLog().then(function(result) {
+				return callReadLog({ level: getLogLevel() }).then(function(result) {
 					if (!result || result.success !== true) {
 						var msg = result.error === 'logread_not_found' ?
 							_('System log reader is not available on this device.') :

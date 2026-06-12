@@ -299,7 +299,7 @@ return view.extend({
 			var infoSection = E('div', { 'class': 'cbi-section ubr-section' });
 		infoSection.appendChild(E('h3', {}, _('Service Information')));
 
-		var infoTable = E('table', { 'class': 'table' });
+		var infoTable = E('table', { 'class': 'table ubr-kv-table' });
 
 		var versionTd = E('td', { 'class': 'td' }, version);
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
@@ -373,7 +373,7 @@ return view.extend({
 		var envSection = E('div', { 'class': 'cbi-section ubr-section' });
 		envSection.appendChild(E('h3', {}, _('Environment Detection')));
 
-		var envTable = E('table', { 'class': 'table' });
+		var envTable = E('table', { 'class': 'table ubr-kv-table' });
 
 		var envItems = [
 			{ label: _('OpenWrt Version'), key: 'openwrt_version', statusKey: 'package_manager', statusFn: function(v) { return v === 'unknown' ? 'orange' : 'green'; } },
