@@ -1466,3 +1466,15 @@ msgstr "同步 OpenClash 失败："
 
 msgid "Auto-created before each rule write"
 msgstr "每次写入规则前自动创建"
+
+msgid "All"
+msgstr "全部"
+
+msgid "Debug"
+msgstr "调试"
+
+msgid "Info"
+msgstr "信息"
+
+msgid "Error"
+msgstr "错误"

@@ -80,7 +80,7 @@ case "$1" in
 	"dry-run": {},
 	"generate-openclash-rule": {},
 	"openclash-rule-cache": {},
-	"read-log": {},
+	"read-log": { "level": "level" },
 	"clear-log": {},
 	"sync-now": {},
 	"clear": {},
@@ -134,7 +134,11 @@ EOF
 				printf '%s\n' "${_out:-{\"cached\":false,\"updated_at\":\"\",\"openclash_suggestion\":{}}}"
 				;;
 			read-log)
-				_out="$("$UPNP_BRIDGE_RELAY_BIN" --read-log 2>/dev/null)" || true
+				_rl_level=""
+				if [ -n "$3" ]; then
+					_rl_level="$(echo "$3" | sed -n 's/.*"level"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+				fi
+				_out="$("$UPNP_BRIDGE_RELAY_BIN" --read-log ${_rl_level:+"$_rl_level"} 2>/dev/null)" || true
 				printf '%s\n' "${_out:-{\"success\":false,\"error\":\"read-log failed\",\"logs\":\"\"}}"
 				;;
 			clear-log)

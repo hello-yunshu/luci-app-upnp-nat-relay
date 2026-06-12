@@ -695,6 +695,10 @@ nft_fast_restore() {
         printf '%s' "$_nfr_fingerprint" 2>/dev/null > "${NFT_APPLIED_CACHE}" || true
     fi
 
+    if [ "${cfg_openclash_mode}" = "auto" ]; then
+        openclash_inject_localnetwork >/dev/null 2>&1
+    fi
+
     log_info "Fast restore: ${_nfr_count} DNAT rules restored from cache (${_nfr_fail} failed)"
     return 0
 }
@@ -1118,6 +1122,28 @@ openclash_read_suggestion_cache() {
     else
         printf '{"cached":false,"updated_at":"","openclash_suggestion":{}}\n'
     fi
+}
+
+openclash_inject_localnetwork() {
+    if [ -z "${cfg_downstream_wan_ip}" ]; then
+        return 1
+    fi
+    if nft list table inet fw4 >/dev/null 2>&1; then
+        nft add element inet fw4 localnetwork \{ "${cfg_downstream_wan_ip}" \} 2>/dev/null
+        return 0
+    fi
+    return 1
+}
+
+openclash_remove_localnetwork() {
+    if [ -z "${cfg_downstream_wan_ip}" ]; then
+        return 1
+    fi
+    if nft list table inet fw4 >/dev/null 2>&1; then
+        nft delete element inet fw4 localnetwork \{ "${cfg_downstream_wan_ip}" \} 2>/dev/null
+        return 0
+    fi
+    return 1
 }
 
 openclash_apply() {
@@ -1878,6 +1904,9 @@ do_sync() {
                 fi
                 openclash_write_suggestion_cache "$_s_oc_suggestion"
             fi
+            if openclash_inject_localnetwork; then
+                log_debug "OpenClash localnetwork injected: ${cfg_downstream_wan_ip}"
+            fi
         else
             _s_oc_action="not_installed"
             log_debug "OpenClash not installed, skipping auto sync"
@@ -2093,6 +2122,8 @@ do_generate_openclash_rule() {
 }
 
 do_clear() {
+    load_config
+    openclash_remove_localnetwork
     if nft_delete_table; then
         rm -f "${NFT_APPLIED_CACHE}" 2>/dev/null
         log_info "Cleared nft table ${NFT_TABLE_NAME}"
@@ -2694,7 +2725,7 @@ do_daemon() {
 }
 
 do_read_log() {
-    load_config
+    _rl_level="$1"
 
     _rl_logread="$(command -v logread 2>/dev/null || true)"
     if [ -z "$_rl_logread" ]; then
@@ -2702,21 +2733,25 @@ do_read_log() {
         return 0
     fi
 
-    _rl_min_priority="$(log_level_priority "${cfg_log_level:-info}")"
-    _rl_logs="$("$_rl_logread" 2>/dev/null | grep -E 'upnp-bridge-relay|upnp_bridge_relay' | awk -v min="$_rl_min_priority" '
-        function line_priority(line) {
-            if (line ~ /\.debug([[:space:]]|$)/)
-                return 0
-            if (line ~ /\.(info|notice)([[:space:]]|$)/)
+    if [ -n "$_rl_level" ] && [ "$_rl_level" != "all" ]; then
+        _rl_min_priority="$(log_level_priority "$_rl_level")"
+        _rl_logs="$("$_rl_logread" 2>/dev/null | grep -E 'upnp-bridge-relay|upnp_bridge_relay' | awk -v min="$_rl_min_priority" '
+            function line_priority(line) {
+                if (line ~ /\.debug([[:space:]]|$)/)
+                    return 0
+                if (line ~ /\.(info|notice)([[:space:]]|$)/)
+                    return 1
+                if (line ~ /\.(warn|warning)([[:space:]]|$)/)
+                    return 2
+                if (line ~ /\.(err|error|crit|alert|emerg)([[:space:]]|$)/)
+                    return 3
                 return 1
-            if (line ~ /\.(warn|warning)([[:space:]]|$)/)
-                return 2
-            if (line ~ /\.(err|error|crit|alert|emerg)([[:space:]]|$)/)
-                return 3
-            return 1
-        }
-        line_priority($0) >= min
-    ' | tail -n 200 || true)"
+            }
+            line_priority($0) >= min
+        ' | tail -n 200 || true)"
+    else
+        _rl_logs="$("$_rl_logread" 2>/dev/null | grep -E 'upnp-bridge-relay|upnp_bridge_relay' | tail -n 200 || true)"
+    fi
     printf '{"success":true,"logs":"%s"}\n' "$(json_escape "$_rl_logs")"
 }
 
@@ -2789,7 +2824,7 @@ case "$1" in
         do_rollback
         ;;
     --read-log)
-        do_read_log
+        do_read_log "${2:-}"
         ;;
     --clear-log)
         do_clear_log
