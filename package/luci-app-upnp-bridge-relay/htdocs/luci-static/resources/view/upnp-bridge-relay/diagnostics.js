@@ -43,21 +43,14 @@ var callClearLog = rpc.declare({
 
 return view.extend({
 	load: function() {
-		return Promise.all([
-			callStatus(),
-			callReadLog('all').catch(function() { return { success: false, logs: '' }; })
-		]).then(function(results) {
-			return {
-				status: results[0],
-				logData: results[1]
-			};
+		return callStatus().catch(function() { return {}; }).then(function(status) {
+			return { status: status };
 		});
 	},
 
 	render: function(data) {
 		utils.loadSharedCSS();
 		var status = data.status || {};
-		var logData = data.logData || {};
 
 		var container = E('div', { 'class': 'cbi-map ubr-dashboard' });
 
@@ -163,34 +156,15 @@ return view.extend({
 
 		logSection.appendChild(logBtnBar);
 
-		var initialLogText;
-		var initialLogState;
-		if (!logData || logData.success !== true) {
-			initialLogText = logData.error === 'logread_not_found' ?
-				_('System log reader is not available on this device.') :
-				_('Failed to read logs: ') + (logData.error || '');
-			initialLogState = 'is-error';
-		} else {
-			var logs = (logData && logData.logs) ? logData.logs : '';
-			initialLogText = logs || _('No logs found.');
-			initialLogState = logs ? null : 'is-empty';
-		}
-
 		var logArea = E('textarea', {
-			'class': 'cbi-input-textarea ubr-log-area' + (initialLogState ? ' ' + initialLogState : ''),
+			'class': 'cbi-input-textarea ubr-log-area is-loading',
 			'id': 'log-area',
 			'rows': 20,
 			'readonly': 'readonly'
 		});
-		logArea.value = initialLogText;
+		logArea.value = _('Loading...');
 		logSection.appendChild(logArea);
-
-		if (!initialLogState) {
-			requestAnimationFrame(function() {
-				var el = document.getElementById('log-area');
-				if (el) el.scrollTop = el.scrollHeight;
-			});
-		}
+		window.setTimeout(refreshLogs, 0);
 
 		if (status.last_error) {
 			logSection.appendChild(E('div', { 'class': 'alert-message danger ubr-mt-1' },
