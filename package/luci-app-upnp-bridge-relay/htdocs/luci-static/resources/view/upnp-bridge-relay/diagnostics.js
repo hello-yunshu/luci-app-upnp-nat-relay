@@ -31,6 +31,7 @@ var callRemoveOpenclashRule = rpc.declare({
 var callReadLog = rpc.declare({
 	object: 'upnp_bridge_relay',
 	method: 'read-log',
+	params: [ 'level' ],
 	expect: { '': {} }
 });
 
@@ -44,7 +45,7 @@ return view.extend({
 	load: function() {
 		return Promise.all([
 			callStatus(),
-			callReadLog({ level: 'all' }).catch(function() { return { success: false, logs: '' }; })
+			callReadLog('all').catch(function() { return { success: false, logs: '' }; })
 		]).then(function(results) {
 			return {
 				status: results[0],
@@ -97,32 +98,43 @@ return view.extend({
 			return sel ? sel.value : 'all';
 		};
 
+		var refreshLogs = function(btn) {
+			if (btn) {
+				btn.disabled = true;
+				btn.textContent = _('Loading...');
+			}
+			setLogArea(_('Loading...'), 'is-loading');
+			return callReadLog(getLogLevel()).then(function(result) {
+				if (!result || result.success !== true) {
+					var msg = result.error === 'logread_not_found' ?
+						_('System log reader is not available on this device.') :
+						_('Failed to read logs: ') + (result.error || '');
+					setLogArea(msg, 'is-error');
+					return;
+				}
+
+				var logs = (result && result.logs) ? result.logs : '';
+				setLogArea(logs || _('No logs found.'), logs ? null : 'is-empty');
+			}).catch(function(e) {
+				setLogArea(_('Failed to read logs: ') + (e.message || e), 'is-error');
+			}).finally(function() {
+				if (btn) {
+					btn.disabled = false;
+					btn.textContent = '\u21BB ' + _('Refresh');
+				}
+			});
+		};
+
+		levelSelect.addEventListener('change', function() {
+			refreshLogs();
+		});
+
 		logBtnBar.appendChild(levelSelect);
 
 		logBtnBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-apply',
 			'click': function() {
-				var btn = this;
-				btn.disabled = true;
-				btn.textContent = _('Loading...');
-				setLogArea(_('Loading...'), 'is-loading');
-				return callReadLog({ level: getLogLevel() }).then(function(result) {
-					if (!result || result.success !== true) {
-						var msg = result.error === 'logread_not_found' ?
-							_('System log reader is not available on this device.') :
-							_('Failed to read logs: ') + (result.error || '');
-						setLogArea(msg, 'is-error');
-						return;
-					}
-
-					var logs = (result && result.logs) ? result.logs : '';
-					setLogArea(logs || _('No logs found.'), logs ? null : 'is-empty');
-				}).catch(function(e) {
-					setLogArea(_('Failed to read logs: ') + (e.message || e), 'is-error');
-				}).finally(function() {
-					btn.disabled = false;
-					btn.textContent = '\u21BB ' + _('Refresh');
-				});
+				return refreshLogs(this);
 			}
 		}, '\u21BB ' + _('Refresh')));
 

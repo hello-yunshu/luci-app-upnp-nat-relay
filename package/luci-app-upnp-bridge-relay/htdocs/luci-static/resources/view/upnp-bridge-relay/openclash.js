@@ -157,6 +157,33 @@ function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark,
 		'</div>';
 }
 
+function formatOpenclashSyncStatus(status) {
+	var lastOcSync = status ? status.last_oc_sync : null;
+	if (!lastOcSync)
+		return '<span class="ubr-text-muted">' + _('Not yet synced') + '</span>';
+
+	var syncInterval = uci.get('upnp_bridge_relay', 'main', 'openclash_sync_interval') || '0';
+	var ts = parseInt(lastOcSync, 10);
+	if (isNaN(ts) || ts === 0)
+		return '<span class="ubr-text-muted">' + _('Not yet synced') + '</span>';
+
+	var d = new Date(ts * 1000);
+	var timeStr = d.toLocaleString();
+	if (syncInterval !== '0') {
+		var now = Math.floor(Date.now() / 1000);
+		var elapsed = now - ts;
+		var remaining = parseInt(syncInterval, 10) - elapsed;
+		if (remaining > 0) {
+			return '<span class="ubr-text-success">' + timeStr + '</span>' +
+				' <span class="ubr-text-muted">(' + _('next in %ds').format(remaining) + ')</span>';
+		}
+		return '<span class="ubr-text-success">' + timeStr + '</span>' +
+			' <span class="ubr-text-primary">(' + _('due now') + ')</span>';
+	}
+
+	return '<span class="ubr-text-success">' + timeStr + '</span>';
+}
+
 return view.extend({
 	load: function() {
 		return Promise.all([
@@ -235,30 +262,7 @@ return view.extend({
 		o = s.option(form.DummyValue, '_oc_last_sync', _('Last OpenClash Sync'));
 		o.rawhtml = true;
 		o.cfgvalue = function() {
-			var lastOcSync = status.last_oc_sync;
-			if (!lastOcSync) {
-				return '<span class="ubr-text-muted">' + _('Not yet synced') + '</span>';
-			}
-			var syncInterval = uci.get('upnp_bridge_relay', 'main', 'openclash_sync_interval') || '0';
-			var ts = parseInt(lastOcSync, 10);
-			if (isNaN(ts) || ts === 0) {
-				return '<span class="ubr-text-muted">' + _('Not yet synced') + '</span>';
-			}
-			var d = new Date(ts * 1000);
-			var timeStr = d.toLocaleString();
-			if (syncInterval !== '0') {
-				var now = Math.floor(Date.now() / 1000);
-				var elapsed = now - ts;
-				var remaining = parseInt(syncInterval, 10) - elapsed;
-				if (remaining > 0) {
-					return '<span class="ubr-text-success">' + timeStr + '</span>' +
-						' <span class="ubr-text-muted">(' + _('next in %ds').format(remaining) + ')</span>';
-				} else {
-					return '<span class="ubr-text-success">' + timeStr + '</span>' +
-						' <span class="ubr-text-primary">(' + _('due now') + ')</span>';
-				}
-			}
-			return '<span class="ubr-text-success">' + timeStr + '</span>';
+			return '<span id="ubr-oc-last-sync-value">' + formatOpenclashSyncStatus(status) + '</span>';
 		};
 
 		s = m.section(form.TypedSection, 'service', _('Rule Preview'));
@@ -323,6 +327,11 @@ return view.extend({
 		o.inputtitle = _('Sync OpenClash');
 		o.inputstyle = 'apply';
 		o.onclick = function() {
+			var btn = this;
+			if (btn.node) {
+				btn.node.disabled = true;
+				btn.node.textContent = _('Syncing...');
+			}
 			return callSyncOpenclash().then(function(result) {
 				result = result || {};
 				if (result.success === true) {
@@ -333,6 +342,15 @@ return view.extend({
 					} else {
 						ui.addNotification(null, E('p', _('OpenClash rules synced successfully (%d rules).').format(rulesCount)), 'info');
 					}
+					return callStatus().then(function(freshStatus) {
+						var lastSyncEl = document.getElementById('ubr-oc-last-sync-value');
+						if (lastSyncEl)
+							lastSyncEl.innerHTML = formatOpenclashSyncStatus(freshStatus || {});
+					}).catch(function() {
+						var lastSyncEl = document.getElementById('ubr-oc-last-sync-value');
+						if (lastSyncEl)
+							lastSyncEl.innerHTML = formatOpenclashSyncStatus({ last_oc_sync: Math.floor(Date.now() / 1000) });
+					});
 				} else {
 					var errorMsg = result.message || result.error || 'unknown';
 					if (result.error === 'main_sync_running') {
@@ -345,6 +363,11 @@ return view.extend({
 				}
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Failed to sync OpenClash: ') + e.message), 'error');
+			}).finally(function() {
+				if (btn.node) {
+					btn.node.disabled = false;
+					btn.node.textContent = _('Sync OpenClash');
+				}
 			});
 		};
 

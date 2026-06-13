@@ -1363,6 +1363,9 @@ msgstr ""
 msgid "Sync OpenClash"
 msgstr ""
 
+msgid "Syncing..."
+msgstr ""
+
 msgid "OpenClash rules are already up to date (%d rules)."
 msgstr ""
 

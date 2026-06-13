@@ -1338,6 +1338,9 @@ msgstr "Invalid denied port: %s"
 msgid "Testing..."
 msgstr "Testing..."
 
+msgid "Syncing..."
+msgstr "Syncing..."
+
 msgid "Error: "
 msgstr "Error: "
 
