@@ -741,10 +741,20 @@ write_status() {
 }
 
 read_status() {
+    _rs_last_oc_sync=""
+    if [ -f "${OC_SYNC_TIMESTAMP_FILE}" ]; then
+        _rs_last_oc_sync="$(cat "${OC_SYNC_TIMESTAMP_FILE}" 2>/dev/null)"
+    fi
+
     if [ -f "${STATUS_FILE}" ]; then
-        cat "${STATUS_FILE}"
+        _rs_status="$(cat "${STATUS_FILE}")"
+        if printf '%s' "$_rs_status" | grep -q '"last_oc_sync":"[^"]*"'; then
+            printf '%s\n' "$_rs_status" | sed 's/"last_oc_sync":"[^"]*"/"last_oc_sync":"'"$(json_escape "$_rs_last_oc_sync")"'"/'
+        else
+            printf '%s\n' "$_rs_status"
+        fi
     else
-        printf '{"running":false,"last_sync":"","last_result":"","backend":"","read_count":0,"accepted_count":0,"rejected_count":0,"failure_count":0,"accepted":[],"rejected":[],"last_error":"","last_oc_sync":""}\n'
+        printf '{"running":false,"last_sync":"","last_result":"","backend":"","read_count":0,"accepted_count":0,"rejected_count":0,"failure_count":0,"accepted":[],"rejected":[],"last_error":"","last_oc_sync":"%s"}\n' "$(json_escape "$_rs_last_oc_sync")"
     fi
 }
 
@@ -1892,9 +1902,11 @@ do_sync() {
                     fi
                 fi
             fi
-            if [ "$_s_oc_action" != "deferred" ] && [ "$_s_oc_action" != "unchanged" ] && [ "$_s_oc_action" != "failed" ]; then
-                openclash_record_sync_time
-            fi
+            case "$_s_oc_action" in
+                updated|unchanged)
+                    openclash_record_sync_time
+                    ;;
+            esac
             # Update suggestion cache after sync
             if [ "$_s_oc_action" = "updated" ] || [ "$_s_oc_action" = "unchanged" ]; then
                 if [ "${cfg_openclash_return_strategy}" = "per_mapping" ] && [ -f "${GENERATED_ACCEPT_CACHE}" ]; then
@@ -2737,13 +2749,13 @@ do_read_log() {
         _rl_min_priority="$(log_level_priority "$_rl_level")"
         _rl_logs="$("$_rl_logread" 2>/dev/null | grep -E 'upnp-bridge-relay|upnp_bridge_relay' | awk -v min="$_rl_min_priority" '
             function line_priority(line) {
-                if (line ~ /\.debug([[:space:]]|$)/)
+                if (line ~ /\.debug([[:space:]:]|$)/)
                     return 0
-                if (line ~ /\.(info|notice)([[:space:]]|$)/)
+                if (line ~ /\.(info|notice)([[:space:]:]|$)/)
                     return 1
-                if (line ~ /\.(warn|warning)([[:space:]]|$)/)
+                if (line ~ /\.(warn|warning)([[:space:]:]|$)/)
                     return 2
-                if (line ~ /\.(err|error|crit|alert|emerg)([[:space:]]|$)/)
+                if (line ~ /\.(err|error|crit|alert|emerg)([[:space:]:]|$)/)
                     return 3
                 return 1
             }

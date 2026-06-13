@@ -1449,6 +1449,9 @@ msgstr "立即同步 OpenClash"
 msgid "Sync OpenClash"
 msgstr "同步 OpenClash"
 
+msgid "Syncing..."
+msgstr "同步中..."
+
 msgid "OpenClash rules are already up to date (%d rules)."
 msgstr "OpenClash 规则已是最新（%d 条规则）。"
 
