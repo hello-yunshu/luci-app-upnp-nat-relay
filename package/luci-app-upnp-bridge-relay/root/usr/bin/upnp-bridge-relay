@@ -154,6 +154,33 @@ json_escape() {
         }'
 }
 
+summarize_command_output() {
+    printf '%s' "$1" | awk '
+        BEGIN {
+            ORS = ""
+            max = 180
+        }
+        {
+            gsub(/\r/, "")
+            gsub(/^[ \t]+/, "")
+            gsub(/[ \t]+$/, "")
+            if ($0 == "")
+                next
+            if (out != "")
+                out = out " | "
+            out = out $0
+            if (length(out) >= max) {
+                printf "%s...", substr(out, 1, max - 3)
+                done = 1
+                exit
+            }
+        }
+        END {
+            if (!done && out != "")
+                printf "%s", out
+        }'
+}
+
 _ja=""
 _ja_first=1
 
@@ -992,6 +1019,11 @@ read_env_cache() {
     fi
 }
 
+ensure_env_cache() {
+    [ -s "${ENV_CACHE_FILE}" ] && return 0
+    do_refresh_env >/dev/null 2>&1 || true
+}
+
 read_network_cache() {
     if [ -f "${NETWORK_CACHE_FILE}" ]; then
         cat "${NETWORK_CACHE_FILE}"
@@ -1708,6 +1740,11 @@ do_sync() {
     _s_upnpc_ret=$?
     if [ $_s_upnpc_ret -ne 0 ] || [ -z "$_s_upnpc_output" ]; then
         _s_last_error="upnpc read failed (exit: ${_s_upnpc_ret})"
+        _s_upnpc_detail="$(summarize_command_output "$_s_upnpc_output")"
+        if [ -z "$_s_upnpc_detail" ] && [ "$_s_upnpc_ret" -eq 124 ]; then
+            _s_upnpc_detail="timeout after ${cfg_backend_timeout}s"
+        fi
+        [ -n "$_s_upnpc_detail" ] && _s_last_error="${_s_last_error}: ${_s_upnpc_detail}"
         log_err "Sync failed: $_s_last_error"
 
         _s_failure_count=$((_s_failure_count + 1))
@@ -2161,7 +2198,7 @@ do_full_status() {
         _dfs_base="$(printf '%s' "$_dfs_base" | sed 's/"running":true/"running":false/')"
     fi
 
-    do_refresh_env >/dev/null 2>&1
+    ensure_env_cache
     _dfs_env="$(read_env_cache)"
     _dfs_env_inner="$(printf '%s' "$_dfs_env" | sed 's/^{//;s/}$//')"
     [ -z "$_dfs_env_inner" ] && _dfs_env_inner='"nft_table_status":"-","openclash_status":"-","version":"unknown","updated_at":""'

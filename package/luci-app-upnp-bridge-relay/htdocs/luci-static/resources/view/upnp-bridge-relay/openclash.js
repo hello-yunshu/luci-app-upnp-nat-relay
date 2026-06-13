@@ -190,13 +190,12 @@ return view.extend({
 			uci.load('upnp_bridge_relay'),
 			uci.load('openclash').catch(function() {}),
 			callStatus(),
-			callCheckEnv(),
 			callOpenclashRuleCache()
 		]).then(function(results) {
 			return {
 				status: results[2],
-				env: results[3],
-				ruleCache: results[4]
+				env: results[2],
+				ruleCache: results[3]
 			};
 		});
 	},
