@@ -1517,3 +1517,60 @@ msgstr "选择接口"
 
 msgid "Network detection completed. %d empty field(s) were auto-filled; save and apply to keep them."
 msgstr "网络检测完成。已自动填入 %d 个空字段；请保存并应用以保留这些值。"
+
+msgid "Clear failed: "
+msgstr "清除失败："
+
+msgid "Configuration saved. Restarting service..."
+msgstr "配置已保存，正在重启服务..."
+
+msgid "Could not auto-detect downstream WAN IP."
+msgstr "无法自动检测下游 WAN IP。"
+
+msgid "Could not auto-detect subnet."
+msgstr "无法自动检测子网。"
+
+msgid "Could not auto-detect upstream WAN interface."
+msgstr "无法自动检测上游 WAN 接口。"
+
+msgid "Could not auto-detect value."
+msgstr "无法自动检测该值。"
+
+msgid "Failed to restart OpenClash: "
+msgstr "重启 OpenClash 失败："
+
+msgid "Invalid format. Use format like 40000-65535."
+msgstr "格式无效。请使用类似 40000-65535 的格式。"
+
+msgid "OpenClash init restart failed."
+msgstr "OpenClash init 重启失败。"
+
+msgid "OpenClash init script was not found."
+msgstr "未找到 OpenClash init 脚本。"
+
+msgid "OpenClash restart command completed, but the core process was not detected after 30 seconds."
+msgstr "OpenClash 重启命令已完成，但 30 秒后仍未检测到核心进程。"
+
+msgid "OpenClash restart failed: "
+msgstr "OpenClash 重启失败："
+
+msgid "OpenClash restarted successfully."
+msgstr "OpenClash 已成功重启。"
+
+msgid "Operation failed: "
+msgstr "操作失败："
+
+msgid "Port range is required."
+msgstr "端口范围为必填项。"
+
+msgid "Port values must be between 1 and 65535."
+msgstr "端口值必须在 1 到 65535 之间。"
+
+msgid "Restart OpenClash"
+msgstr "重启 OpenClash"
+
+msgid "Show auto-detectable network fields for special topologies. Most users can keep this off and use Detect or Auto Configure."
+msgstr "显示用于特殊拓扑的可自动检测网络字段。大多数用户可以保持关闭，并使用检测或自动配置。"
+
+msgid "Start port must not exceed end port."
+msgstr "起始端口不能大于结束端口。"

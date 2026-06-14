@@ -336,18 +336,42 @@ return view.extend({
 		return filled;
 	},
 
-	createDetectButton: function(self, ipInput) {
+	setDetectedInputValue: function(inputEl, value) {
+		if (!inputEl || !value)
+			return;
+		if (inputEl.tagName === 'SELECT') {
+			var hasOption = false;
+			for (var i = 0; i < inputEl.options.length; i++) {
+				if (inputEl.options[i].value === value) {
+					hasOption = true;
+					break;
+				}
+			}
+			if (!hasOption)
+				inputEl.appendChild(E('option', { 'value': value }, value));
+		}
+		inputEl.value = value;
+	},
+
+	createDetectButton: function(self, inputEl, options) {
+		options = options || {};
 		var detectBtn = E('button', {
 			'class': 'cbi-button cbi-button-apply ubr-ml-05',
 			'click': function() {
 				var btn = this;
 				self.collectStepData();
-				var localIp = self.getDeviceIPv4(self.wizardData.bind_ifname);
-				if (localIp) {
-					ipInput.value = localIp;
-					self.wizardData.bind_ip = localIp;
-					if (!self.wizardData.downstream_lan_subnet)
-						self.wizardData.downstream_lan_subnet = self.getDeviceSubnet(self.wizardData.bind_ifname);
+				var setValue = function(value) {
+					if (!value)
+						return false;
+					self.setDetectedInputValue(inputEl, value);
+					if (options.field)
+						self.wizardData[options.field] = value;
+					if (options.afterDetect)
+						options.afterDetect(value);
+					return true;
+				};
+				var localValue = options.localValue ? options.localValue() : '';
+				if (setValue(localValue)) {
 					return;
 				}
 				btn.disabled = true;
@@ -355,11 +379,12 @@ return view.extend({
 				self.applyTempUci().then(function() {
 					return callCheckNetwork();
 				}).then(function(result) {
-					if (result && result.bind_ip) {
-						ipInput.value = result.bind_ip;
-						self.wizardData.bind_ip = result.bind_ip;
+					self.applyDetectedNetwork(result);
+					var detectedValue = options.valueFromResult ? options.valueFromResult(result || {}) : '';
+					if (setValue(detectedValue)) {
+						return;
 					} else {
-						ui.addNotification(null, E('p', _('Could not auto-detect IP.')), 'warning');
+						ui.addNotification(null, E('p', options.emptyMessage || _('Could not auto-detect value.')), 'warning');
 					}
 				}).catch(function(e) {
 					ui.addNotification(null, E('p', _('Auto-detect failed: ') + (e.message || e)), 'error');
@@ -451,7 +476,20 @@ return view.extend({
 				});
 			var ipFieldWrap = E('div', { 'class': 'ubr-flex-center' });
 			ipFieldWrap.appendChild(ipInput);
-			ipFieldWrap.appendChild(self.createDetectButton(self, ipInput));
+			ipFieldWrap.appendChild(self.createDetectButton(self, ipInput, {
+				field: 'bind_ip',
+				localValue: function() {
+					return self.getDeviceIPv4(self.wizardData.bind_ifname);
+				},
+				valueFromResult: function(result) {
+					return result.detected_bind_ip || result.bind_ip || '';
+				},
+				afterDetect: function() {
+					if (!self.wizardData.downstream_lan_subnet)
+						self.wizardData.downstream_lan_subnet = self.getDeviceSubnet(self.wizardData.bind_ifname);
+				},
+				emptyMessage: _('Could not auto-detect IP.')
+			}));
 
 			s.appendChild(self.createField(
 				_('Interface IP: '),
@@ -475,16 +513,28 @@ return view.extend({
 				_('The LAN-side gateway IP address of the downstream router.')
 			));
 
-				var subnetInput = E('input', {
-					'type': 'text',
-					'class': 'cbi-input-text',
-					'id': 'wiz-lan-subnet',
-					'value': self.wizardData.downstream_lan_subnet || self.getDeviceSubnet(self.wizardData.bind_ifname),
-					'placeholder': _('e.g. 192.168.3.0/24')
-				});
+			var subnetInput = E('input', {
+				'type': 'text',
+				'class': 'cbi-input-text',
+				'id': 'wiz-lan-subnet',
+				'value': self.wizardData.downstream_lan_subnet || self.getDeviceSubnet(self.wizardData.bind_ifname),
+				'placeholder': _('e.g. 192.168.3.0/24')
+			});
+			var subnetFieldWrap = E('div', { 'class': 'ubr-flex-center' });
+			subnetFieldWrap.appendChild(subnetInput);
+			subnetFieldWrap.appendChild(self.createDetectButton(self, subnetInput, {
+				field: 'downstream_lan_subnet',
+				localValue: function() {
+					return self.getDeviceSubnet(self.wizardData.bind_ifname);
+				},
+				valueFromResult: function(result) {
+					return result.detected_downstream_lan_subnet || result.downstream_lan_subnet || '';
+				},
+				emptyMessage: _('Could not auto-detect subnet.')
+			}));
 			s.appendChild(self.createField(
 				_('Downstream LAN Subnet: '),
-				subnetInput,
+				subnetFieldWrap,
 				_('Downstream router LAN subnet in CIDR format, used for source filtering.')
 			));
 
@@ -587,9 +637,18 @@ return view.extend({
 				'value': self.wizardData.downstream_wan_ip,
 				'placeholder': _('e.g. 192.168.2.2')
 			});
+			var wanIpFieldWrap = E('div', { 'class': 'ubr-flex-center' });
+			wanIpFieldWrap.appendChild(wanIpInput);
+			wanIpFieldWrap.appendChild(self.createDetectButton(self, wanIpInput, {
+				field: 'downstream_wan_ip',
+				valueFromResult: function(result) {
+					return result.detected_downstream_wan_ip || result.downstream_wan_ip || '';
+				},
+				emptyMessage: _('Could not auto-detect downstream WAN IP.')
+			}));
 			s.appendChild(self.createField(
 				_('Downstream WAN IP: '),
-				wanIpInput,
+				wanIpFieldWrap,
 				_('Downstream router WAN IP address, used as the DNAT rule target.')
 			));
 
@@ -612,9 +671,19 @@ return view.extend({
 					wanSelect.appendChild(E('option', { 'value': self.wizardData.upstream_wan_if, 'selected': 'selected' }, self.wizardData.upstream_wan_if));
 			});
 
+			var wanIfFieldWrap = E('div', { 'class': 'ubr-flex-center' });
+			wanIfFieldWrap.appendChild(wanSelect);
+			wanIfFieldWrap.appendChild(self.createDetectButton(self, wanSelect, {
+				field: 'upstream_wan_if',
+				valueFromResult: function(result) {
+					return result.detected_upstream_wan_if || result.upstream_wan_if || '';
+				},
+				emptyMessage: _('Could not auto-detect upstream WAN interface.')
+			}));
+
 			s.appendChild(self.createField(
 				_('Upstream WAN Interface: '),
-				wanSelect,
+				wanIfFieldWrap,
 				_('Select the OpenWrt logical WAN interface for DNAT rules. The underlying device is resolved automatically.')
 			));
 
