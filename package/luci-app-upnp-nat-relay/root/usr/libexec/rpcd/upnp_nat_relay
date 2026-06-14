@@ -111,7 +111,13 @@ EOF
 		case "$method" in
 			status)
 				_out="$("$UPNP_NAT_RELAY_BIN" --status 2>/dev/null)" || true
-				printf '%s\n' "${_out:-{\"running\":false,\"last_sync\":\"\",\"last_result\":\"unknown\",\"backend\":\"\",\"read_count\":0,\"accepted_count\":0,\"rejected_count\":0,\"failure_count\":0,\"accepted\":[],\"rejected\":[],\"last_error\":\"Status file not found\"}}"
+				_out="${_out:-{\"running\":false,\"last_sync\":\"\",\"last_result\":\"unknown\",\"backend\":\"\",\"read_count\":0,\"accepted_count\":0,\"rejected_count\":0,\"failure_count\":0,\"accepted\":[],\"rejected\":[],\"last_error\":\"Status file not found\"}}"
+				_ll="$(uci_get upnp_nat_relay.main.log_level 2>/dev/null)"
+				_ll="${_ll:-info}"
+				case "$_out" in
+					*}) printf '%s\n' "$(printf '%s' "$_out" | sed 's/}/,"log_level":"'"$_ll"'"/')" ;;
+					*)  printf '%s\n' "$_out" ;;
+				esac
 				;;
 			refresh-env)
 				_out="$("$UPNP_NAT_RELAY_BIN" --refresh-env 2>/dev/null)" || true

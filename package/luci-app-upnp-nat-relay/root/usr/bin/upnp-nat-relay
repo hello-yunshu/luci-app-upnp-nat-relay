@@ -337,6 +337,12 @@ detect_default_route_if() {
         }'
 }
 
+detect_interface_gateway() {
+    [ -n "$1" ] || return 1
+    _dig_status="$(ubus call "network.interface.$1" status 2>/dev/null)" || return 1
+    printf '%s' "$_dig_status" | jsonfilter -e '@.route[@.target="0.0.0.0"].nexthop' 2>/dev/null
+}
+
 ping_ipv4_target() {
     _pit_target="$1"
     _pit_source="$2"
@@ -862,6 +868,7 @@ nft_fast_restore() {
     fi
 
     log_info "Fast restore: ${_nfr_count} DNAT rules restored from cache (${_nfr_fail} failed)"
+    update_nft_cache_status "present"
     return 0
 }
 
@@ -1144,6 +1151,14 @@ do_refresh_env() {
         "$_dre_oc_has_ac" \
         "$(json_escape "$_dre_timestamp")" \
         > "${ENV_CACHE_FILE}"
+}
+
+# Update only the nft_table_status field in env cache
+update_nft_cache_status() {
+    _unc_status="${1:-not_present}"
+    if [ -f "${ENV_CACHE_FILE}" ]; then
+        sed -i 's/"nft_table_status":"[^"]*"/"nft_table_status":"'"$_unc_status"'"/' "${ENV_CACHE_FILE}" 2>/dev/null
+    fi
 }
 
 read_env_cache() {
@@ -1683,6 +1698,7 @@ do_check_network() {
 
     _cn_detected_bind_ip="$(detect_interface_ip "${cfg_bind_ifname}")"
     _cn_detected_lan_subnet="$(detect_interface_subnet "${cfg_bind_ifname}")"
+    _cn_detected_lan_gateway="$(detect_interface_gateway "${cfg_bind_ifname}")"
     _cn_detected_upstream_wan_if="$(detect_default_route_if)"
     _cn_detected_downstream_wan_ip=""
     _cn_bind_device="$(resolve_interface_device "${cfg_bind_ifname}")"
@@ -1783,7 +1799,7 @@ do_check_network() {
 
     _cn_updated_at="$(get_timestamp)"
 
-    _cn_json="$(printf '{"cached":1,"updated_at":"%s","bind_ifname":"%s","bind_ip":"%s","downstream_lan_gateway":"%s","downstream_lan_subnet":"%s","downstream_wan_ip":"%s","upstream_wan_if":"%s","detected_bind_ip":"%s","detected_downstream_lan_subnet":"%s","detected_downstream_wan_ip":"%s","detected_upstream_wan_if":"%s","iface_exists":%d,"bind_ip_configured":%d,"gateway_reachable":%d,"upnpc_readable":%d,"upnpc_mapping_count":%d,"wan_ip_reachable":%d,"upstream_wan_exists":%d,"default_route_on_bind":%d,"bad_forwarding":%d,"gateway_set":%d,"gateway_value":"%s","dns_set":%d,"dns_value":"%s","zone_name":"%s","zone_exists":%d,"zone_input":"%s","zone_output":"%s","zone_forward":"%s","zone_masq":"%s"}\n' \
+    _cn_json="$(printf '{"cached":1,"updated_at":"%s","bind_ifname":"%s","bind_ip":"%s","downstream_lan_gateway":"%s","downstream_lan_subnet":"%s","downstream_wan_ip":"%s","upstream_wan_if":"%s","detected_bind_ip":"%s","detected_downstream_lan_subnet":"%s","detected_downstream_lan_gateway":"%s","detected_downstream_wan_ip":"%s","detected_upstream_wan_if":"%s","iface_exists":%d,"bind_ip_configured":%d,"gateway_reachable":%d,"upnpc_readable":%d,"upnpc_mapping_count":%d,"wan_ip_reachable":%d,"upstream_wan_exists":%d,"default_route_on_bind":%d,"bad_forwarding":%d,"gateway_set":%d,"gateway_value":"%s","dns_set":%d,"dns_value":"%s","zone_name":"%s","zone_exists":%d,"zone_input":"%s","zone_output":"%s","zone_forward":"%s","zone_masq":"%s"}\n' \
         "$(json_escape "$_cn_updated_at")" \
         "$(json_escape "${cfg_bind_ifname}")" \
         "$(json_escape "${cfg_bind_ip}")" \
@@ -1793,6 +1809,7 @@ do_check_network() {
         "$(json_escape "${cfg_upstream_wan_if}")" \
         "$(json_escape "${_cn_detected_bind_ip}")" \
         "$(json_escape "${_cn_detected_lan_subnet}")" \
+        "$(json_escape "${_cn_detected_lan_gateway}")" \
         "$(json_escape "${_cn_detected_downstream_wan_ip}")" \
         "$(json_escape "${_cn_detected_upstream_wan_if}")" \
         "$_cn_iface_exists" \
@@ -2126,6 +2143,9 @@ do_sync() {
     fi
     write_status "$_s_daemon_running" "$_s_timestamp" "$_s_sync_status" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" "$_s_failure_count" "$_s_accepted_json" "$_s_rejected_json" "$_s_last_error"
 
+    # Update nft cache status after sync (table exists if we reached here)
+    update_nft_cache_status "present"
+
     log_debug "Sync completed: read=${_s_read_count}, accepted=${_s_accepted_count}, rejected=${_s_rejected_count}, nft=${_s_nft_action}, openclash=${_s_oc_action}"
 
     if [ "$_s_nft_fail" -gt 0 ]; then
@@ -2331,6 +2351,7 @@ do_clear() {
     openclash_remove_localnetwork
     if nft_delete_table; then
         rm -f "${NFT_APPLIED_CACHE}" 2>/dev/null
+        update_nft_cache_status "not_present"
         log_info "Cleared nft table ${NFT_TABLE_NAME}"
         if ! is_daemon_running; then
             write_status "false" "$(get_timestamp)" "cleared" "${cfg_backend:-unknown}" 0 0 0 0 "" "" ""
@@ -2896,6 +2917,7 @@ do_rollback() {
     fi
 
     nft_delete_table 2>/dev/null
+    update_nft_cache_status "not_present"
     log_info "Cleared nftables table"
 
     if command -v fw4 >/dev/null 2>&1; then
@@ -2960,7 +2982,7 @@ do_read_log() {
                     return 3
                 return 1
             }
-            line_priority($0) >= min
+            line_priority($0) == min
         ' | tail -n 200 || true)"
     else
         _rl_logs="$("$_rl_logread" 2>/dev/null | grep -E 'upnp-nat-relay|upnp_nat_relay' | tail -n 200 || true)"
