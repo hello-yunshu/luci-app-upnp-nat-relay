@@ -248,6 +248,111 @@ detect_upnpc() {
     command -v upnpc >/dev/null 2>&1 && printf '1' || printf '0'
 }
 
+resolve_interface_device() {
+    _rid_name="$1"
+    [ -n "$_rid_name" ] || return 1
+
+    if ip link show "$_rid_name" >/dev/null 2>&1; then
+        printf '%s' "$_rid_name"
+        return 0
+    fi
+
+    if command -v ubus >/dev/null 2>&1 && command -v jsonfilter >/dev/null 2>&1; then
+        _rid_status="$(ubus call "network.interface.${_rid_name}" status 2>/dev/null)"
+        if [ -n "$_rid_status" ]; then
+            _rid_dev="$(printf '%s' "$_rid_status" | jsonfilter -e '@.l3_device' 2>/dev/null)"
+            [ -z "$_rid_dev" ] && _rid_dev="$(printf '%s' "$_rid_status" | jsonfilter -e '@.device' 2>/dev/null)"
+            if [ -n "$_rid_dev" ] && ip link show "$_rid_dev" >/dev/null 2>&1; then
+                printf '%s' "$_rid_dev"
+                return 0
+            fi
+        fi
+    fi
+
+    _rid_dev="$(uci -q get "network.${_rid_name}.device" 2>/dev/null)"
+    [ -z "$_rid_dev" ] && _rid_dev="$(uci -q get "network.${_rid_name}.ifname" 2>/dev/null)"
+    if [ -n "$_rid_dev" ]; then
+        _rid_dev="${_rid_dev%% *}"
+        if ip link show "$_rid_dev" >/dev/null 2>&1; then
+            printf '%s' "$_rid_dev"
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+detect_interface_ip() {
+    [ -n "$1" ] || return 1
+    _dii_dev="$(resolve_interface_device "$1")"
+    [ -n "$_dii_dev" ] || return 1
+    ip -4 addr show dev "$_dii_dev" 2>/dev/null | awk '
+        /^[[:space:]]*inet[[:space:]]/ {
+            split($2, addr, "/")
+            if (addr[1] != "") {
+                print addr[1]
+                exit
+            }
+        }'
+}
+
+detect_interface_subnet() {
+    [ -n "$1" ] || return 1
+    _dis_dev="$(resolve_interface_device "$1")"
+    [ -n "$_dis_dev" ] || return 1
+    ip -4 addr show dev "$_dis_dev" 2>/dev/null | awk '
+        /^[[:space:]]*inet[[:space:]]/ {
+            split($2, addr, "/")
+            split(addr[1], ip, ".")
+            cidr = addr[2] + 0
+            if (addr[2] == "" || cidr < 0 || cidr > 32)
+                next
+            if (cidr == 0) {
+                print "0.0.0.0/0"
+                exit
+            }
+            ip_int = ip[1] * 16777216 + ip[2] * 65536 + ip[3] * 256 + ip[4]
+            block = 2 ^ (32 - cidr)
+            net_int = int(ip_int / block) * block
+            o1 = int(net_int / 16777216)
+            rem = net_int % 16777216
+            o2 = int(rem / 65536)
+            rem = rem % 65536
+            o3 = int(rem / 256)
+            o4 = rem % 256
+            printf "%d.%d.%d.%d/%d\n", o1, o2, o3, o4, cidr
+            exit
+        }'
+}
+
+detect_default_route_if() {
+    ip route show default 2>/dev/null | awk '
+        {
+            for (i = 1; i <= NF; i++) {
+                if ($i == "dev" && (i + 1) <= NF) {
+                    print $(i + 1)
+                    exit
+                }
+            }
+        }'
+}
+
+extract_upnpc_external_ip() {
+    printf '%s' "$1" | awk '
+        {
+            line = $0
+            sub(/\r$/, "", line)
+            if (line ~ /ExternalIPAddress/) {
+                sub(/^.*ExternalIPAddress[[:space:]]*[=:][[:space:]]*/, "", line)
+                sub(/[[:space:]].*$/, "", line)
+                if (line ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) {
+                    print line
+                    exit
+                }
+            }
+        }'
+}
+
 detect_luci() {
     [ -f /www/luci-static/resources/rpc.js ] && printf '1' || printf '0'
 }
@@ -311,6 +416,16 @@ load_config() {
     [ -z "${cfg_openclash_auto_restart}" ] && cfg_openclash_auto_restart="0"
     [ -z "${cfg_openclash_sync_interval}" ] && cfg_openclash_sync_interval="0"
     [ -z "${cfg_firewall_zone_name}" ] && cfg_firewall_zone_name="upnp_bridge"
+
+    if [ -z "${cfg_bind_ip}" ] && [ -n "${cfg_bind_ifname}" ]; then
+        cfg_bind_ip="$(detect_interface_ip "${cfg_bind_ifname}")"
+    fi
+    if [ -z "${cfg_downstream_lan_subnet}" ] && [ -n "${cfg_bind_ifname}" ]; then
+        cfg_downstream_lan_subnet="$(detect_interface_subnet "${cfg_bind_ifname}")"
+    fi
+    if [ -z "${cfg_upstream_wan_if}" ]; then
+        cfg_upstream_wan_if="$(detect_default_route_if)"
+    fi
 
     cfg_deny_ports=""
     _dp_idx=0
@@ -655,6 +770,8 @@ nft_add_dnat_rule() {
     _nr_iface="$5"
 
     _nr_proto_lower="$(echo "$_nr_proto" | tr 'A-Z' 'a-z')"
+    _nr_resolved_iface="$(resolve_interface_device "$_nr_iface")"
+    [ -n "$_nr_resolved_iface" ] && _nr_iface="$_nr_resolved_iface"
     nft add rule inet ${NFT_TABLE_NAME} ${NFT_CHAIN} iifname "\"${_nr_iface}\"" "${_nr_proto_lower}" dport "${_nr_port}" dnat ip to "${_nr_dest_ip}:${_nr_dest_port}" comment "\"${NFT_RULE_COMMENT}\"" || return 1
     return 0
 }
@@ -1546,13 +1663,20 @@ do_check_env() {
 do_check_network() {
     load_config
 
+    _cn_detected_bind_ip="$(detect_interface_ip "${cfg_bind_ifname}")"
+    _cn_detected_lan_subnet="$(detect_interface_subnet "${cfg_bind_ifname}")"
+    _cn_detected_upstream_wan_if="$(detect_default_route_if)"
+    _cn_detected_downstream_wan_ip=""
+    _cn_bind_device="$(resolve_interface_device "${cfg_bind_ifname}")"
+    _cn_upstream_device="$(resolve_interface_device "${cfg_upstream_wan_if}")"
+
     _cn_iface_exists=0
-    if ip link show "${cfg_bind_ifname}" >/dev/null 2>&1; then
+    if [ -n "$_cn_bind_device" ]; then
         _cn_iface_exists=1
     fi
 
     _cn_bind_ip_ok=0
-    if ip addr show "${cfg_bind_ifname}" 2>/dev/null | grep -q "inet ${cfg_bind_ip}/"; then
+    if [ -n "$_cn_bind_device" ] && ip addr show "$_cn_bind_device" 2>/dev/null | grep -q "inet ${cfg_bind_ip}/"; then
         _cn_bind_ip_ok=1
     fi
 
@@ -1567,6 +1691,7 @@ do_check_network() {
         if _cn_upnpc_out="$(timeout "${cfg_backend_timeout}" upnpc -m "${cfg_bind_ip}" -l 2>/dev/null)" && [ -n "$_cn_upnpc_out" ]; then
             _cn_upnpc_ok=1
             _cn_upnpc_count="$(echo "$_cn_upnpc_out" | grep -cE '^[[:space:]]*[0-9]+[[:space:]]+(TCP|UDP)')"
+            _cn_detected_downstream_wan_ip="$(extract_upnpc_external_ip "$_cn_upnpc_out")"
         fi
     fi
 
@@ -1576,12 +1701,12 @@ do_check_network() {
     fi
 
     _cn_upstream_wan_ok=0
-    if ip link show "${cfg_upstream_wan_if}" >/dev/null 2>&1; then
+    if [ -n "$_cn_upstream_device" ]; then
         _cn_upstream_wan_ok=1
     fi
 
     _cn_def_route=0
-    if ip route show 2>/dev/null | grep "^default" | grep -q "${cfg_bind_ifname}"; then
+    if [ -n "$_cn_bind_device" ] && ip route show 2>/dev/null | grep "^default" | grep -q "$_cn_bind_device"; then
         _cn_def_route=1
     fi
 
@@ -1632,13 +1757,18 @@ do_check_network() {
 
     _cn_updated_at="$(get_timestamp)"
 
-    _cn_json="$(printf '{"cached":1,"updated_at":"%s","bind_ifname":"%s","bind_ip":"%s","downstream_lan_gateway":"%s","downstream_wan_ip":"%s","upstream_wan_if":"%s","iface_exists":%d,"bind_ip_configured":%d,"gateway_reachable":%d,"upnpc_readable":%d,"upnpc_mapping_count":%d,"wan_ip_reachable":%d,"upstream_wan_exists":%d,"default_route_on_bind":%d,"bad_forwarding":%d,"gateway_set":%d,"gateway_value":"%s","dns_set":%d,"dns_value":"%s","zone_name":"%s","zone_exists":%d,"zone_input":"%s","zone_output":"%s","zone_forward":"%s","zone_masq":"%s"}\n' \
+    _cn_json="$(printf '{"cached":1,"updated_at":"%s","bind_ifname":"%s","bind_ip":"%s","downstream_lan_gateway":"%s","downstream_lan_subnet":"%s","downstream_wan_ip":"%s","upstream_wan_if":"%s","detected_bind_ip":"%s","detected_downstream_lan_subnet":"%s","detected_downstream_wan_ip":"%s","detected_upstream_wan_if":"%s","iface_exists":%d,"bind_ip_configured":%d,"gateway_reachable":%d,"upnpc_readable":%d,"upnpc_mapping_count":%d,"wan_ip_reachable":%d,"upstream_wan_exists":%d,"default_route_on_bind":%d,"bad_forwarding":%d,"gateway_set":%d,"gateway_value":"%s","dns_set":%d,"dns_value":"%s","zone_name":"%s","zone_exists":%d,"zone_input":"%s","zone_output":"%s","zone_forward":"%s","zone_masq":"%s"}\n' \
         "$(json_escape "$_cn_updated_at")" \
         "$(json_escape "${cfg_bind_ifname}")" \
         "$(json_escape "${cfg_bind_ip}")" \
         "$(json_escape "${cfg_downstream_lan_gateway}")" \
+        "$(json_escape "${cfg_downstream_lan_subnet}")" \
         "$(json_escape "${cfg_downstream_wan_ip}")" \
         "$(json_escape "${cfg_upstream_wan_if}")" \
+        "$(json_escape "${_cn_detected_bind_ip}")" \
+        "$(json_escape "${_cn_detected_lan_subnet}")" \
+        "$(json_escape "${_cn_detected_downstream_wan_ip}")" \
+        "$(json_escape "${_cn_detected_upstream_wan_if}")" \
         "$_cn_iface_exists" \
         "$_cn_bind_ip_ok" \
         "$_cn_gateway_ok" \
@@ -1749,7 +1879,7 @@ do_sync() {
 
         _s_failure_count=$((_s_failure_count + 1))
 
-        if [ "$_s_failure_count" -ge "${cfg_failure_grace_count}" ]; then
+        if [ "${cfg_failure_grace_count}" -gt 0 ] && [ "$_s_failure_count" -ge "${cfg_failure_grace_count}" ]; then
             log_warn "Failure count (${_s_failure_count}) reached grace count (${cfg_failure_grace_count}), clearing rules"
             nft_flush_chain
             _s_failure_count=0
@@ -2295,7 +2425,15 @@ do_setup_interface() {
         return 1
     fi
     if [ -z "${cfg_bind_ip}" ]; then
-        printf '{"success":false,"error":"bind_ip not configured"}\n'
+        cfg_bind_ip="$(detect_interface_ip "${cfg_bind_ifname}")"
+        if [ -z "${cfg_bind_ip}" ]; then
+            printf '{"success":false,"error":"bind_ip not configured and no IPv4 address found on interface"}\n'
+            return 1
+        fi
+    fi
+    _dsi_device="$(resolve_interface_device "${cfg_bind_ifname}")"
+    if [ -z "$_dsi_device" ]; then
+        printf '{"success":false,"error":"bind interface device not found"}\n'
         return 1
     fi
 
@@ -2308,7 +2446,7 @@ do_setup_interface() {
     fi
 
     uci set network.upnp_bridge_lan='interface'
-    uci set network.upnp_bridge_lan.device="${cfg_bind_ifname}"
+    uci set network.upnp_bridge_lan.device="${_dsi_device}"
     uci set network.upnp_bridge_lan.proto='static'
     uci set network.upnp_bridge_lan.ipaddr="${cfg_bind_ip}"
     uci set network.upnp_bridge_lan.netmask="${_dsi_netmask}"
@@ -2320,10 +2458,10 @@ do_setup_interface() {
 
     write_resource "network_interface" "upnp_bridge_lan"
 
-    log_info "Created network interface upnp_bridge_lan (${cfg_bind_ifname}, ${cfg_bind_ip}, netmask ${_dsi_netmask})"
+    log_info "Created network interface upnp_bridge_lan (${_dsi_device}, ${cfg_bind_ip}, netmask ${_dsi_netmask})"
 
     printf '{"success":true,"interface":"upnp_bridge_lan","device":"%s","ipaddr":"%s","netmask":"%s"}\n' \
-        "$(json_escape "${cfg_bind_ifname}")" \
+        "$(json_escape "${_dsi_device}")" \
         "$(json_escape "${cfg_bind_ip}")" \
         "$(json_escape "${_dsi_netmask}")"
 }
