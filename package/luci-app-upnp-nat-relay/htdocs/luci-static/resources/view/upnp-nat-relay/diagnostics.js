@@ -74,17 +74,31 @@ return view.extend({
 
 		var logBtnBar = E('div', { 'class': 'ubr-btn-group ubr-mb-1' });
 
+		var LEVEL_OPTIONS = [
+			{ value: 'all', label: _('All') },
+			{ value: 'debug', label: _('Debug'), priority: 0 },
+			{ value: 'info', label: _('Info'), priority: 1 },
+			{ value: 'warn', label: _('Warning'), priority: 2 },
+			{ value: 'error', label: _('Error'), priority: 3 }
+		];
+
+		var cfgLogLevel = status.log_level || 'info';
+		var cfgPriority = (LEVEL_OPTIONS.find(function(o) { return o.value === cfgLogLevel; }) || {}).priority;
+		if (cfgPriority === undefined) cfgPriority = 1;
+
 		var levelSelect = E('select', {
 			'class': 'cbi-input-select',
 			'id': 'log-level-select',
 			'style': 'width:auto;margin-right:4px;'
-		}, [
-			E('option', { 'value': 'all', 'selected': 'selected' }, _('All')),
-			E('option', { 'value': 'debug' }, _('Debug')),
-			E('option', { 'value': 'info' }, _('Info')),
-			E('option', { 'value': 'warn' }, _('Warning')),
-			E('option', { 'value': 'error' }, _('Error'))
-		]);
+		});
+
+		LEVEL_OPTIONS.forEach(function(opt) {
+			if (opt.priority !== undefined && opt.priority < cfgPriority) return;
+			levelSelect.appendChild(E('option', {
+				'value': opt.value,
+				'selected': opt.value === 'all' ? 'selected' : undefined
+			}, opt.label));
+		});
 
 		var getLogLevel = function() {
 			var sel = document.getElementById('log-level-select');
@@ -143,7 +157,7 @@ return view.extend({
 					if (result && result.success) {
 						setLogArea(_('Log buffer cleared.'), 'is-empty');
 					} else {
-						ui.addNotification(null, E('p', _('Failed to clear logs: ') + ((result && result.error) || 'unknown')), 'error');
+						ui.addNotification(null, E('p', _('Failed to clear logs: ') + ((result && result.error) || _('unknown'))), 'error');
 					}
 				}).catch(function(e) {
 					ui.addNotification(null, E('p', _('Failed to clear logs: ') + e.message), 'error');
@@ -190,7 +204,7 @@ return view.extend({
 				return callRollback().then(function(result) {
 					result = result || {};
 					if (result.success !== true) {
-						ui.addNotification(null, E('p', _('Rollback failed: ') + (result.error || 'unknown')), 'error');
+						ui.addNotification(null, E('p', _('Rollback failed: ') + (result.error || _('unknown'))), 'error');
 						return;
 					}
 					return callClear();
@@ -198,7 +212,7 @@ return view.extend({
 					if (!result) return;
 					result = result || {};
 					if (result.success !== true) {
-						ui.addNotification(null, E('p', _('Clear failed: ') + (result.error || 'unknown')), 'error');
+						ui.addNotification(null, E('p', _('Clear failed: ') + (result.error || _('unknown'))), 'error');
 						return;
 					}
 					ui.addNotification(null, E('p', _('All plugin configurations and rules have been removed.')), 'info');
@@ -237,7 +251,7 @@ return view.extend({
 				return callClear().then(function(result) {
 					result = result || {};
 					if (result.success !== true) {
-						ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || 'unknown')), 'error');
+						ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || _('unknown'))), 'error');
 						return;
 					}
 					ui.addNotification(null, E('p', _('Dynamic rules cleared.')), 'info');

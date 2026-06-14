@@ -1,3 +1,5 @@
+
+
 msgid ""
 msgstr ""
 "Project-Id-Version: luci-app-upnp-nat-relay\n"
@@ -30,14 +32,8 @@ msgstr "Mappings"
 msgid "OpenClash"
 msgstr "OpenClash"
 
-msgid "Diagnostics"
-msgstr "Diagnostics"
-
 msgid "Logs"
 msgstr "Logs"
-
-msgid "Service Status"
-msgstr "Service Status"
 
 msgid "Running"
 msgstr "Running"
@@ -69,9 +65,6 @@ msgstr "Consecutive Failures"
 msgid "Current Backend"
 msgstr "Current Backend"
 
-msgid "nftables Table Status"
-msgstr "nftables Table Status"
-
 msgid "Present"
 msgstr "Present"
 
@@ -84,20 +77,11 @@ msgstr "Not Installed"
 msgid "Service Control"
 msgstr "Service Control"
 
-msgid "Start Service"
-msgstr "Start Service"
-
 msgid "Start"
 msgstr "Start"
 
-msgid "Service started."
-msgstr "Service started."
-
 msgid "Failed to start service: "
 msgstr "Failed to start service: "
-
-msgid "Stop Service"
-msgstr "Stop Service"
 
 msgid "Stop"
 msgstr "Stop"
@@ -108,14 +92,8 @@ msgstr "Service stopped."
 msgid "Failed to stop service: "
 msgstr "Failed to stop service: "
 
-msgid "Restart Service"
-msgstr "Restart Service"
-
 msgid "Restart"
 msgstr "Restart"
-
-msgid "Service restarted."
-msgstr "Service restarted."
 
 msgid "Failed to restart service: "
 msgstr "Failed to restart service: "
@@ -138,15 +116,6 @@ msgstr "Sync completed: 0 mappings read from downstream router. Ensure the downs
 msgid "Sync failed: %s"
 msgstr "Sync failed: %s"
 
-msgid "Sync completed successfully."
-msgstr "Sync completed successfully."
-
-msgid "Sync failed: "
-msgstr "Sync failed: "
-
-msgid "Clear Dynamic Rules"
-msgstr "Clear Dynamic Rules"
-
 msgid "Clear Rules"
 msgstr "Clear Rules"
 
@@ -155,9 +124,6 @@ msgstr "Dynamic rules cleared."
 
 msgid "Failed to clear rules: "
 msgstr "Failed to clear rules: "
-
-msgid "Wizard Mode:"
-msgstr "Wizard Mode:"
 
 msgid "Safe Mode (Detect Only)"
 msgstr "Safe Mode (Detect Only)"
@@ -174,14 +140,8 @@ msgstr "Select the interface connected to the downstream router LAN side."
 msgid "This interface is only for reading UPnP mappings. Do not set it as default gateway."
 msgstr "This interface is only for reading UPnP mappings. Do not set it as default gateway."
 
-msgid "Interface: "
-msgstr "Interface: "
-
 msgid "Enter or auto-detect the IP address on the selected interface."
 msgstr "Enter or auto-detect the IP address on the selected interface."
-
-msgid "Interface IP: "
-msgstr "Interface IP: "
 
 msgid "Auto Detect"
 msgstr "Auto Detect"
@@ -191,12 +151,6 @@ msgstr "Could not auto-detect IP."
 
 msgid "Enter the downstream router LAN gateway IP address."
 msgstr "Enter the downstream router LAN gateway IP address."
-
-msgid "Downstream LAN Gateway: "
-msgstr "Downstream LAN Gateway: "
-
-msgid "Downstream LAN Subnet: "
-msgstr "Downstream LAN Subnet: "
 
 msgid "Testing ping to downstream LAN gateway..."
 msgstr "Testing ping to downstream LAN gateway..."
@@ -231,14 +185,8 @@ msgstr "UPnP check failed"
 msgid "Enter the downstream router WAN IP address (used as DNAT target)."
 msgstr "Enter the downstream router WAN IP address (used as DNAT target)."
 
-msgid "Downstream WAN IP: "
-msgstr "Downstream WAN IP: "
-
 msgid "Select the upstream WAN interface for DNAT rules."
 msgstr "Select the upstream WAN interface for DNAT rules."
-
-msgid "Upstream WAN Interface: "
-msgstr "Upstream WAN Interface: "
 
 msgid "Set the allowed external port range for synchronization."
 msgstr "Set the allowed external port range for synchronization."
@@ -246,14 +194,8 @@ msgstr "Set the allowed external port range for synchronization."
 msgid "It is NOT recommended to use 1-65535 as the allowed range."
 msgstr "It is NOT recommended to use 1-65535 as the allowed range."
 
-msgid "Allowed External Ports: "
-msgstr "Allowed External Ports: "
-
 msgid "Configure OpenClash RETURN rule for bypassing transparent proxy on forwarded ports."
 msgstr "Configure OpenClash RETURN rule for bypassing transparent proxy on forwarded ports."
-
-msgid "OpenClash Mode: "
-msgstr "OpenClash Mode: "
 
 msgid "Off (Do not handle OpenClash)"
 msgstr "Off (Do not handle OpenClash)"
@@ -297,9 +239,6 @@ msgstr "OpenClash Mode"
 msgid "UCI Changes Preview"
 msgstr "UCI Changes Preview"
 
-msgid "Enable Service: "
-msgstr "Enable Service: "
-
 msgid "Yes"
 msgstr "Yes"
 
@@ -312,8 +251,8 @@ msgstr "Previous"
 msgid "Next"
 msgstr "Next"
 
-msgid "Invalid IP address format. Please enter a valid IPv4 address (e.g. 192.168.3.50)."
-msgstr "Invalid IP address format. Please enter a valid IPv4 address (e.g. 192.168.3.50)."
+msgid "Invalid IP address format. Please enter a valid IPv4 address (e.g. 192.168.1.50)."
+msgstr "Invalid IP address format. Please enter a valid IPv4 address (e.g. 192.168.1.50)."
 
 msgid "Invalid gateway IP address format."
 msgstr "Invalid gateway IP address format."
@@ -354,14 +293,11 @@ msgstr "Read Interface"
 msgid "device"
 msgstr "device"
 
-msgid "Select the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices."
-msgstr "Select the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices."
+msgid "Select the interface connected to the downstream router LAN side. The underlying device is resolved automatically."
+msgstr "Select the interface connected to the downstream router LAN side. The underlying device is resolved automatically."
 
 msgid "IP address on the read interface. Leave empty to auto-detect from the selected read interface."
 msgstr "IP address on the read interface. Leave empty to auto-detect from the selected read interface."
-
-msgid "Downstream router LAN gateway IP."
-msgstr "Downstream router LAN gateway IP."
 
 msgid "Downstream router LAN subnet (CIDR). Leave empty to auto-detect from the selected read interface."
 msgstr "Downstream router LAN subnet (CIDR). Leave empty to auto-detect from the selected read interface."
@@ -540,9 +476,6 @@ msgstr "Create Independent Zone"
 msgid "Create Zone"
 msgstr "Create Zone"
 
-msgid "Zone \"%s\" already exists. Use \"Fix Zone Settings\" instead."
-msgstr "Zone \"%s\" already exists. Use \"Fix Zone Settings\" instead."
-
 msgid "Zone created successfully."
 msgstr "Zone created successfully."
 
@@ -569,9 +502,6 @@ msgstr "Deny Rules"
 
 msgid "Denied Ports"
 msgstr "Denied Ports"
-
-msgid "List of specific ports to deny even if within the allowed range."
-msgstr "List of specific ports to deny even if within the allowed range."
 
 msgid "Deny Low Ports (0-1023)"
 msgstr "Deny Low Ports (0-1023)"
@@ -756,9 +686,6 @@ msgstr "Auto - Automatically write rules"
 msgid "RETURN Strategy"
 msgstr "RETURN Strategy"
 
-msgid "Strategy for generating RETURN rules."
-msgstr "Strategy for generating RETURN rules."
-
 msgid "Port Pool RETURN (recommended)"
 msgstr "Port Pool RETURN (recommended)"
 
@@ -777,14 +704,8 @@ msgstr "Create a backup of OpenClash configuration before writing rules."
 msgid "Auto Restart OpenClash After Rule Write"
 msgstr "Auto Restart OpenClash After Rule Write"
 
-msgid "Automatically restart OpenClash service after writing rules so changes take effect immediately. Without this, you need to restart OpenClash manually."
-msgstr "Automatically restart OpenClash service after writing rules so changes take effect immediately. Without this, you need to restart OpenClash manually."
-
 msgid "Backup Status"
 msgstr "Backup Status"
-
-msgid "Check via Logs page"
-msgstr "Check via Logs page"
 
 msgid "OpenClash Actions"
 msgstr "OpenClash Actions"
@@ -843,8 +764,8 @@ msgstr "Backup OpenClash Config"
 msgid "Backup"
 msgstr "Backup"
 
-msgid "Backup is created automatically before writing rules. To manually create a backup now, run on the router:"
-msgstr "Backup is created automatically before writing rules. To manually create a backup now, run on the router:"
+msgid "Backup is created automatically before writing rules."
+msgstr "Backup is created automatically before writing rules."
 
 msgid "Restore Backup"
 msgstr "Restore Backup"
@@ -888,44 +809,14 @@ msgstr "upnpc"
 msgid "LuCI"
 msgstr "LuCI"
 
-msgid "Item"
-msgstr "Item"
-
-msgid "Value"
-msgstr "Value"
-
-msgid "Run Environment Check"
-msgstr "Run Environment Check"
-
 msgid "Environment detection completed."
 msgstr "Environment detection completed."
-
-msgid "Network Detection"
-msgstr "Network Detection"
-
-msgid "Check Item"
-msgstr "Check Item"
-
-msgid "Result"
-msgstr "Result"
-
-msgid "Click \"Run Network Check\" to detect network status."
-msgstr "Click \"Run Network Check\" to detect network status."
-
-msgid "Run Network Check"
-msgstr "Run Network Check"
-
-msgid "Bind Interface"
-msgstr "Bind Interface"
 
 msgid "UPnP IGD Read"
 msgstr "UPnP IGD Read"
 
 msgid "Warning"
 msgstr "Warning"
-
-msgid "OK"
-msgstr "OK"
 
 msgid "Failed"
 msgstr "Failed"
@@ -935,12 +826,6 @@ msgstr "Network check failed: "
 
 msgid "Recent Logs"
 msgstr "Recent Logs"
-
-msgid "Click \"View Logs\" to load recent logs."
-msgstr "Click \"View Logs\" to load recent logs."
-
-msgid "View Logs"
-msgstr "View Logs"
 
 msgid "No logs found."
 msgstr "No logs found."
@@ -999,26 +884,11 @@ msgstr "Clear all dynamic nftables rules?"
 msgid "Clear nftables Rules"
 msgstr "Clear nftables Rules"
 
-msgid "WARNING: This will remove ALL plugin-created configurations, rules, and restore backups. Are you sure?"
-msgstr "WARNING: This will remove ALL plugin-created configurations, rules, and restore backups. Are you sure?"
-
-msgid "All plugin configurations and rules have been cleaned up."
-msgstr "All plugin configurations and rules have been cleaned up."
-
-msgid "Cleanup failed: "
-msgstr "Cleanup failed: "
-
-msgid "Cleanup All"
-msgstr "Cleanup All"
-
 msgid "Detecting..."
 msgstr "Detecting..."
 
 msgid "Auto-detect failed: "
 msgstr "Auto-detect failed: "
-
-msgid "Choose the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices."
-msgstr "Choose the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices."
 
 msgid "IP address on the read interface. Must be on the same subnet as the downstream router LAN."
 msgstr "IP address on the read interface. Must be on the same subnet as the downstream router LAN."
@@ -1038,8 +908,8 @@ msgstr "Select the OpenWrt logical WAN interface for DNAT rules. The underlying 
 msgid "Port range allowed for synchronization. Using 1-65535 is NOT recommended as it effectively creates a DMZ."
 msgstr "Port range allowed for synchronization. Using 1-65535 is NOT recommended as it effectively creates a DMZ."
 
-msgid "Control how OpenClash transparent proxy affects forwarded ports. \"Off\" ignores OpenClash, \"Prompt\" shows suggested rules, \"Auto\" writes rules automatically."
-msgstr "Control how OpenClash transparent proxy affects forwarded ports. \"Off\" ignores OpenClash, \"Prompt\" shows suggested rules, \"Auto\" writes rules automatically."
+msgid "Control how OpenClash transparent proxy affects forwarded ports."
+msgstr "Control how OpenClash transparent proxy affects forwarded ports."
 
 msgid "Please select an interface."
 msgstr "Please select an interface."
@@ -1053,8 +923,8 @@ msgstr "Downstream LAN Gateway is required."
 msgid "Downstream LAN Subnet is required."
 msgstr "Downstream LAN Subnet is required."
 
-msgid "Invalid subnet format. Please use CIDR notation (e.g. 192.168.3.0/24)."
-msgstr "Invalid subnet format. Please use CIDR notation (e.g. 192.168.3.0/24)."
+msgid "Invalid subnet format. Please use CIDR notation (e.g. 192.168.1.0/24)."
+msgstr "Invalid subnet format. Please use CIDR notation (e.g. 192.168.1.0/24)."
 
 msgid "Downstream WAN IP is required."
 msgstr "Downstream WAN IP is required."
@@ -1074,23 +944,20 @@ msgstr "Invalid Interface IP address format."
 msgid "Invalid subnet format."
 msgstr "Invalid subnet format."
 
-msgid "e.g. 192.168.3.50"
-msgstr "e.g. 192.168.3.50"
+msgid "e.g. 192.168.1.50"
+msgstr "e.g. 192.168.1.50"
 
-msgid "e.g. 192.168.3.1"
-msgstr "e.g. 192.168.3.1"
+msgid "e.g. 192.168.1.1"
+msgstr "e.g. 192.168.1.1"
 
-msgid "e.g. 192.168.3.0/24"
-msgstr "e.g. 192.168.3.0/24"
+msgid "e.g. 192.168.1.0/24"
+msgstr "e.g. 192.168.1.0/24"
 
 msgid "e.g. 192.168.2.2"
 msgstr "e.g. 192.168.2.2"
 
 msgid "e.g. 40000-65535"
 msgstr "e.g. 40000-65535"
-
-msgid "Click \"Detect\" to check status."
-msgstr "Click \"Detect\" to check status."
 
 msgid "Network detection completed. Click the Status tab to view results."
 msgstr "Network detection completed. Click the Status tab to view results."
@@ -1109,18 +976,6 @@ msgstr "Checking..."
 
 msgid "Loading..."
 msgstr "Loading..."
-
-msgid "Downstream Interface IP"
-msgstr "Downstream Interface IP"
-
-msgid "Upstream WAN Interface Exists"
-msgstr "Upstream WAN Interface Exists"
-
-msgid "Downstream WAN IP Reachable"
-msgstr "Downstream WAN IP Reachable"
-
-msgid "Interface IP Address"
-msgstr "Interface IP Address"
 
 msgid "Auto mode: interface and firewall will be configured before testing."
 msgstr "Auto mode: interface and firewall will be configured before testing."
@@ -1191,9 +1046,6 @@ msgstr "Exists"
 msgid "Not found"
 msgstr "Not found"
 
-msgid "Sync Settings"
-msgstr "Sync Settings"
-
 msgid "Sync Interval (seconds)"
 msgstr "Sync Interval (seconds)"
 
@@ -1212,38 +1064,11 @@ msgstr "Dry Run Mode"
 msgid "Clear Rules on Stop"
 msgstr "Clear Rules on Stop"
 
-msgid "Dry run mode reads UPnP mappings but does not create DNAT rules. Useful for verifying configuration before applying."
-msgstr "Dry run mode reads UPnP mappings but does not create DNAT rules. Useful for verifying configuration before applying."
-
-msgid "Saving..."
-msgstr "Saving..."
-
-msgid "Settings saved and applied."
-msgstr "Settings saved and applied."
-
-msgid "Failed to save settings: %s"
-msgstr "Failed to save settings: %s"
-
-msgid "Save & Apply"
-msgstr "Save & Apply"
-
-msgid "Reset"
-msgstr "Reset"
-
 msgid "Settings"
 msgstr "Settings"
 
-msgid "Sync Behavior"
-msgstr "Sync Behavior"
-
-msgid "Failure grace count: the service will stop after this many consecutive sync failures. Set to 0 to never stop."
-msgstr "Failure grace count: the service will stop after this many consecutive sync failures. Set to 0 to never stop."
-
 msgid "Logging"
 msgstr "Logging"
-
-msgid "Log level controls the verbosity of system log output. Debug produces the most detail."
-msgstr "Log level controls the verbosity of system log output. Debug produces the most detail."
 
 msgid "Sync completed: %d read, 0 accepted, %d rejected. Check Mappings page for details."
 msgstr "Sync completed: %d read, 0 accepted, %d rejected. Check Mappings page for details."
@@ -1263,8 +1088,8 @@ msgstr "Per protocol (1 rule for TCP, 1 rule for UDP)"
 msgid "Port Pool"
 msgstr "Port Pool"
 
-msgid "Strategy for generating RETURN rules. Per-Mapping creates one rule per UPnP port mapping (precise). Port Pool creates one rule covering the entire port range (broad)."
-msgstr "Strategy for generating RETURN rules. Per-Mapping creates one rule per UPnP port mapping (precise). Port Pool creates one rule covering the entire port range (broad)."
+msgid "Per-Mapping: one rule per UPnP mapping. Port Pool: one rule for the entire port range."
+msgstr "Per-Mapping: one rule per UPnP mapping. Port Pool: one rule for the entire port range."
 
 msgid "Per-Mapping RETURN (recommended)"
 msgstr "Per-Mapping RETURN (recommended)"
@@ -1290,23 +1115,11 @@ msgstr "Per-mapping rules written (%d rules). You need to restart OpenClash for 
 msgid "Show Advanced Configuration"
 msgstr "Show Advanced Configuration"
 
-msgid "Show controls that let setup flows change router network, firewall, and OpenClash behavior. Keep this off for normal automatic setup."
-msgstr "Show controls that let setup flows change router network, firewall, and OpenClash behavior. Keep this off for normal automatic setup."
+msgid "Allow setup flows to change network, firewall, and OpenClash configuration."
+msgstr "Allow setup flows to change network, firewall, and OpenClash configuration."
 
-msgid "Show manual network fields for special topologies. Most users can keep this off and use Detect or Auto Configure."
-msgstr "Show manual network fields for special topologies. Most users can keep this off and use Detect or Auto Configure."
-
-msgid "IP address on the read interface."
-msgstr "IP address on the read interface."
-
-msgid "Downstream router LAN subnet (CIDR)."
-msgstr "Downstream router LAN subnet (CIDR)."
-
-msgid "Downstream router WAN IP (DNAT target)."
-msgstr "Downstream router WAN IP (DNAT target)."
-
-msgid "Select the OpenWrt logical WAN interface for DNAT rules."
-msgstr "Select the OpenWrt logical WAN interface for DNAT rules."
+msgid "Show auto-detectable network fields for special topologies."
+msgstr "Show auto-detectable network fields for special topologies."
 
 msgid "Permit setup flows to create or repair the read interface before testing."
 msgstr "Permit setup flows to create or repair the read interface before testing."
@@ -1437,11 +1250,44 @@ msgstr "Port values must be between 1 and 65535."
 msgid "Restart OpenClash"
 msgstr "Restart OpenClash"
 
-msgid "Show auto-detectable network fields for special topologies. Most users can keep this off and use Detect or Auto Configure."
-msgstr "Show auto-detectable network fields for special topologies. Most users can keep this off and use Detect or Auto Configure."
-
 msgid "Start port must not exceed end port."
 msgstr "Start port must not exceed end port."
+
+msgid "Success"
+msgstr "Success"
+
+msgid "Partial"
+msgstr "Partial"
+
+msgid "unknown"
+msgstr "unknown"
+
+msgid "return"
+msgstr "return"
+
+msgid "both"
+msgstr "both"
+
+msgid "<dynamic, comma-separated per protocol>"
+msgstr "<dynamic, comma-separated per protocol>"
+
+msgid "1 rule for TCP, 1 rule for UDP"
+msgstr "1 rule for TCP, 1 rule for UDP"
+
+msgid "Example (3 TCP + 2 UDP mappings):"
+msgstr "Example (3 TCP + 2 UDP mappings):"
+
+msgid "input: ACCEPT, output: ACCEPT, forward: REJECT, masq: 0"
+msgstr "input: ACCEPT, output: ACCEPT, forward: REJECT, masq: 0"
+
+msgid "Downstream router LAN gateway IP. Leave empty to auto-detect from the read interface route."
+msgstr "Downstream router LAN gateway IP. Leave empty to auto-detect from the read interface route."
+
+msgid "Could not auto-detect downstream LAN gateway."
+msgstr "Could not auto-detect downstream LAN gateway."
+
+msgid "Info"
+msgstr "Info"
 
 msgid "All"
 msgstr "All"
@@ -1500,11 +1346,8 @@ msgstr "Failed to sync OpenClash: "
 msgid "How often the background service checks the downstream router."
 msgstr "How often the background service checks the downstream router."
 
-msgid "How often to sync OpenClash RETURN rules. Set to 0 to sync every main sync cycle (default). Set higher values (e.g., 300) to reduce OpenClash config writes and restarts when mappings change frequently."
-msgstr "How often to sync OpenClash RETURN rules. Set to 0 to sync every main sync cycle (default). Set higher values (e.g., 300) to reduce OpenClash config writes and restarts when mappings change frequently."
-
-msgid "Info"
-msgstr "Info"
+msgid "Set to 0 to sync every main cycle. Higher values reduce config writes when mappings change frequently."
+msgstr "Set to 0 to sync every main cycle. Higher values reduce config writes when mappings change frequently."
 
 msgid "Last OpenClash Sync"
 msgstr "Last OpenClash Sync"
@@ -1562,3 +1405,6 @@ msgstr "next in %ds"
 
 msgid "service action failed"
 msgstr "service action failed"
+
+msgid "Enable Service"
+msgstr "Enable Service"

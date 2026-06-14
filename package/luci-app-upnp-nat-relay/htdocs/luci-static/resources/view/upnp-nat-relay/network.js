@@ -237,6 +237,8 @@ return view.extend({
 			var count = 0;
 			if (setOptionValue(section_id, 'bind_ip', result.detected_bind_ip || result.bind_ip))
 				count++;
+			if (setOptionValue(section_id, 'downstream_lan_gateway', result.detected_downstream_lan_gateway))
+				count++;
 			if (setOptionValue(section_id, 'downstream_lan_subnet', result.detected_downstream_lan_subnet))
 				count++;
 			if (setOptionValue(section_id, 'downstream_wan_ip', result.detected_downstream_wan_ip))
@@ -254,7 +256,7 @@ return view.extend({
 		s.tab('config', _('Configuration'));
 
 		o = s.taboption('config', form.ListValue, 'bind_ifname', _('Read Interface'),
-			_('Select the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices.'));
+			_('Select the interface connected to the downstream router LAN side. The underlying device is resolved automatically.'));
 		o.value('', _('Select interface'));
 		var currentBindIfname = uci.get('upnp_nat_relay', 'main', 'bind_ifname') || '';
 		var hasCurrentBindIfname = false;
@@ -284,12 +286,16 @@ return view.extend({
 		};
 
 		o = s.taboption('config', form.Value, 'downstream_lan_gateway', _('Downstream LAN Gateway'),
-			_('Downstream router LAN gateway IP.'));
-		o.rmempty = false;
+			_('Downstream router LAN gateway IP. Leave empty to auto-detect from the read interface route.'));
+		o.rmempty = true;
 		o.datatype = 'ip4addr';
+		o.depends('show_advanced_config', '1');
+		o.cfgvalue = function(section_id) {
+			return uci.get('upnp_nat_relay', section_id, 'downstream_lan_gateway') || '';
+		};
 
 		o = s.taboption('config', form.Flag, 'show_advanced_config', _('Show Advanced Configuration'),
-			_('Show auto-detectable network fields for special topologies. Most users can keep this off and use Detect or Auto Configure.'));
+			_('Show auto-detectable network fields for special topologies.'));
 		o.default = '0';
 		o.rmempty = false;
 
@@ -534,15 +540,15 @@ return view.extend({
 			return callSetupInterface().then(function(result) {
 				result = result || {};
 				if (result.success !== true) {
-					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || 'unknown')), 'error');
-					return;
-				}
-				return callCheckNetwork().catch(function() {
-					return result;
-				});
-			}).then(function(result) {
-				if (!result) return;
-				ui.addNotification(null, E('p', _('Interface configured. Click the Status tab to view details.')), 'info');
+					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || _('unknown'))), 'error');
+				return;
+			}
+			return callCheckNetwork().catch(function() {
+				return result;
+			});
+		}).then(function(result) {
+			if (!result) return;
+			ui.addNotification(null, E('p', _('Interface configured. Click the Status tab to view details.')), 'info');
 				utils.reloadSoon();
 			}).catch(function(e) {
 				ui.addNotification(null, E('p', _('Interface configuration failed: ') + e.message), 'error');
@@ -641,7 +647,7 @@ return view.extend({
 		o.cfgvalue = function() {
 			return '<div class="alert-message info">' +
 				'<b>' + _('Recommended zone settings:') + '</b><br>' +
-				'input: ACCEPT, output: ACCEPT, forward: REJECT, masq: 0<br>' +
+				_('input: ACCEPT, output: ACCEPT, forward: REJECT, masq: 0') + '<br>' +
 				_('This allows the router to access the downstream LAN for UPnP reading while preventing unwanted forwarding.') +
 				'</div>';
 		};
@@ -664,7 +670,7 @@ return view.extend({
 			return callFixZone().then(function(result) {
 				result = result || {};
 				if (result.success !== true) {
-					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || 'unknown')), 'error');
+					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || _('unknown'))), 'error');
 					return;
 				}
 				return callCheckNetwork().catch(function() {
@@ -702,7 +708,7 @@ return view.extend({
 			return callFixZone().then(function(result) {
 				result = result || {};
 				if (result.success !== true) {
-					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || 'unknown')), 'error');
+					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || _('unknown'))), 'error');
 					return;
 				}
 				return callCheckNetwork().catch(function() {

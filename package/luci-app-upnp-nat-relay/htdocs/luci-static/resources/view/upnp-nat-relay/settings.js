@@ -70,7 +70,7 @@ return view.extend({
 		s.anonymous = true;
 
 		o = s.option(form.Flag, 'show_advanced_config', _('Show Advanced Configuration'),
-			_('Show controls that let setup flows change router network, firewall, and OpenClash behavior. Keep this off for normal automatic setup.'));
+			_('Allow setup flows to change network, firewall, and OpenClash configuration.'));
 		o.default = '0';
 		o.rmempty = false;
 
@@ -94,10 +94,10 @@ return view.extend({
 
 		o = s.option(form.ListValue, 'log_level', _('Log Level'),
 			_('Controls the verbosity of system log output.'));
-		o.value('debug', 'debug');
-		o.value('info', 'info');
-		o.value('warn', 'warn');
-		o.value('error', 'error');
+		o.value('debug', _('Debug'));
+		o.value('info', _('Info'));
+		o.value('warn', _('Warning'));
+		o.value('error', _('Error'));
 		o.default = 'info';
 		o.rmempty = false;
 
@@ -119,6 +119,13 @@ return view.extend({
 	},
 
 	handleSaveApply: function(ev, mode) {
+		var SYNC_CORE_KEYS = ['enabled', 'backend'];
+
+		var oldCoreValues = {};
+		SYNC_CORE_KEYS.forEach(function(key) {
+			oldCoreValues[key] = uci.get('upnp_nat_relay', 'main', key) || '';
+		});
+
 		return this.handleSave(ev).then(function() {
 			return utils.safeApply();
 		}).then(function() {
@@ -130,16 +137,28 @@ return view.extend({
 				return;
 			}
 
-			ui.addNotification(null, E('p', _('Configuration saved. Restarting service and waiting for first sync...')), 'info');
-			return callServiceRestart().then(utils.requireSuccess).then(function() {
-				return utils.waitForServiceReady(callStatus);
-			}).then(function(status) {
-				if (status && status.last_result === 'starting')
-					ui.addNotification(null, E('p', _('Service restart completed, but the first sync is still starting. Refreshing current status.')), 'warning');
-				else
-					ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
-				utils.reloadSoon(300);
+			var coreChanged = SYNC_CORE_KEYS.some(function(key) {
+				return (uci.get('upnp_nat_relay', 'main', key) || '') !== oldCoreValues[key];
 			});
+
+			if (coreChanged) {
+				ui.addNotification(null, E('p', _('Configuration saved. Restarting service and waiting for first sync...')), 'info');
+				return callServiceRestart().then(utils.requireSuccess).then(function() {
+					return utils.waitForServiceReady(callStatus);
+				}).then(function(status) {
+					if (status && status.last_result === 'starting')
+						ui.addNotification(null, E('p', _('Service restart completed, but the first sync is still starting. Refreshing current status.')), 'warning');
+					else
+						ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
+					utils.reloadSoon(300);
+				});
+			} else {
+				ui.addNotification(null, E('p', _('Configuration saved. Restarting service...')), 'info');
+				return callServiceRestart().then(utils.requireSuccess).then(function() {
+					ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
+					utils.reloadSoon(300);
+				});
+			}
 		}).catch(function(e) {
 			ui.addNotification(null, E('p', _('Failed to apply configuration: ') + e.message), 'error');
 		});

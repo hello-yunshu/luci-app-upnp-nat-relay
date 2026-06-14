@@ -79,23 +79,23 @@ function htmlEscape(value) {
 
 function buildFallbackRuleText(strategy, downstreamWanIp, allowedPorts, remark) {
 	if (strategy === 'per_mapping') {
-		return 'Strategy: Per-Mapping\n' +
-			'Internal Address: ' + downstreamWanIp + '\n' +
-			'Internal Ports: <dynamic, comma-separated per protocol>\n' +
-			'Protocol: 1 rule for TCP, 1 rule for UDP\n' +
-			'Action: RETURN\n' +
-			'Remark: ' + remark + ' [TCP] / ' + remark + ' [UDP]\n\n' +
-			'Example (3 TCP + 2 UDP mappings):\n' +
-			'  Rule 1: ports=54321,54322,54323  proto=tcp  remark="' + remark + ' [TCP]"\n' +
-			'  Rule 2: ports=54324,54325        proto=udp  remark="' + remark + ' [UDP]"';
+		return _('Strategy:') + ' ' + _('Per-Mapping') + '\n' +
+			_('Internal Address:') + ' ' + downstreamWanIp + '\n' +
+			_('Internal Ports:') + ' ' + _('<dynamic, comma-separated per protocol>') + '\n' +
+			_('Protocol:') + ' ' + _('1 rule for TCP, 1 rule for UDP') + '\n' +
+			_('Action:') + ' RETURN\n' +
+			_('Remark:') + ' ' + remark + ' [TCP] / ' + remark + ' [UDP]\n\n' +
+			_('Example (3 TCP + 2 UDP mappings):') + '\n' +
+			'  ' + _('Rule') + ' 1: ports=54321,54322,54323  proto=tcp  remark="' + remark + ' [TCP]"\n' +
+			'  ' + _('Rule') + ' 2: ports=54324,54325        proto=udp  remark="' + remark + ' [UDP]"';
 	}
 
-	return 'Strategy: Port Pool\n' +
-		'Internal Address: ' + downstreamWanIp + '\n' +
-		'Internal Ports: ' + allowedPorts + '\n' +
-		'Protocol: TCP/UDP\n' +
-		'Action: RETURN\n' +
-		'Remark: ' + remark;
+	return _('Strategy:') + ' ' + _('Port Pool') + '\n' +
+		_('Internal Address:') + ' ' + downstreamWanIp + '\n' +
+		_('Internal Ports:') + ' ' + allowedPorts + '\n' +
+		_('Protocol:') + ' TCP/UDP\n' +
+		_('Action:') + ' RETURN\n' +
+		_('Remark:') + ' ' + remark;
 }
 
 function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark, dryRun) {
@@ -116,7 +116,7 @@ function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark,
 				'<b>' + _('Source Address:') + '</b> ' + htmlEscape(srcIp) + '<br>' +
 				'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + htmlEscape(srcPort) + '</span><br>' +
 				'<b>' + _('Protocol:') + '</b> ' + htmlEscape(proto) + '<br>' +
-				'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + htmlEscape(rule.target || 'return') + '</span><br>' +
+				'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + htmlEscape(rule.target || _('return')) + '</span><br>' +
 				'<b>' + _('Remark:') + '</b> ' + htmlEscape(rule.remark || '');
 		}
 		return html + '</div>';
@@ -125,13 +125,13 @@ function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark,
 	if (suggestion && suggestion.strategy === 'port_pool') {
 		var poolSrcIp = suggestion.src_ip || suggestion.internal_address || downstreamWanIp;
 		var poolSrcPort = suggestion.src_port || suggestion.internal_ports || allowedPorts;
-		var poolProto = suggestion.proto || suggestion.protocols || 'both';
+		var poolProto = suggestion.proto || suggestion.protocols || _('both');
 		return html +
 			'<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Port Pool') + '</span><br>' +
 			'<b>' + _('Source Address:') + '</b> ' + htmlEscape(poolSrcIp) + '<br>' +
 			'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + htmlEscape(poolSrcPort) + '</span><br>' +
 			'<b>' + _('Protocol:') + '</b> ' + htmlEscape(poolProto) + '<br>' +
-			'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + htmlEscape(suggestion.target || 'return') + '</span><br>' +
+			'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + htmlEscape(suggestion.target || _('return')) + '</span><br>' +
 			'<b>' + _('Remark:') + '</b> ' + htmlEscape(suggestion.remark || remark) +
 			'</div>';
 	}
@@ -142,7 +142,7 @@ function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark,
 			'<b>' + _('Source Address:') + '</b> ' + downstreamWanIpText + '<br>' +
 			'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + _('Dynamic (comma-separated, grouped by protocol)') + '</span><br>' +
 			'<b>' + _('Protocol:') + '</b> ' + _('Per protocol (1 rule for TCP, 1 rule for UDP)') + '<br>' +
-			'<b>' + _('Action:') + '</b> <span class="ubr-text-success">return</span><br>' +
+			'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + _('return') + '</span><br>' +
 			'<b>' + _('Remark:') + '</b> ' + htmlEscape(remark) + ' [TCP] / ' + htmlEscape(remark) + ' [UDP]' +
 			'</div>';
 	}
@@ -151,8 +151,8 @@ function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark,
 		'<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Port Pool') + '</span><br>' +
 		'<b>' + _('Source Address:') + '</b> ' + downstreamWanIpText + '<br>' +
 		'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + htmlEscape(allowedPorts) + '</span><br>' +
-		'<b>' + _('Protocol:') + '</b> both<br>' +
-		'<b>' + _('Action:') + '</b> <span class="ubr-text-success">return</span><br>' +
+		'<b>' + _('Protocol:') + '</b> ' + _('both') + '<br>' +
+		'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + _('return') + '</span><br>' +
 		'<b>' + _('Remark:') + '</b> ' + htmlEscape(remark) +
 		'</div>';
 }
@@ -288,7 +288,7 @@ return view.extend({
 		o.default = 'prompt';
 
 		o = s.option(form.ListValue, 'openclash_return_strategy', _('RETURN Strategy'),
-			_('Strategy for generating RETURN rules. Per-Mapping creates one rule per UPnP port mapping (precise). Port Pool creates one rule covering the entire port range (broad).'));
+			_('Per-Mapping: one rule per UPnP mapping. Port Pool: one rule for the entire port range.'));
 		o.value('per_mapping', _('Per-Mapping RETURN (recommended)'));
 		o.value('port_pool', _('Port Pool RETURN'));
 
@@ -308,7 +308,7 @@ return view.extend({
 		o.rmempty = false;
 
 		o = s.option(form.Value, 'openclash_sync_interval', _('OpenClash Sync Interval (seconds)'),
-			_('How often to sync OpenClash RETURN rules. Set to 0 to sync every main sync cycle (default). Set higher values (e.g., 300) to reduce OpenClash config writes and restarts when mappings change frequently.'));
+			_('Set to 0 to sync every main cycle. Higher values reduce config writes when mappings change frequently.'));
 		o.datatype = 'range(0,86400)';
 		o.placeholder = '0';
 		o.rmempty = false;
@@ -351,7 +351,7 @@ return view.extend({
 							lastSyncEl.innerHTML = formatOpenclashSyncStatus({ last_oc_sync: Math.floor(Date.now() / 1000) });
 					});
 				} else {
-					var errorMsg = result.message || result.error || 'unknown';
+					var errorMsg = result.message || result.error || _('unknown');
 					if (result.error === 'main_sync_running') {
 						ui.addNotification(null, E('p', _('Main sync is currently running, please try again later.')), 'warning');
 					} else if (result.error === 'openclash_operation_running') {
@@ -418,7 +418,7 @@ return view.extend({
 					} else if (result && result.action === 'unchanged') {
 						msg = _('Per-mapping rules are already up to date (%d rules).').format(result.rules_count || 0);
 					} else if (!result || result.success !== true) {
-						msg = _('Failed to write per-mapping rules: ') + (result.error || 'unknown');
+						msg = _('Failed to write per-mapping rules: ') + (result.error || _('unknown'));
 					} else {
 						msg = _('Per-mapping rules written. You need to restart OpenClash for changes to take effect.');
 					}
@@ -450,7 +450,7 @@ return view.extend({
 			return callRemoveOpenclashRule().then(function(result) {
 				result = result || {};
 				if (result.success !== true) {
-					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || 'unknown')), 'error');
+					ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || _('unknown'))), 'error');
 					return;
 				}
 				ui.addNotification(null, E('p', _('Plugin rule removed from OpenClash.')), 'info');
@@ -478,7 +478,7 @@ return view.extend({
 					msg = _('OpenClash init restart failed.');
 					ui.addNotification(null, E('p', msg), 'error');
 				} else {
-					msg = _('OpenClash restart failed: ') + ((result && result.error) || 'unknown');
+					msg = _('OpenClash restart failed: ') + ((result && result.error) || _('unknown'));
 					ui.addNotification(null, E('p', msg), 'error');
 				}
 			}).catch(function(e) {
@@ -491,7 +491,7 @@ return view.extend({
 		o.inputstyle = 'apply';
 		o.onclick = function() {
 			var backupPath = '/etc/config/openclash.bak.upnp_nat_relay';
-			ui.addNotification(null, E('p', _('Backup is created automatically before writing rules. To manually create a backup now, run on the router:') + '<br><code>cp /etc/config/openclash ' + backupPath + '</code>'), 'info');
+			ui.addNotification(null, E('p', _('Backup is created automatically before writing rules.')), 'info');
 		};
 
 		o = s.option(form.Button, '_restore_oc', _('Restore Backup'));

@@ -317,8 +317,13 @@ return view.extend({
 		var filled = 0;
 		var detectedBindIp = result.detected_bind_ip || result.bind_ip || this.getDeviceIPv4(this.wizardData.bind_ifname);
 		var detectedSubnet = result.detected_downstream_lan_subnet || this.getDeviceSubnet(this.wizardData.bind_ifname);
+		var detectedGateway = result.detected_downstream_lan_gateway || '';
 		if (!this.wizardData.bind_ip && detectedBindIp) {
 			this.wizardData.bind_ip = detectedBindIp;
+			filled++;
+		}
+		if (!this.wizardData.downstream_lan_gateway && detectedGateway) {
+			this.wizardData.downstream_lan_gateway = detectedGateway;
 			filled++;
 		}
 		if (!this.wizardData.downstream_lan_subnet && detectedSubnet) {
@@ -459,9 +464,9 @@ return view.extend({
 			});
 
 			s.appendChild(self.createField(
-				_('Interface: '),
+				_('Interface') + ': ',
 				ifSelect,
-				_('Choose the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices.')
+				_('Select the interface connected to the downstream router LAN side. The underlying device is resolved automatically.')
 			));
 
 		} else if (self.step === 2) {
@@ -472,7 +477,7 @@ return view.extend({
 					'class': 'cbi-input-text',
 					'id': 'wiz-bind-ip',
 					'value': self.wizardData.bind_ip || self.getDeviceIPv4(self.wizardData.bind_ifname),
-					'placeholder': _('e.g. 192.168.3.50')
+					'placeholder': _('e.g. 192.168.1.50')
 				});
 			var ipFieldWrap = E('div', { 'class': 'ubr-flex-center' });
 			ipFieldWrap.appendChild(ipInput);
@@ -492,7 +497,7 @@ return view.extend({
 			}));
 
 			s.appendChild(self.createField(
-				_('Interface IP: '),
+				_('Interface IP') + ': ',
 				ipFieldWrap,
 				_('IP address on the read interface. Must be on the same subnet as the downstream router LAN.')
 			));
@@ -505,11 +510,20 @@ return view.extend({
 				'class': 'cbi-input-text',
 				'id': 'wiz-lan-gw',
 				'value': self.wizardData.downstream_lan_gateway,
-				'placeholder': _('e.g. 192.168.3.1')
+				'placeholder': _('e.g. 192.168.1.1')
 			});
+			var gwFieldWrap = E('div', { 'class': 'ubr-flex-center' });
+			gwFieldWrap.appendChild(gwInput);
+			gwFieldWrap.appendChild(self.createDetectButton(self, gwInput, {
+				field: 'downstream_lan_gateway',
+				valueFromResult: function(result) {
+					return result.detected_downstream_lan_gateway || result.downstream_lan_gateway || '';
+				},
+				emptyMessage: _('Could not auto-detect downstream LAN gateway.')
+			}));
 			s.appendChild(self.createField(
-				_('Downstream LAN Gateway: '),
-				gwInput,
+				_('Downstream LAN Gateway') + ': ',
+				gwFieldWrap,
 				_('The LAN-side gateway IP address of the downstream router.')
 			));
 
@@ -518,7 +532,7 @@ return view.extend({
 				'class': 'cbi-input-text',
 				'id': 'wiz-lan-subnet',
 				'value': self.wizardData.downstream_lan_subnet || self.getDeviceSubnet(self.wizardData.bind_ifname),
-				'placeholder': _('e.g. 192.168.3.0/24')
+				'placeholder': _('e.g. 192.168.1.0/24')
 			});
 			var subnetFieldWrap = E('div', { 'class': 'ubr-flex-center' });
 			subnetFieldWrap.appendChild(subnetInput);
@@ -533,7 +547,7 @@ return view.extend({
 				emptyMessage: _('Could not auto-detect subnet.')
 			}));
 			s.appendChild(self.createField(
-				_('Downstream LAN Subnet: '),
+				_('Downstream LAN Subnet') + ': ',
 				subnetFieldWrap,
 				_('Downstream router LAN subnet in CIDR format, used for source filtering.')
 			));
@@ -647,7 +661,7 @@ return view.extend({
 				emptyMessage: _('Could not auto-detect downstream WAN IP.')
 			}));
 			s.appendChild(self.createField(
-				_('Downstream WAN IP: '),
+				_('Downstream WAN IP') + ': ',
 				wanIpFieldWrap,
 				_('Downstream router WAN IP address, used as the DNAT rule target.')
 			));
@@ -682,7 +696,7 @@ return view.extend({
 			}));
 
 			s.appendChild(self.createField(
-				_('Upstream WAN Interface: '),
+				_('Upstream WAN Interface') + ': ',
 				wanIfFieldWrap,
 				_('Select the OpenWrt logical WAN interface for DNAT rules. The underlying device is resolved automatically.')
 			));
@@ -700,7 +714,7 @@ return view.extend({
 				'placeholder': _('e.g. 40000-65535')
 			});
 			s.appendChild(self.createField(
-				_('Allowed External Ports: '),
+				_('Allowed External Ports') + ': ',
 				portInput,
 				_('Port range allowed for synchronization. Using 1-65535 is NOT recommended as it effectively creates a DMZ.')
 			));
@@ -721,9 +735,9 @@ return view.extend({
 				ocSelect.appendChild(opt);
 			}
 			s.appendChild(self.createField(
-				_('OpenClash Mode: '),
+				_('OpenClash Mode') + ': ',
 				ocSelect,
-				_('Control how OpenClash transparent proxy affects forwarded ports. "Off" ignores OpenClash, "Prompt" shows suggested rules, "Auto" writes rules automatically.')
+				_('Control how OpenClash transparent proxy affects forwarded ports.')
 			));
 
 			if (self.wizardMode === 'auto') {
@@ -772,7 +786,7 @@ return view.extend({
 			enableSelect.appendChild(optYes);
 			enableSelect.appendChild(optNo);
 			s.appendChild(self.createField(
-				_('Enable Service: '),
+				_('Enable Service') + ': ',
 				enableSelect,
 				_('Enable the UPnP NAT Relay service after saving configuration.')
 			));
@@ -841,7 +855,7 @@ return view.extend({
 				return false;
 			}
 			if (!self.validateIp(self.wizardData.bind_ip)) {
-				ui.addNotification(null, E('p', _('Invalid IP address format. Please enter a valid IPv4 address (e.g. 192.168.3.50).')), 'warning');
+				ui.addNotification(null, E('p', _('Invalid IP address format. Please enter a valid IPv4 address (e.g. 192.168.1.50).')), 'warning');
 				return false;
 			}
 		} else if (self.step === 3) {
@@ -858,7 +872,7 @@ return view.extend({
 				return false;
 			}
 			if (!self.validateSubnet(self.wizardData.downstream_lan_subnet)) {
-				ui.addNotification(null, E('p', _('Invalid subnet format. Please use CIDR notation (e.g. 192.168.3.0/24).')), 'warning');
+				ui.addNotification(null, E('p', _('Invalid subnet format. Please use CIDR notation (e.g. 192.168.1.0/24).')), 'warning');
 				return false;
 			}
 		} else if (self.step === 6) {

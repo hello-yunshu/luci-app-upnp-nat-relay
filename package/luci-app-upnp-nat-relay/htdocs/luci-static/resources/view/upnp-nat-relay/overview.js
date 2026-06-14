@@ -258,7 +258,7 @@ return view.extend({
 								msgType = 'warning';
 							}
 						} else if (!result || result.success !== true) {
-							msg = _('Sync failed: %s').format(result.error || 'unknown');
+							msg = _('Sync failed: %s').format(result.error || _('unknown'));
 							msgType = 'error';
 						} else {
 							msg = _('Sync triggered.');
@@ -280,7 +280,7 @@ return view.extend({
 					return callClear().then(function(result) {
 						result = result || {};
 						if (result.success !== true) {
-							ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || 'unknown')), 'error');
+							ui.addNotification(null, E('p', _('Operation failed: ') + (result.error || _('unknown'))), 'error');
 							return;
 						}
 						ui.addNotification(null, E('p', _('Dynamic rules cleared.')), 'info');
@@ -331,14 +331,14 @@ return view.extend({
 		if (lastResult === 'starting') {
 			lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u23F3 ' + _('Starting'));
 		} else if (lastResult === 'success' || (typeof lastResult === 'string' && lastResult.indexOf('success') === 0)) {
-			lastResultBadge = E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + lastResult);
-		} else if (lastResult === '-') {
-			lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + '-');
-		} else if (lastResult === 'partial') {
-			lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + lastResult);
-		} else {
-			lastResultBadge = E('span', { 'class': 'ubr-badge red' }, '\u2718 ' + lastResult);
-		}
+		lastResultBadge = E('span', { 'class': 'ubr-badge green' }, '\u2714 ' + _('Success'));
+	} else if (lastResult === '-') {
+		lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + '-');
+	} else if (lastResult === 'partial') {
+		lastResultBadge = E('span', { 'class': 'ubr-badge orange' }, '\u26A0 ' + _('Partial'));
+	} else {
+		lastResultBadge = E('span', { 'class': 'ubr-badge red' }, '\u2718 ' + lastResult);
+	}
 		infoTable.appendChild(E('tr', { 'class': 'tr' }, [
 			E('th', { 'class': 'th' }, _('Last Sync Result')),
 			E('td', { 'class': 'td' }, lastResultBadge)
