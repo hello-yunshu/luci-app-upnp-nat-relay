@@ -14,8 +14,8 @@ permissions:
 
 env:
   SDKDIR: /builder
-  REPO_NAME: upnp-bridge-relay
-  PKG_NAME: luci-app-upnp-bridge-relay
+  REPO_NAME: luci-app-upnp-nat-relay
+  PKG_NAME: luci-app-upnp-nat-relay
 
 jobs:
   check-version:
@@ -30,8 +30,8 @@ jobs:
           fetch-depth: 0
       - id: check
         run: |
-          PKG_VERSION=$(grep '^PKG_VERSION:=' package/luci-app-upnp-bridge-relay/Makefile | cut -d= -f2)
-          PKG_RELEASE=$(grep '^PKG_RELEASE:=' package/luci-app-upnp-bridge-relay/Makefile | cut -d= -f2)
+          PKG_VERSION=$(grep '^PKG_VERSION:=' package/luci-app-upnp-nat-relay/Makefile | cut -d= -f2)
+          PKG_RELEASE=$(grep '^PKG_RELEASE:=' package/luci-app-upnp-nat-relay/Makefile | cut -d= -f2)
           TAG="v${PKG_VERSION}-${PKG_RELEASE}"
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -166,27 +166,27 @@ jobs:
           tag_name: v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
           name: v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
           body: |
-            UPnP Bridge Relay v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
+            UPnP NAT Relay v${{ needs.check-version.outputs.version }}-${{ needs.check-version.outputs.release }}
 
-            Main package: `luci-app-upnp-bridge-relay` (LuCI web interface + service, includes Chinese and English translations)
+            Main package: `luci-app-upnp-nat-relay` (LuCI web interface + service, includes Chinese and English translations)
 
             Both `.ipk` (opkg) and `.apk` (apk) formats are provided.
 
             ## Installation (opkg - OpenWrt 23.05 / 24.10)
             ```bash
-            opkg install luci-app-upnp-bridge-relay_*.ipk
+            opkg install luci-app-upnp-nat-relay_*.ipk
             ```
 
             ## Installation (apk - OpenWrt 25.12+)
             ```bash
-            apk add --allow-untrusted ./luci-app-upnp-bridge-relay*.apk
+            apk add --allow-untrusted ./luci-app-upnp-nat-relay*.apk
             ```
 
             ## Upgrade
             ```bash
             # Download new packages from Release, then install the same way as above.
             # opkg/apk will automatically detect and upgrade the existing version.
-            # Your UCI config (/etc/config/upnp_bridge_relay) is preserved.
+            # Your UCI config (/etc/config/upnp_nat_relay) is preserved.
 
             # Clear LuCI cache after upgrade:
             rm -rf /tmp/luci-*
@@ -194,12 +194,13 @@ jobs:
             ```
 
             ## Migrating from old package name
-            If you previously installed `upnp-bridge-relay`, remove it first:
+            If you previously installed `luci-app-upnp-bridge-relay`, remove it first.
+            The new package migrates `/etc/config/upnp_bridge_relay` to `/etc/config/upnp_nat_relay` on install.
             ```bash
             # opkg
-            opkg remove upnp-bridge-relay
+            opkg remove luci-app-upnp-bridge-relay
             # apk
-            apk del upnp-bridge-relay
+            apk del luci-app-upnp-bridge-relay
             ```
 
             ## Requirements
