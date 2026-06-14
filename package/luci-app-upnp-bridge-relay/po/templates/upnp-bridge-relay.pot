@@ -178,7 +178,7 @@ msgstr ""
 msgid "Enter or auto-detect the IP address on the selected interface."
 msgstr ""
 
-msgid "Bind IP: "
+msgid "Interface IP: "
 msgstr ""
 
 msgid "Auto Detect"
@@ -220,7 +220,7 @@ msgstr ""
 msgid "UPnP IGD discovery failed"
 msgstr ""
 
-msgid "Ensure the downstream router has UPnP enabled and the bind IP is on its LAN side."
+msgid "Ensure the downstream router has UPnP enabled and the interface IP is on its LAN side."
 msgstr ""
 
 msgid "UPnP check failed"
@@ -271,7 +271,7 @@ msgstr ""
 msgid "Interface"
 msgstr ""
 
-msgid "Bind IP"
+msgid "Interface IP"
 msgstr ""
 
 msgid "Downstream LAN Gateway"
@@ -349,25 +349,25 @@ msgstr ""
 msgid "Read Interface"
 msgstr ""
 
-msgid "The interface connected to the downstream router LAN side."
+msgid "device"
 msgstr ""
 
-msgid "Interface IP"
+msgid "Choose the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices."
 msgstr ""
 
-msgid "IP address on the read interface."
+msgid "IP address on the read interface. Leave empty to auto-detect from the selected read interface."
 msgstr ""
 
 msgid "Downstream router LAN gateway IP."
 msgstr ""
 
-msgid "Downstream router LAN subnet (CIDR)."
+msgid "Downstream router LAN subnet (CIDR). Leave empty to auto-detect from the selected read interface."
 msgstr ""
 
-msgid "Downstream router WAN IP (DNAT target)."
+msgid "Downstream router WAN IP (DNAT target). Leave empty and run Detect to auto-fill it from UPnP when available."
 msgstr ""
 
-msgid "The WAN interface for DNAT rules."
+msgid "Select the OpenWrt logical WAN interface for DNAT rules. Leave empty to auto-detect from the default route; the underlying device is resolved automatically."
 msgstr ""
 
 msgid "Interface Status"
@@ -1015,7 +1015,7 @@ msgstr ""
 msgid "Auto-detect failed: "
 msgstr ""
 
-msgid "The network interface connected to the downstream router LAN side, used only for reading UPnP mappings."
+msgid "Select the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices."
 msgstr ""
 
 msgid "IP address on the read interface. Must be on the same subnet as the downstream router LAN."
@@ -1030,7 +1030,7 @@ msgstr ""
 msgid "Downstream router WAN IP address, used as the DNAT rule target."
 msgstr ""
 
-msgid "The upstream WAN interface where DNAT rules will be created."
+msgid "Select the OpenWrt logical WAN interface for DNAT rules. The underlying device is resolved automatically."
 msgstr ""
 
 msgid "Port range allowed for synchronization. Using 1-65535 is NOT recommended as it effectively creates a DMZ."
@@ -1042,7 +1042,7 @@ msgstr ""
 msgid "Please select an interface."
 msgstr ""
 
-msgid "Bind IP is required."
+msgid "Interface IP is required."
 msgstr ""
 
 msgid "Downstream LAN Gateway is required."
@@ -1066,7 +1066,7 @@ msgstr ""
 msgid "%s is required."
 msgstr ""
 
-msgid "Invalid Bind IP address format."
+msgid "Invalid Interface IP address format."
 msgstr ""
 
 msgid "Invalid subnet format."
@@ -1108,7 +1108,7 @@ msgstr ""
 msgid "Loading..."
 msgstr ""
 
-msgid "Downstream Bind IP"
+msgid "Downstream Interface IP"
 msgstr ""
 
 msgid "Upstream WAN Interface Exists"
@@ -1117,7 +1117,7 @@ msgstr ""
 msgid "Downstream WAN IP Reachable"
 msgstr ""
 
-msgid "Bind IP Address"
+msgid "Interface IP Address"
 msgstr ""
 
 msgid "Auto mode: interface and firewall will be configured before testing."
@@ -1132,10 +1132,10 @@ msgstr ""
 msgid "Interface does not exist. Check the interface name."
 msgstr ""
 
-msgid "Bind IP is not configured on the interface. Use Auto mode or configure the interface manually."
+msgid "Interface IP is not configured on the interface. Use Auto mode or configure the interface manually."
 msgstr ""
 
-msgid "Bind IP is not configured on the interface. UPnP discovery requires a valid bind IP."
+msgid "Interface IP is not configured on the interface. UPnP discovery requires a valid interface IP."
 msgstr ""
 
 msgid "UPnP check error: "
@@ -1406,4 +1406,10 @@ msgid "Info"
 msgstr ""
 
 msgid "Error"
+msgstr ""
+
+msgid "Select interface"
+msgstr ""
+
+msgid "Network detection completed. %d empty field(s) were auto-filled; save and apply to keep them."
 msgstr ""

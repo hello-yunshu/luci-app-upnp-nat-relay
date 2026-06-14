@@ -180,8 +180,8 @@ msgstr "Interface: "
 msgid "Enter or auto-detect the IP address on the selected interface."
 msgstr "Enter or auto-detect the IP address on the selected interface."
 
-msgid "Bind IP: "
-msgstr "Bind IP: "
+msgid "Interface IP: "
+msgstr "Interface IP: "
 
 msgid "Auto Detect"
 msgstr "Auto Detect"
@@ -222,8 +222,8 @@ msgstr "UPnP IGD discovered, %d mapping(s) found"
 msgid "UPnP IGD discovery failed"
 msgstr "UPnP IGD discovery failed"
 
-msgid "Ensure the downstream router has UPnP enabled and the bind IP is on its LAN side."
-msgstr "Ensure the downstream router has UPnP enabled and the bind IP is on its LAN side."
+msgid "Ensure the downstream router has UPnP enabled and the interface IP is on its LAN side."
+msgstr "Ensure the downstream router has UPnP enabled and the interface IP is on its LAN side."
 
 msgid "UPnP check failed"
 msgstr "UPnP check failed"
@@ -273,8 +273,8 @@ msgstr "Review your configuration and enable the service."
 msgid "Interface"
 msgstr "Interface"
 
-msgid "Bind IP"
-msgstr "Bind IP"
+msgid "Interface IP"
+msgstr "Interface IP"
 
 msgid "Downstream LAN Gateway"
 msgstr "Downstream LAN Gateway"
@@ -351,26 +351,26 @@ msgstr "Configuration"
 msgid "Read Interface"
 msgstr "Read Interface"
 
-msgid "The interface connected to the downstream router LAN side."
-msgstr "The interface connected to the downstream router LAN side."
+msgid "device"
+msgstr "device"
 
-msgid "Interface IP"
-msgstr "Interface IP"
+msgid "Select the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices."
+msgstr "Select the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices."
 
-msgid "IP address on the read interface."
-msgstr "IP address on the read interface."
+msgid "IP address on the read interface. Leave empty to auto-detect from the selected read interface."
+msgstr "IP address on the read interface. Leave empty to auto-detect from the selected read interface."
 
 msgid "Downstream router LAN gateway IP."
 msgstr "Downstream router LAN gateway IP."
 
-msgid "Downstream router LAN subnet (CIDR)."
-msgstr "Downstream router LAN subnet (CIDR)."
+msgid "Downstream router LAN subnet (CIDR). Leave empty to auto-detect from the selected read interface."
+msgstr "Downstream router LAN subnet (CIDR). Leave empty to auto-detect from the selected read interface."
 
-msgid "Downstream router WAN IP (DNAT target)."
-msgstr "Downstream router WAN IP (DNAT target)."
+msgid "Downstream router WAN IP (DNAT target). Leave empty and run Detect to auto-fill it from UPnP when available."
+msgstr "Downstream router WAN IP (DNAT target). Leave empty and run Detect to auto-fill it from UPnP when available."
 
-msgid "The WAN interface for DNAT rules."
-msgstr "The WAN interface for DNAT rules."
+msgid "Select the OpenWrt logical WAN interface for DNAT rules. Leave empty to auto-detect from the default route; the underlying device is resolved automatically."
+msgstr "Select the OpenWrt logical WAN interface for DNAT rules. Leave empty to auto-detect from the default route; the underlying device is resolved automatically."
 
 msgid "Interface Status"
 msgstr "Interface Status"
@@ -1017,8 +1017,8 @@ msgstr "Detecting..."
 msgid "Auto-detect failed: "
 msgstr "Auto-detect failed: "
 
-msgid "The network interface connected to the downstream router LAN side, used only for reading UPnP mappings."
-msgstr "The network interface connected to the downstream router LAN side, used only for reading UPnP mappings."
+msgid "Choose the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices."
+msgstr "Choose the OpenWrt logical interface connected to the downstream router LAN side, for example xiaomi_wan. The underlying device such as eth2 is resolved automatically; device entries are only fallback choices."
 
 msgid "IP address on the read interface. Must be on the same subnet as the downstream router LAN."
 msgstr "IP address on the read interface. Must be on the same subnet as the downstream router LAN."
@@ -1032,8 +1032,8 @@ msgstr "Downstream router LAN subnet in CIDR format, used for source filtering."
 msgid "Downstream router WAN IP address, used as the DNAT rule target."
 msgstr "Downstream router WAN IP address, used as the DNAT rule target."
 
-msgid "The upstream WAN interface where DNAT rules will be created."
-msgstr "The upstream WAN interface where DNAT rules will be created."
+msgid "Select the OpenWrt logical WAN interface for DNAT rules. The underlying device is resolved automatically."
+msgstr "Select the OpenWrt logical WAN interface for DNAT rules. The underlying device is resolved automatically."
 
 msgid "Port range allowed for synchronization. Using 1-65535 is NOT recommended as it effectively creates a DMZ."
 msgstr "Port range allowed for synchronization. Using 1-65535 is NOT recommended as it effectively creates a DMZ."
@@ -1044,8 +1044,8 @@ msgstr "Control how OpenClash transparent proxy affects forwarded ports. \"Off\"
 msgid "Please select an interface."
 msgstr "Please select an interface."
 
-msgid "Bind IP is required."
-msgstr "Bind IP is required."
+msgid "Interface IP is required."
+msgstr "Interface IP is required."
 
 msgid "Downstream LAN Gateway is required."
 msgstr "Downstream LAN Gateway is required."
@@ -1068,8 +1068,8 @@ msgstr "Allowed external ports is required."
 msgid "%s is required."
 msgstr "%s is required."
 
-msgid "Invalid Bind IP address format."
-msgstr "Invalid Bind IP address format."
+msgid "Invalid Interface IP address format."
+msgstr "Invalid Interface IP address format."
 
 msgid "Invalid subnet format."
 msgstr "Invalid subnet format."
@@ -1110,8 +1110,8 @@ msgstr "Checking..."
 msgid "Loading..."
 msgstr "Loading..."
 
-msgid "Downstream Bind IP"
-msgstr "Downstream Bind IP"
+msgid "Downstream Interface IP"
+msgstr "Downstream Interface IP"
 
 msgid "Upstream WAN Interface Exists"
 msgstr "Upstream WAN Interface Exists"
@@ -1119,8 +1119,8 @@ msgstr "Upstream WAN Interface Exists"
 msgid "Downstream WAN IP Reachable"
 msgstr "Downstream WAN IP Reachable"
 
-msgid "Bind IP Address"
-msgstr "Bind IP Address"
+msgid "Interface IP Address"
+msgstr "Interface IP Address"
 
 msgid "Auto mode: interface and firewall will be configured before testing."
 msgstr "Auto mode: interface and firewall will be configured before testing."
@@ -1134,11 +1134,11 @@ msgstr "Network check error: "
 msgid "Interface does not exist. Check the interface name."
 msgstr "Interface does not exist. Check the interface name."
 
-msgid "Bind IP is not configured on the interface. Use Auto mode or configure the interface manually."
-msgstr "Bind IP is not configured on the interface. Use Auto mode or configure the interface manually."
+msgid "Interface IP is not configured on the interface. Use Auto mode or configure the interface manually."
+msgstr "Interface IP is not configured on the interface. Use Auto mode or configure the interface manually."
 
-msgid "Bind IP is not configured on the interface. UPnP discovery requires a valid bind IP."
-msgstr "Bind IP is not configured on the interface. UPnP discovery requires a valid bind IP."
+msgid "Interface IP is not configured on the interface. UPnP discovery requires a valid interface IP."
+msgstr "Interface IP is not configured on the interface. UPnP discovery requires a valid interface IP."
 
 msgid "UPnP check error: "
 msgstr "UPnP check error: "
@@ -1349,3 +1349,9 @@ msgstr "Enable the UPnP Bridge Relay service after saving configuration."
 
 msgid "Invalid port range format."
 msgstr "Invalid port range format."
+
+msgid "Select interface"
+msgstr "Select interface"
+
+msgid "Network detection completed. %d empty field(s) were auto-filled; save and apply to keep them."
+msgstr "Network detection completed. %d empty field(s) were auto-filled; save and apply to keep them."
