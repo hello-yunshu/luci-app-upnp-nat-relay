@@ -1,8 +1,8 @@
-# UPnP Bridge Relay
+# UPnP NAT Relay
 
 [English](README.en.md) | **中文**
 
-OpenWrt LuCI 插件，用于在双路由器（多级 NAT）网络环境中，将下游路由器的 UPnP 端口映射桥接穿透上游 NAT，支持 nftables DNAT 和 OpenClash RETURN 规则。
+OpenWrt LuCI 插件，用于在双路由器（多级 NAT）网络环境中，将下游路由器的 UPnP 端口映射接力穿透上游 NAT，支持 nftables DNAT 和 OpenClash RETURN 规则。
 
 ## 它做了什么
 
@@ -25,15 +25,15 @@ OpenWrt LuCI 插件，用于在双路由器（多级 NAT）网络环境中，将
 ```sh
 cd /path/to/openwrt-sdk
 
-echo "src-git luci_app_upnp_bridge_relay https://github.com/hello-yunshu/upnp-bridge-relay.git" >> feeds.conf.default
-./scripts/feeds update luci_app_upnp_bridge_relay
-./scripts/feeds install luci-app-upnp-bridge-relay
+echo "src-git luci_app_upnp_nat_relay https://github.com/hello-yunshu/luci-app-upnp-nat-relay.git" >> feeds.conf.default
+./scripts/feeds update luci_app_upnp_nat_relay
+./scripts/feeds install luci-app-upnp-nat-relay
 
 make menuconfig
-make package/luci-app-upnp-bridge-relay/compile V=s
+make package/luci-app-upnp-nat-relay/compile V=s
 ```
 
-**方式二：从 [Releases](https://github.com/hello-yunshu/upnp-bridge-relay/releases) 下载预编译包**
+**方式二：从 [Releases](https://github.com/hello-yunshu/luci-app-upnp-nat-relay/releases) 下载预编译包**
 
 每次推送到 main 分支，CI 会自动构建 `.ipk`（opkg）和 `.apk`（apk）两种格式的包。
 
@@ -41,29 +41,31 @@ make package/luci-app-upnp-bridge-relay/compile V=s
 
 ```sh
 # OpenWrt 24.10 / 23.05 (opkg)
-opkg install luci-app-upnp-bridge-relay_*.ipk
+opkg install luci-app-upnp-nat-relay_*.ipk
 
 # OpenWrt 25.12+ (apk)
-apk add --allow-untrusted ./luci-app-upnp-bridge-relay*.apk
+apk add --allow-untrusted ./luci-app-upnp-nat-relay*.apk
 ```
+
+从旧包名迁移时，先卸载 `luci-app-upnp-bridge-relay`，再安装 `luci-app-upnp-nat-relay`。新包安装时会把 `/etc/config/upnp_bridge_relay` 迁移为 `/etc/config/upnp_nat_relay`。
 
 ### 使用
 
-1. **LuCI 网页界面**：服务 → UPnP Bridge Relay → 设置向导，按步骤引导完成配置
+1. **LuCI 网页界面**：服务 → UPnP NAT Relay → 设置向导，按步骤引导完成配置
 2. **命令行**：
 
 ```sh
 # 环境检查
-upnp-bridge-relay --check-env
+upnp-nat-relay --check-env
 
 # 干跑模式（只读取，不写入规则）
-upnp-bridge-relay --dry-run
+upnp-nat-relay --dry-run
 
 # 完整同步（创建 DNAT 规则）
-upnp-bridge-relay --sync
+upnp-nat-relay --sync
 
 # 查看状态
-upnp-bridge-relay --status
+upnp-nat-relay --status
 ```
 
 ## 适用场景
@@ -138,7 +140,7 @@ upnp-bridge-relay --status
 示例配置：
 
 ```
-接口名称：  upnp_bridge_lan
+接口名称：  upnp_nat_lan
 设备：      eth2
 协议：      静态地址
 IP 地址：   192.168.3.50
@@ -180,7 +182,7 @@ opkg install miniupnpc nftables coreutils-timeout flock luci-base rpcd uci
 
 ## LuCI 使用
 
-安装后，在 LuCI 中导航到 **服务 → UPnP Bridge Relay**。界面提供 7 个子页面：
+安装后，在 LuCI 中导航到 **服务 → UPnP NAT Relay**。界面提供 7 个子页面：
 
 ### 1. 概览
 
@@ -315,7 +317,7 @@ fw4 reload
 **逐项检查**：
 
 1. 上游 WAN 是否有公网 IP？（检查 CGNAT：100.64.0.0/10）
-2. nftables DNAT 规则是否存在？（`nft list table inet upnp_bridge_relay`）
+2. nftables DNAT 规则是否存在？（`nft list table inet upnp_nat_relay`）
 3. OpenClash 是否拦截了转发流量？
 4. 是否已配置 OpenClash RETURN 规则？
 5. 下游 UPnP 映射是否仍然存在？
@@ -330,47 +332,47 @@ fw4 reload
 - 让 UPnP 本身变得安全
 - 保证兼容所有路由器品牌
 - 推荐开放低位特权端口
-- 推荐将读取接口桥接到主 LAN
+- 建议或执行读取接口与主 LAN 桥接
 - 保证自动识别所有 OpenClash 版本的配置结构
 
 ## 命令行参考
 
 ```sh
 # 环境和依赖检查
-upnp-bridge-relay --check-env
+upnp-nat-relay --check-env
 
 # 网络连通性检查
-upnp-bridge-relay --check-network
+upnp-nat-relay --check-network
 
 # 干跑模式：读取并过滤映射，不写入 nftables
-upnp-bridge-relay --dry-run
+upnp-nat-relay --dry-run
 
 # 完整同步：读取、过滤并创建 DNAT 规则
-upnp-bridge-relay --sync
+upnp-nat-relay --sync
 
 # 清除插件所有 nftables 规则
-upnp-bridge-relay --clear
+upnp-nat-relay --clear
 
 # 显示当前状态
-upnp-bridge-relay --status
+upnp-nat-relay --status
 
 # 导出下游路由器当前 UPnP 映射
-upnp-bridge-relay --dump-mappings
+upnp-nat-relay --dump-mappings
 
 # 自动创建读取网络接口
-upnp-bridge-relay --setup-interface
+upnp-nat-relay --setup-interface
 
 # 修复或创建防火墙区域
-upnp-bridge-relay --fix-zone
+upnp-nat-relay --fix-zone
 
 # 应用 OpenClash RETURN 规则
-upnp-bridge-relay --setup-openclash
+upnp-nat-relay --setup-openclash
 
 # 移除插件的 OpenClash RETURN 规则
-upnp-bridge-relay --remove-openclash-rule
+upnp-nat-relay --remove-openclash-rule
 
 # 回滚所有插件创建的配置
-upnp-bridge-relay --rollback
+upnp-nat-relay --rollback
 ```
 
 ## 许可证

@@ -1,8 +1,8 @@
-# UPnP Bridge Relay
+# UPnP NAT Relay
 
 **English** | [中文](README.md)
 
-OpenWrt LuCI plugin for bridging downstream router UPnP mappings through upstream NAT, with nftables DNAT and OpenClash RETURN support.
+OpenWrt LuCI plugin for relaying downstream router UPnP mappings through upstream NAT, with nftables DNAT and OpenClash RETURN support.
 
 ## What It Does
 
@@ -25,15 +25,15 @@ This replaces the need for wide-range DMZ or manual port forwarding on the upstr
 ```sh
 cd /path/to/openwrt-sdk
 
-echo "src-git luci_app_upnp_bridge_relay https://github.com/hello-yunshu/upnp-bridge-relay.git" >> feeds.conf.default
-./scripts/feeds update luci_app_upnp_bridge_relay
-./scripts/feeds install luci-app-upnp-bridge-relay
+echo "src-git luci_app_upnp_nat_relay https://github.com/hello-yunshu/luci-app-upnp-nat-relay.git" >> feeds.conf.default
+./scripts/feeds update luci_app_upnp_nat_relay
+./scripts/feeds install luci-app-upnp-nat-relay
 
 make menuconfig
-make package/luci-app-upnp-bridge-relay/compile V=s
+make package/luci-app-upnp-nat-relay/compile V=s
 ```
 
-**Method 2: Download pre-built from [Releases](https://github.com/hello-yunshu/upnp-bridge-relay/releases)**
+**Method 2: Download pre-built from [Releases](https://github.com/hello-yunshu/luci-app-upnp-nat-relay/releases)**
 
 CI automatically builds both `.ipk` (opkg) and `.apk` (apk) format packages on every push to main.
 
@@ -41,29 +41,31 @@ CI automatically builds both `.ipk` (opkg) and `.apk` (apk) format packages on e
 
 ```sh
 # OpenWrt 24.10 / 23.05 (opkg)
-opkg install luci-app-upnp-bridge-relay_*.ipk
+opkg install luci-app-upnp-nat-relay_*.ipk
 
 # OpenWrt 25.12+ (apk)
-apk add --allow-untrusted ./luci-app-upnp-bridge-relay*.apk
+apk add --allow-untrusted ./luci-app-upnp-nat-relay*.apk
 ```
+
+When migrating from the old package name, remove `luci-app-upnp-bridge-relay` first, then install `luci-app-upnp-nat-relay`. The new package migrates `/etc/config/upnp_bridge_relay` to `/etc/config/upnp_nat_relay` during installation.
 
 ### Use
 
-1. **LuCI Web UI**: Services → UPnP Bridge Relay → Setup Wizard, follow the step-by-step guide
+1. **LuCI Web UI**: Services → UPnP NAT Relay → Setup Wizard, follow the step-by-step guide
 2. **CLI**:
 
 ```sh
 # Check environment
-upnp-bridge-relay --check-env
+upnp-nat-relay --check-env
 
 # Dry run (read only, no rules written)
-upnp-bridge-relay --dry-run
+upnp-nat-relay --dry-run
 
 # Full sync (create DNAT rules)
-upnp-bridge-relay --sync
+upnp-nat-relay --sync
 
 # View status
-upnp-bridge-relay --status
+upnp-nat-relay --status
 ```
 
 ## When to Use
@@ -138,7 +140,7 @@ The upstream OpenWrt needs an **extra interface** connected to the downstream ro
 Example setup:
 
 ```
-Interface name:  upnp_bridge_lan
+Interface name:  upnp_nat_lan
 Device:          eth2
 Protocol:        static
 IP address:      192.168.3.50
@@ -180,7 +182,7 @@ opkg install miniupnpc nftables coreutils-timeout flock luci-base rpcd uci
 
 ## LuCI Usage
 
-After installation, navigate to **Services → UPnP Bridge Relay** in LuCI. The interface provides 7 sub-pages:
+After installation, navigate to **Services → UPnP NAT Relay** in LuCI. The interface provides 7 sub-pages:
 
 ### 1. Overview
 
@@ -315,7 +317,7 @@ Or use the **Fix Zone** button in the LuCI Network page.
 **Check the following**:
 
 1. Does the upstream WAN have a public IP? (Check for CGNAT: 100.64.0.0/10)
-2. Do the nftables DNAT rules exist? (`nft list table inet upnp_bridge_relay`)
+2. Do the nftables DNAT rules exist? (`nft list table inet upnp_nat_relay`)
 3. Is OpenClash intercepting the forwarded traffic?
 4. Has an OpenClash RETURN rule been configured?
 5. Does the downstream UPnP mapping still exist?
@@ -330,47 +332,47 @@ This plugin does **NOT**:
 - Make UPnP itself secure
 - Guarantee compatibility with all router brands
 - Recommend opening low-privileged ports
-- Recommend bridging the reading interface into the main LAN
+- Recommend or perform bridging the reading interface into the main LAN
 - Guarantee automatic recognition of all OpenClash version config structures
 
 ## Command Line Reference
 
 ```sh
 # Environment and dependency check
-upnp-bridge-relay --check-env
+upnp-nat-relay --check-env
 
 # Network connectivity check
-upnp-bridge-relay --check-network
+upnp-nat-relay --check-network
 
 # Dry run: read and filter mappings without writing nftables
-upnp-bridge-relay --dry-run
+upnp-nat-relay --dry-run
 
 # Full sync: read, filter, and create DNAT rules
-upnp-bridge-relay --sync
+upnp-nat-relay --sync
 
 # Clear all plugin nftables rules
-upnp-bridge-relay --clear
+upnp-nat-relay --clear
 
 # Show current status
-upnp-bridge-relay --status
+upnp-nat-relay --status
 
 # Dump current UPnP mappings from downstream router
-upnp-bridge-relay --dump-mappings
+upnp-nat-relay --dump-mappings
 
 # Auto-create the reading network interface
-upnp-bridge-relay --setup-interface
+upnp-nat-relay --setup-interface
 
 # Fix or create the firewall zone
-upnp-bridge-relay --fix-zone
+upnp-nat-relay --fix-zone
 
 # Apply OpenClash RETURN rule
-upnp-bridge-relay --setup-openclash
+upnp-nat-relay --setup-openclash
 
 # Remove plugin's OpenClash RETURN rule
-upnp-bridge-relay --remove-openclash-rule
+upnp-nat-relay --remove-openclash-rule
 
 # Rollback all plugin-created configurations
-upnp-bridge-relay --rollback
+upnp-nat-relay --rollback
 ```
 
 ## License
