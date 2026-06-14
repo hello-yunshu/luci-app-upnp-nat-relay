@@ -283,13 +283,18 @@ return view.extend({
 			}
 		};
 
+		o = s.taboption('config', form.Value, 'downstream_lan_gateway', _('Downstream LAN Gateway'),
+			_('Downstream router LAN gateway IP.'));
+		o.rmempty = false;
+		o.datatype = 'ip4addr';
+
 		o = s.taboption('config', form.Flag, 'show_advanced_config', _('Show Advanced Configuration'),
-			_('Show manual network fields for special topologies. Most users can keep this off and use Detect or Auto Configure.'));
+			_('Show auto-detectable network fields for special topologies. Most users can keep this off and use Detect or Auto Configure.'));
 		o.default = '0';
 		o.rmempty = false;
 
 		o = s.taboption('config', form.Value, 'bind_ip', _('Interface IP'),
-			_('IP address on the read interface.'));
+			_('IP address on the read interface. Leave empty to auto-detect from the selected read interface.'));
 		o.rmempty = true;
 		o.datatype = 'ip4addr';
 		o.depends('show_advanced_config', '1');
@@ -304,14 +309,8 @@ return view.extend({
 			return uci.unset('upnp_nat_relay', section_id, 'bind_ip');
 		};
 
-		o = s.taboption('config', form.Value, 'downstream_lan_gateway', _('Downstream LAN Gateway'),
-			_('Downstream router LAN gateway IP.'));
-		o.rmempty = false;
-		o.datatype = 'ip4addr';
-		o.depends('show_advanced_config', '1');
-
 		o = s.taboption('config', form.Value, 'downstream_lan_subnet', _('Downstream LAN Subnet'),
-			_('Downstream router LAN subnet (CIDR).'));
+			_('Downstream router LAN subnet (CIDR). Leave empty to auto-detect from the selected read interface.'));
 		o.rmempty = true;
 		o.datatype = 'cidr4';
 		o.depends('show_advanced_config', '1');
@@ -327,13 +326,13 @@ return view.extend({
 		};
 
 		o = s.taboption('config', form.Value, 'downstream_wan_ip', _('Downstream WAN IP'),
-			_('Downstream router WAN IP (DNAT target).'));
+			_('Downstream router WAN IP (DNAT target). Leave empty and run Detect to auto-fill it from UPnP when available.'));
 		o.rmempty = true;
 		o.datatype = 'ip4addr';
 		o.depends('show_advanced_config', '1');
 
 		o = s.taboption('config', form.ListValue, 'upstream_wan_if', _('Upstream WAN Interface'),
-			_('Select the OpenWrt logical WAN interface for DNAT rules.'));
+			_('Select the OpenWrt logical WAN interface for DNAT rules. Leave empty to auto-detect from the default route; the underlying device is resolved automatically.'));
 		o.value('', _('Select interface'));
 		var currentUpstreamWanIf = uci.get('upnp_nat_relay', 'main', 'upstream_wan_if') || '';
 		var hasCurrentUpstreamWanIf = false;

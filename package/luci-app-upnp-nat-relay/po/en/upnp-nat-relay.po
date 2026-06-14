@@ -1385,3 +1385,180 @@ msgstr "Select interface"
 
 msgid "Network detection completed. %d empty field(s) were auto-filled; save and apply to keep them."
 msgstr "Network detection completed. %d empty field(s) were auto-filled; save and apply to keep them."
+
+msgid "Clear failed: "
+msgstr "Clear failed: "
+
+msgid "Configuration saved. Restarting service..."
+msgstr "Configuration saved. Restarting service..."
+
+msgid "Could not auto-detect downstream WAN IP."
+msgstr "Could not auto-detect downstream WAN IP."
+
+msgid "Could not auto-detect subnet."
+msgstr "Could not auto-detect subnet."
+
+msgid "Could not auto-detect upstream WAN interface."
+msgstr "Could not auto-detect upstream WAN interface."
+
+msgid "Could not auto-detect value."
+msgstr "Could not auto-detect value."
+
+msgid "Failed to restart OpenClash: "
+msgstr "Failed to restart OpenClash: "
+
+msgid "Invalid format. Use format like 40000-65535."
+msgstr "Invalid format. Use format like 40000-65535."
+
+msgid "OpenClash init restart failed."
+msgstr "OpenClash init restart failed."
+
+msgid "OpenClash init script was not found."
+msgstr "OpenClash init script was not found."
+
+msgid "OpenClash restart command completed, but the core process was not detected after 30 seconds."
+msgstr "OpenClash restart command completed, but the core process was not detected after 30 seconds."
+
+msgid "OpenClash restart failed: "
+msgstr "OpenClash restart failed: "
+
+msgid "OpenClash restarted successfully."
+msgstr "OpenClash restarted successfully."
+
+msgid "Operation failed: "
+msgstr "Operation failed: "
+
+msgid "Port range is required."
+msgstr "Port range is required."
+
+msgid "Port values must be between 1 and 65535."
+msgstr "Port values must be between 1 and 65535."
+
+msgid "Restart OpenClash"
+msgstr "Restart OpenClash"
+
+msgid "Show auto-detectable network fields for special topologies. Most users can keep this off and use Detect or Auto Configure."
+msgstr "Show auto-detectable network fields for special topologies. Most users can keep this off and use Detect or Auto Configure."
+
+msgid "Start port must not exceed end port."
+msgstr "Start port must not exceed end port."
+
+msgid "All"
+msgstr "All"
+
+msgid "Another OpenClash operation is currently running."
+msgstr "Another OpenClash operation is currently running."
+
+msgid "Auto Configure Firewall Zone"
+msgstr "Auto Configure Firewall Zone"
+
+msgid "Auto Configure Network"
+msgstr "Auto Configure Network"
+
+msgid "Auto-created before each rule write"
+msgstr "Auto-created before each rule write"
+
+msgid "Automation"
+msgstr "Automation"
+
+msgid "Clear rules after this many consecutive sync failures. Set to 0 to never clear because of failures."
+msgstr "Clear rules after this many consecutive sync failures. Set to 0 to never clear because of failures."
+
+msgid "Command used to read UPnP mappings from the downstream router."
+msgstr "Command used to read UPnP mappings from the downstream router."
+
+msgid "Configuration applied and service is ready."
+msgstr "Configuration applied and service is ready."
+
+msgid "Configuration saved and applied."
+msgstr "Configuration saved and applied."
+
+msgid "Configuration saved. Restarting service and waiting for first sync..."
+msgstr "Configuration saved. Restarting service and waiting for first sync..."
+
+msgid "Controls the verbosity of system log output."
+msgstr "Controls the verbosity of system log output."
+
+msgid "Custom"
+msgstr "Custom"
+
+msgid "Debug"
+msgstr "Debug"
+
+msgid "Enable Automatic Sync"
+msgstr "Enable Automatic Sync"
+
+msgid "Error"
+msgstr "Error"
+
+msgid "Failed to apply configuration: "
+msgstr "Failed to apply configuration: "
+
+msgid "Failed to sync OpenClash: "
+msgstr "Failed to sync OpenClash: "
+
+msgid "How often the background service checks the downstream router."
+msgstr "How often the background service checks the downstream router."
+
+msgid "How often to sync OpenClash RETURN rules. Set to 0 to sync every main sync cycle (default). Set higher values (e.g., 300) to reduce OpenClash config writes and restarts when mappings change frequently."
+msgstr "How often to sync OpenClash RETURN rules. Set to 0 to sync every main sync cycle (default). Set higher values (e.g., 300) to reduce OpenClash config writes and restarts when mappings change frequently."
+
+msgid "Info"
+msgstr "Info"
+
+msgid "Last OpenClash Sync"
+msgstr "Last OpenClash Sync"
+
+msgid "Main sync is currently running, please try again later."
+msgstr "Main sync is currently running, please try again later."
+
+msgid "Not yet synced"
+msgstr "Not yet synced"
+
+msgid "OpenClash Sync Interval (seconds)"
+msgstr "OpenClash Sync Interval (seconds)"
+
+msgid "OpenClash rules are already up to date (%d rules)."
+msgstr "OpenClash rules are already up to date (%d rules)."
+
+msgid "OpenClash rules synced successfully (%d rules)."
+msgstr "OpenClash rules synced successfully (%d rules)."
+
+msgid "Read and filter mappings without creating DNAT rules."
+msgstr "Read and filter mappings without creating DNAT rules."
+
+msgid "Remove dynamic DNAT rules when the service stops."
+msgstr "Remove dynamic DNAT rules when the service stops."
+
+msgid "Run the background service and periodically synchronize accepted UPnP mappings."
+msgstr "Run the background service and periodically synchronize accepted UPnP mappings."
+
+msgid "Service & Sync"
+msgstr "Service & Sync"
+
+msgid "Service action completed, but the first sync is still starting. Refreshing current status."
+msgstr "Service action completed, but the first sync is still starting. Refreshing current status."
+
+msgid "Service restart completed, but the first sync is still starting. Refreshing current status."
+msgstr "Service restart completed, but the first sync is still starting. Refreshing current status."
+
+msgid "Service restarted. Waiting for first sync..."
+msgstr "Service restarted. Waiting for first sync..."
+
+msgid "Service started. Waiting for first sync..."
+msgstr "Service started. Waiting for first sync..."
+
+msgid "Sync OpenClash"
+msgstr "Sync OpenClash"
+
+msgid "Sync OpenClash Now"
+msgstr "Sync OpenClash Now"
+
+msgid "due now"
+msgstr "due now"
+
+msgid "next in %ds"
+msgstr "next in %ds"
+
+msgid "service action failed"
+msgstr "service action failed"

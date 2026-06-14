@@ -1443,3 +1443,126 @@ msgstr ""
 
 msgid "Network detection completed. %d empty field(s) were auto-filled; save and apply to keep them."
 msgstr ""
+
+msgid "Clear failed: "
+msgstr ""
+
+msgid "Configuration saved. Restarting service..."
+msgstr ""
+
+msgid "Could not auto-detect downstream WAN IP."
+msgstr ""
+
+msgid "Could not auto-detect subnet."
+msgstr ""
+
+msgid "Could not auto-detect upstream WAN interface."
+msgstr ""
+
+msgid "Could not auto-detect value."
+msgstr ""
+
+msgid "Failed to restart OpenClash: "
+msgstr ""
+
+msgid "Invalid format. Use format like 40000-65535."
+msgstr ""
+
+msgid "OpenClash init restart failed."
+msgstr ""
+
+msgid "OpenClash init script was not found."
+msgstr ""
+
+msgid "OpenClash restart command completed, but the core process was not detected after 30 seconds."
+msgstr ""
+
+msgid "OpenClash restart failed: "
+msgstr ""
+
+msgid "OpenClash restarted successfully."
+msgstr ""
+
+msgid "Operation failed: "
+msgstr ""
+
+msgid "Port range is required."
+msgstr ""
+
+msgid "Port values must be between 1 and 65535."
+msgstr ""
+
+msgid "Restart OpenClash"
+msgstr ""
+
+msgid "Show auto-detectable network fields for special topologies. Most users can keep this off and use Detect or Auto Configure."
+msgstr ""
+
+msgid "Start port must not exceed end port."
+msgstr ""
+
+msgid "Auto Configure Firewall Zone"
+msgstr ""
+
+msgid "Auto Configure Network"
+msgstr ""
+
+msgid "Automation"
+msgstr ""
+
+msgid "Clear rules after this many consecutive sync failures. Set to 0 to never clear because of failures."
+msgstr ""
+
+msgid "Command used to read UPnP mappings from the downstream router."
+msgstr ""
+
+msgid "Configuration applied and service is ready."
+msgstr ""
+
+msgid "Configuration saved and applied."
+msgstr ""
+
+msgid "Configuration saved. Restarting service and waiting for first sync..."
+msgstr ""
+
+msgid "Controls the verbosity of system log output."
+msgstr ""
+
+msgid "Custom"
+msgstr ""
+
+msgid "Enable Automatic Sync"
+msgstr ""
+
+msgid "Failed to apply configuration: "
+msgstr ""
+
+msgid "How often the background service checks the downstream router."
+msgstr ""
+
+msgid "Read and filter mappings without creating DNAT rules."
+msgstr ""
+
+msgid "Remove dynamic DNAT rules when the service stops."
+msgstr ""
+
+msgid "Run the background service and periodically synchronize accepted UPnP mappings."
+msgstr ""
+
+msgid "Service & Sync"
+msgstr ""
+
+msgid "Service action completed, but the first sync is still starting. Refreshing current status."
+msgstr ""
+
+msgid "Service restart completed, but the first sync is still starting. Refreshing current status."
+msgstr ""
+
+msgid "Service restarted. Waiting for first sync..."
+msgstr ""
+
+msgid "Service started. Waiting for first sync..."
+msgstr ""
+
+msgid "service action failed"
+msgstr ""
