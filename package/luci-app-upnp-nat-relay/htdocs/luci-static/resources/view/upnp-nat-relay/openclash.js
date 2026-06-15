@@ -71,14 +71,15 @@ function htmlEscape(value) {
 		.replace(/'/g, '&#39;');
 }
 
-function buildFallbackRuleText(strategy, downstreamWanIp, allowedPorts, remark) {
+function buildFallbackRuleText(strategy, downstreamWanIp, allowedPorts, remark, iface) {
+	var ifaceLine = iface ? ('\n' + _('Interface') + ': ' + iface) : '';
 	if (strategy === 'per_mapping') {
 		return _('Strategy:') + ' ' + _('Per-Mapping') + '\n' +
 			_('Internal Address:') + ' ' + downstreamWanIp + '\n' +
 			_('Internal Ports:') + ' ' + _('<dynamic, comma-separated per protocol>') + '\n' +
-			_('Protocol:') + ' ' + _('1 rule for TCP, 1 rule for UDP') + '\n' +
-			_('Action:') + ' RETURN\n' +
-			_('Remark:') + ' ' + remark + ' [TCP] / ' + remark + ' [UDP]\n\n' +
+			_('Protocol') + ': ' + _('1 rule for TCP, 1 rule for UDP') + '\n' +
+			_('Action') + ': RETURN' + ifaceLine + '\n' +
+			_('Remark') + ': ' + remark + ' [TCP] / ' + remark + ' [UDP]\n\n' +
 			_('Example (3 TCP + 2 UDP mappings):') + '\n' +
 			'  ' + _('Rule') + ' 1: ports=54321,54322,54323  proto=tcp  remark="' + remark + ' [TCP]"\n' +
 			'  ' + _('Rule') + ' 2: ports=54324,54325        proto=udp  remark="' + remark + ' [UDP]"';
@@ -87,68 +88,70 @@ function buildFallbackRuleText(strategy, downstreamWanIp, allowedPorts, remark) 
 	return _('Strategy:') + ' ' + _('Port Pool') + '\n' +
 		_('Internal Address:') + ' ' + downstreamWanIp + '\n' +
 		_('Internal Ports:') + ' ' + allowedPorts + '\n' +
-		_('Protocol:') + ' TCP/UDP\n' +
-		_('Action:') + ' RETURN\n' +
-		_('Remark:') + ' ' + remark;
+		_('Protocol') + ': TCP/UDP' + ifaceLine + '\n' +
+		_('Action') + ': RETURN\n' +
+		_('Remark') + ': ' + remark;
 }
 
 function buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark, dryRun) {
-	var downstreamWanIpText = downstreamWanIp === '-' ?
-		'<span class="ubr-text-warning">&#9888; -</span>' :
-		'<span class="ubr-text-success">' + htmlEscape(downstreamWanIp) + '</span>';
 	var suggestion = dryRun && dryRun.openclash_suggestion ? dryRun.openclash_suggestion : null;
-	var html = '<div id="ubr-oc-suggested-rule" class="cbi-section">';
+
+	function cbiValue(title, value, valueClass) {
+		return '<div class="cbi-value">' +
+			'<label class="cbi-value-title">' + title + '</label>' +
+			'<div class="cbi-value-field">' + (valueClass ? ('<span class="' + valueClass + '">' + value + '</span>') : value) + '</div>' +
+			'</div>';
+	}
+
+	function ruleBlock(title, srcIp, srcPort, proto, iface, target, ruleRemark) {
+		return '<div class="cbi-section" style="margin-bottom:0.8em">' +
+			'<h3>' + title + '</h3>' +
+			cbiValue(_('Source Address'), htmlEscape(srcIp)) +
+			cbiValue(_('Source Ports'), htmlEscape(srcPort), 'ubr-text-primary') +
+			cbiValue(_('Protocol'), htmlEscape(proto)) +
+			(iface ? cbiValue(_('Interface'), htmlEscape(iface)) : '') +
+			cbiValue(_('Action'), htmlEscape(target), 'ubr-text-success') +
+			cbiValue(_('Remark'), htmlEscape(ruleRemark)) +
+			'</div>';
+	}
 
 	if (suggestion && suggestion.strategy === 'per_mapping' && Array.isArray(suggestion.rules) && suggestion.rules.length > 0) {
-		html += '<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Per-Mapping') + '</span><br>';
+		var html = '<div id="ubr-oc-suggested-rule"><b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Per-Mapping') + '</span></div>';
 		for (var i = 0; i < suggestion.rules.length; i++) {
 			var rule = suggestion.rules[i] || {};
 			var srcIp = rule.src_ip || rule.internal_address || downstreamWanIp;
 			var srcPort = rule.src_port || rule.internal_ports || '-';
 			var proto = rule.proto || rule.protocols || '-';
-			html += '<br><b>' + _('Rule') + ' ' + (i + 1) + '</b><br>' +
-				'<b>' + _('Source Address:') + '</b> ' + htmlEscape(srcIp) + '<br>' +
-				'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + htmlEscape(srcPort) + '</span><br>' +
-				'<b>' + _('Protocol:') + '</b> ' + htmlEscape(proto) + '<br>' +
-				'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + htmlEscape(rule.target || _('return')) + '</span><br>' +
-				'<b>' + _('Remark:') + '</b> ' + htmlEscape(rule.remark || '');
+			var iface = rule.interface || '';
+			var protoLabel = (proto || '').toUpperCase();
+			html += ruleBlock(protoLabel + ' ' + _('Rule'), srcIp, srcPort, proto, iface, rule.target || _('return'), rule.remark || '');
 		}
-		return html + '</div>';
+		return html;
 	}
 
 	if (suggestion && suggestion.strategy === 'port_pool') {
 		var poolSrcIp = suggestion.src_ip || suggestion.internal_address || downstreamWanIp;
 		var poolSrcPort = suggestion.src_port || suggestion.internal_ports || allowedPorts;
 		var poolProto = suggestion.proto || suggestion.protocols || _('both');
-		return html +
-			'<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Port Pool') + '</span><br>' +
-			'<b>' + _('Source Address:') + '</b> ' + htmlEscape(poolSrcIp) + '<br>' +
-			'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + htmlEscape(poolSrcPort) + '</span><br>' +
-			'<b>' + _('Protocol:') + '</b> ' + htmlEscape(poolProto) + '<br>' +
-			'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + htmlEscape(suggestion.target || _('return')) + '</span><br>' +
-			'<b>' + _('Remark:') + '</b> ' + htmlEscape(suggestion.remark || remark) +
-			'</div>';
+		var poolIface = suggestion.interface || '';
+		return '<div id="ubr-oc-suggested-rule">' +
+			'<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Port Pool') + '</span>' +
+			'</div>' +
+			ruleBlock(_('Port Pool Rule'), poolSrcIp, poolSrcPort, poolProto, poolIface, suggestion.target || _('return'), suggestion.remark || remark);
 	}
 
 	if (strategy === 'per_mapping') {
-		return html +
-			'<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Per-Mapping') + '</span><br>' +
-			'<b>' + _('Source Address:') + '</b> ' + downstreamWanIpText + '<br>' +
-			'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + _('Dynamic (comma-separated, grouped by protocol)') + '</span><br>' +
-			'<b>' + _('Protocol:') + '</b> ' + _('Per protocol (1 rule for TCP, 1 rule for UDP)') + '<br>' +
-			'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + _('return') + '</span><br>' +
-			'<b>' + _('Remark:') + '</b> ' + htmlEscape(remark) + ' [TCP] / ' + htmlEscape(remark) + ' [UDP]' +
-			'</div>';
+		return '<div id="ubr-oc-suggested-rule">' +
+			'<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Per-Mapping') + '</span>' +
+			'</div>' +
+			ruleBlock('TCP ' + _('Rule'), downstreamWanIp, _('Dynamic (comma-separated)'), 'tcp', '', _('return'), remark + ' [TCP]') +
+			ruleBlock('UDP ' + _('Rule'), downstreamWanIp, _('Dynamic (comma-separated)'), 'udp', '', _('return'), remark + ' [UDP]');
 	}
 
-	return html +
-		'<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Port Pool') + '</span><br>' +
-		'<b>' + _('Source Address:') + '</b> ' + downstreamWanIpText + '<br>' +
-		'<b>' + _('Source Ports:') + '</b> <span class="ubr-text-primary">' + htmlEscape(allowedPorts) + '</span><br>' +
-		'<b>' + _('Protocol:') + '</b> ' + _('both') + '<br>' +
-		'<b>' + _('Action:') + '</b> <span class="ubr-text-success">' + _('return') + '</span><br>' +
-		'<b>' + _('Remark:') + '</b> ' + htmlEscape(remark) +
-		'</div>';
+	return '<div id="ubr-oc-suggested-rule">' +
+		'<b>' + _('Strategy:') + '</b> <span class="ubr-text-primary">' + _('Port Pool') + '</span>' +
+		'</div>' +
+		ruleBlock(_('Port Pool Rule'), downstreamWanIp, allowedPorts, _('both'), '', _('return'), remark);
 }
 
 function formatOpenclashSyncStatus(status) {
@@ -384,7 +387,8 @@ return view.extend({
 			}).catch(function(e) {
 				if (preview)
 					preview.outerHTML = buildSuggestedRuleHtml(strategy, downstreamWanIp, allowedPorts, remark);
-				ui.addNotification(null, E('div', { 'class': 'ubr-cmd-box' }, buildFallbackRuleText(strategy, downstreamWanIp, allowedPorts, remark)), 'warning');
+				var wanIface = uci.get('upnp_nat_relay', 'main', 'upstream_wan_if') || '';
+				ui.addNotification(null, E('div', { 'class': 'ubr-cmd-box' }, buildFallbackRuleText(strategy, downstreamWanIp, allowedPorts, remark, wanIface)), 'warning');
 			});
 		};
 

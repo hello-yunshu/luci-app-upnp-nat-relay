@@ -665,20 +665,17 @@ msgstr "内部地址："
 msgid "Internal Ports:"
 msgstr "内部端口："
 
-msgid "Source Address:"
-msgstr "来源地址："
+msgid "Source Address"
+msgstr "来源地址"
 
-msgid "Source Ports:"
-msgstr "来源端口："
+msgid "Source Ports"
+msgstr "来源端口"
 
-msgid "Protocol:"
-msgstr "协议："
+msgid "Action"
+msgstr "动作"
 
-msgid "Action:"
-msgstr "动作："
-
-msgid "Remark:"
-msgstr "备注："
+msgid "Remark"
+msgstr "备注"
 
 msgid "OpenClash Configuration"
 msgstr "OpenClash 配置"
@@ -1250,6 +1247,9 @@ msgstr "按协议（TCP 1 条规则，UDP 1 条规则）"
 msgid "Port Pool"
 msgstr "端口池"
 
+msgid "Port Pool Rule"
+msgstr "端口池规则"
+
 msgid "Per-Mapping: one rule per UPnP mapping. Port Pool: one rule for the entire port range."
 msgstr "逐映射：每条 UPnP 映射创建一条规则。端口池：一条规则覆盖整个端口范围。"
 
@@ -1417,6 +1417,9 @@ msgstr "双协议"
 
 msgid "<dynamic, comma-separated per protocol>"
 msgstr "<动态，逗号分隔，按协议分组>"
+
+msgid "Dynamic (comma-separated)"
+msgstr "动态（逗号分隔）"
 
 msgid "1 rule for TCP, 1 rule for UDP"
 msgstr "TCP 1 条规则，UDP 1 条规则"

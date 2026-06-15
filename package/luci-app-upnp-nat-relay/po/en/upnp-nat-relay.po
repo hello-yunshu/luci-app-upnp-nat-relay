@@ -656,20 +656,17 @@ msgstr "Internal Address:"
 msgid "Internal Ports:"
 msgstr "Internal Ports:"
 
-msgid "Source Address:"
-msgstr "Source Address:"
+msgid "Source Address"
+msgstr "Source Address"
 
-msgid "Source Ports:"
-msgstr "Source Ports:"
+msgid "Source Ports"
+msgstr "Source Ports"
 
-msgid "Protocol:"
-msgstr "Protocol:"
+msgid "Action"
+msgstr "Action"
 
-msgid "Action:"
-msgstr "Action:"
-
-msgid "Remark:"
-msgstr "Remark:"
+msgid "Remark"
+msgstr "Remark"
 
 msgid "OpenClash Configuration"
 msgstr "OpenClash Configuration"
@@ -1094,6 +1091,9 @@ msgstr "Per protocol (1 rule for TCP, 1 rule for UDP)"
 msgid "Port Pool"
 msgstr "Port Pool"
 
+msgid "Port Pool Rule"
+msgstr "Port Pool Rule"
+
 msgid "Per-Mapping: one rule per UPnP mapping. Port Pool: one rule for the entire port range."
 msgstr "Per-Mapping: one rule per UPnP mapping. Port Pool: one rule for the entire port range."
 
@@ -1276,6 +1276,9 @@ msgstr "both"
 
 msgid "<dynamic, comma-separated per protocol>"
 msgstr "<dynamic, comma-separated per protocol>"
+
+msgid "Dynamic (comma-separated)"
+msgstr "Dynamic (comma-separated)"
 
 msgid "1 rule for TCP, 1 rule for UDP"
 msgstr "1 rule for TCP, 1 rule for UDP"

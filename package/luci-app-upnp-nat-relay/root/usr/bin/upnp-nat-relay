@@ -1202,13 +1202,16 @@ openclash_has_plugin_rule() {
 openclash_port_pool_matches() {
     _oppm_idx=0
     _oppm_expected_proto="$(openclash_protocol_for_rule "${cfg_protocols}")"
+    _oppm_expected_interface=""
+    [ -n "${cfg_upstream_wan_if}" ] && _oppm_expected_interface="$(resolve_interface_device "${cfg_upstream_wan_if}")"
     while uci -q get "openclash.@lan_ac_traffic[${_oppm_idx}]" >/dev/null 2>&1; do
         _oppm_label="$(openclash_rule_label "$_oppm_idx")"
         if [ "$_oppm_label" = "${OPENCLASH_RULE_COMMENT}" ]; then
             _oppm_src_ip="$(uci -q get "openclash.@lan_ac_traffic[${_oppm_idx}].src_ip" 2>/dev/null)"
             _oppm_src_port="$(uci -q get "openclash.@lan_ac_traffic[${_oppm_idx}].src_port" 2>/dev/null)"
             _oppm_proto="$(uci -q get "openclash.@lan_ac_traffic[${_oppm_idx}].proto" 2>/dev/null | tr 'A-Z' 'a-z')"
-            if [ "$_oppm_src_ip" = "${cfg_downstream_wan_ip}" ] && [ "$_oppm_src_port" = "${cfg_allowed_external_ports}" ] && [ "$_oppm_proto" = "$_oppm_expected_proto" ]; then
+            _oppm_interface="$(uci -q get "openclash.@lan_ac_traffic[${_oppm_idx}].interface" 2>/dev/null)"
+            if [ "$_oppm_src_ip" = "${cfg_downstream_wan_ip}" ] && [ "$_oppm_src_port" = "${cfg_allowed_external_ports}" ] && [ "$_oppm_proto" = "$_oppm_expected_proto" ] && [ "${_oppm_interface:-}" = "${_oppm_expected_interface:-}" ]; then
                 return 0
             fi
             return 1
@@ -1245,12 +1248,15 @@ openclash_remove_plugin_rules() {
 
 openclash_generate_return_rule() {
     _ogrr_proto="$(openclash_protocol_for_rule "${cfg_protocols}")"
-    printf '{"strategy":"port_pool","remark":"%s","comment":"%s","src_ip":"%s","src_port":"%s","proto":"%s","target":"return","enabled":"1","family":"ipv4"}\n' \
+    _ogrr_interface=""
+    [ -n "${cfg_upstream_wan_if}" ] && _ogrr_interface="$(resolve_interface_device "${cfg_upstream_wan_if}")"
+    printf '{"strategy":"port_pool","remark":"%s","comment":"%s","src_ip":"%s","src_port":"%s","proto":"%s","target":"return","enabled":"1","family":"both","interface":"%s"}\n' \
         "$(json_escape "${cfg_openclash_rule_remark}")" \
         "$(json_escape "${OPENCLASH_RULE_COMMENT}")" \
         "$(json_escape "${cfg_downstream_wan_ip}")" \
         "$(json_escape "${cfg_allowed_external_ports}")" \
-        "$(json_escape "${_ogrr_proto}")"
+        "$(json_escape "${_ogrr_proto}")" \
+        "$(json_escape "${_ogrr_interface}")"
 }
 
 openclash_protocol_for_rule() {
@@ -1287,6 +1293,7 @@ openclash_set_lan_ac_traffic_rule() {
     _osacr_src_ip="$2"
     _osacr_src_port="$3"
     _osacr_proto="$4"
+    _osacr_interface="$5"
 
     if ! uci add openclash lan_ac_traffic >/dev/null 2>&1; then
         return 1
@@ -1297,9 +1304,10 @@ openclash_set_lan_ac_traffic_rule() {
     uci set "openclash.@lan_ac_traffic[-1].src_port=${_osacr_src_port}"
     uci set "openclash.@lan_ac_traffic[-1].proto=${_osacr_proto}"
     uci set "openclash.@lan_ac_traffic[-1].target=return"
-    uci set "openclash.@lan_ac_traffic[-1].family=ipv4"
+    uci set "openclash.@lan_ac_traffic[-1].family=both"
     uci set "openclash.@lan_ac_traffic[-1].comment=${OPENCLASH_RULE_COMMENT}"
     uci set "openclash.@lan_ac_traffic[-1].remark=${_osacr_remark}"
+    [ -n "$_osacr_interface" ] && uci set "openclash.@lan_ac_traffic[-1].interface=${_osacr_interface}"
     return 0
 }
 
@@ -1355,8 +1363,11 @@ openclash_apply() {
 
     openclash_remove_plugin_rules >/dev/null
 
+    _oa_interface=""
+    [ -n "${cfg_upstream_wan_if}" ] && _oa_interface="$(resolve_interface_device "${cfg_upstream_wan_if}")"
+
     _oa_proto="$(openclash_protocol_for_rule "${cfg_protocols}")"
-    if ! openclash_set_lan_ac_traffic_rule "${cfg_openclash_rule_remark}" "${cfg_downstream_wan_ip}" "${cfg_allowed_external_ports}" "$_oa_proto"; then
+    if ! openclash_set_lan_ac_traffic_rule "${cfg_openclash_rule_remark}" "${cfg_downstream_wan_ip}" "${cfg_allowed_external_ports}" "$_oa_proto" "$_oa_interface"; then
         printf '{"success":false,"error":"failed_to_add_lan_ac_traffic_section"}\n'
         return 1
     fi
@@ -1486,6 +1497,7 @@ openclash_marked_fingerprint() {
         if [ "$_omf_label" = "${OPENCLASH_RULE_COMMENT}" ]; then
             _omf_src_ip="$(uci -q get "openclash.@lan_ac_traffic[${_omf_idx}].src_ip" 2>/dev/null)"
             _omf_proto="$(uci -q get "openclash.@lan_ac_traffic[${_omf_idx}].proto" 2>/dev/null | tr 'A-Z' 'a-z')"
+            _omf_interface="$(uci -q get "openclash.@lan_ac_traffic[${_omf_idx}].interface" 2>/dev/null)"
             _omf_ports="$(uci -q get "openclash.@lan_ac_traffic[${_omf_idx}].src_port" 2>/dev/null | tr ',;' '  ')"
             for _omf_port in $_omf_ports; do
                 case "$_omf_port" in
@@ -1495,13 +1507,13 @@ openclash_marked_fingerprint() {
                 esac
                 case "$_omf_proto" in
                     tcp)
-                        printf '%s|tcp:%s\n' "$_omf_src_ip" "$_omf_port"
+                        printf '%s|tcp:%s|%s\n' "$_omf_src_ip" "$_omf_port" "${_omf_interface:-}"
                         ;;
                     udp)
-                        printf '%s|udp:%s\n' "$_omf_src_ip" "$_omf_port"
+                        printf '%s|udp:%s|%s\n' "$_omf_src_ip" "$_omf_port" "${_omf_interface:-}"
                         ;;
                     both|tcpudp|all)
-                        printf '%s|tcp:%s\n%s|udp:%s\n' "$_omf_src_ip" "$_omf_port" "$_omf_src_ip" "$_omf_port"
+                        printf '%s|tcp:%s|%s\n%s|udp:%s|%s\n' "$_omf_src_ip" "$_omf_port" "${_omf_interface:-}" "$_omf_src_ip" "$_omf_port" "${_omf_interface:-}"
                         ;;
                 esac
             done
@@ -1523,22 +1535,26 @@ openclash_generate_per_mapping_rules() {
     _ogpm_collected="$(openclash_collect_ports_by_proto "$_ogpm_file")"
     _ogpm_tcp_ports="$(echo "$_ogpm_collected" | sed -n 's/^tcp|//p')"
     _ogpm_udp_ports="$(echo "$_ogpm_collected" | sed -n 's/^udp|//p')"
+    _ogpm_interface=""
+    [ -n "${cfg_upstream_wan_if}" ] && _ogpm_interface="$(resolve_interface_device "${cfg_upstream_wan_if}")"
     ja_reset
     if [ -n "$_ogpm_tcp_ports" ]; then
         _ogpm_remark="$(openclash_per_mapping_remark "TCP")"
-        ja_append "$(printf '{"remark":"%s","comment":"%s","src_ip":"%s","src_port":"%s","proto":"tcp","target":"return","enabled":"1","family":"ipv4"}' \
+        ja_append "$(printf '{"remark":"%s","comment":"%s","src_ip":"%s","src_port":"%s","proto":"tcp","target":"return","enabled":"1","family":"both","interface":"%s"}' \
             "$(json_escape "$_ogpm_remark")" \
             "$(json_escape "${OPENCLASH_RULE_COMMENT}")" \
             "$(json_escape "${cfg_downstream_wan_ip}")" \
-            "$(json_escape "$_ogpm_tcp_ports")")"
+            "$(json_escape "$_ogpm_tcp_ports")" \
+            "$(json_escape "$_ogpm_interface")")"
     fi
     if [ -n "$_ogpm_udp_ports" ]; then
         _ogpm_remark="$(openclash_per_mapping_remark "UDP")"
-        ja_append "$(printf '{"remark":"%s","comment":"%s","src_ip":"%s","src_port":"%s","proto":"udp","target":"return","enabled":"1","family":"ipv4"}' \
+        ja_append "$(printf '{"remark":"%s","comment":"%s","src_ip":"%s","src_port":"%s","proto":"udp","target":"return","enabled":"1","family":"both","interface":"%s"}' \
             "$(json_escape "$_ogpm_remark")" \
             "$(json_escape "${OPENCLASH_RULE_COMMENT}")" \
             "$(json_escape "${cfg_downstream_wan_ip}")" \
-            "$(json_escape "$_ogpm_udp_ports")")"
+            "$(json_escape "$_ogpm_udp_ports")" \
+            "$(json_escape "$_ogpm_interface")")"
     fi
     printf '{"strategy":"per_mapping","rules":[%s]}' "$_ja"
 }
@@ -1552,10 +1568,12 @@ openclash_sync_per_mapping() {
     fi
 
     _ospm_new_fingerprint=""
+    _ospm_expected_interface=""
+    [ -n "${cfg_upstream_wan_if}" ] && _ospm_expected_interface="$(resolve_interface_device "${cfg_upstream_wan_if}")"
     if [ -f "$_ospm_file" ]; then
         _ospm_new_fingerprint="$(while IFS='|' read -r _ospm_act _ospm_proto _ospm_ext_port _ospm_rest; do
             [ "$_ospm_act" != "ACCEPT" ] && continue
-            printf '%s|%s:%s\n' "${cfg_downstream_wan_ip}" "$(echo "$_ospm_proto" | tr 'A-Z' 'a-z')" "$_ospm_ext_port"
+            printf '%s|%s:%s|%s\n' "${cfg_downstream_wan_ip}" "$(echo "$_ospm_proto" | tr 'A-Z' 'a-z')" "$_ospm_ext_port" "${_ospm_expected_interface:-}"
         done < "$_ospm_file" | sort)"
     fi
 
@@ -1578,6 +1596,9 @@ openclash_sync_per_mapping() {
 
     openclash_remove_per_mapping_rules >/dev/null
 
+    _ospm_interface=""
+    [ -n "${cfg_upstream_wan_if}" ] && _ospm_interface="$(resolve_interface_device "${cfg_upstream_wan_if}")"
+
     _ospm_count=0
     if [ -f "$_ospm_file" ]; then
         _ospm_collected="$(openclash_collect_ports_by_proto "$_ospm_file")"
@@ -1586,7 +1607,7 @@ openclash_sync_per_mapping() {
 
         if [ -n "$_ospm_tcp_ports" ]; then
             _ospm_remark="$(openclash_per_mapping_remark "TCP")"
-            if openclash_set_lan_ac_traffic_rule "$_ospm_remark" "${cfg_downstream_wan_ip}" "$_ospm_tcp_ports" "tcp"; then
+            if openclash_set_lan_ac_traffic_rule "$_ospm_remark" "${cfg_downstream_wan_ip}" "$_ospm_tcp_ports" "tcp" "$_ospm_interface"; then
                 _ospm_count=$((_ospm_count + 1))
             else
                 log_warn "Failed to add OpenClash lan_ac_traffic section for TCP"
@@ -1595,7 +1616,7 @@ openclash_sync_per_mapping() {
 
         if [ -n "$_ospm_udp_ports" ]; then
             _ospm_remark="$(openclash_per_mapping_remark "UDP")"
-            if openclash_set_lan_ac_traffic_rule "$_ospm_remark" "${cfg_downstream_wan_ip}" "$_ospm_udp_ports" "udp"; then
+            if openclash_set_lan_ac_traffic_rule "$_ospm_remark" "${cfg_downstream_wan_ip}" "$_ospm_udp_ports" "udp" "$_ospm_interface"; then
                 _ospm_count=$((_ospm_count + 1))
             else
                 log_warn "Failed to add OpenClash lan_ac_traffic section for UDP"
