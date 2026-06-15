@@ -2983,8 +2983,9 @@ do_daemon() {
         do_sync >/dev/null
         # Re-check enabled after sync (do_sync calls load_config which updates cfg_enabled)
         if [ "${cfg_enabled}" = "0" ] || [ "${cfg_enabled}" = "false" ]; then
-            log_info "Daemon detected enabled=0, exiting"
+            log_info "Daemon detected enabled=0, stopping service"
             write_status "false" "$(get_timestamp)" "stopped" "${cfg_backend}" 0 0 0 0 "" "" ""
+            /etc/init.d/upnp_nat_relay stop 2>/dev/null
             break
         fi
         _d_i=0
