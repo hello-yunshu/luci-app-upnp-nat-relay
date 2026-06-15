@@ -1,5 +1,8 @@
 #!/bin/sh
 
+PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+export PATH
+
 SCRIPT_VERSION="@PKG_VERSION@"
 UCI_CONFIG="upnp_nat_relay"
 NFT_TABLE_NAME="upnp_nat_relay"
@@ -231,13 +234,13 @@ detect_pkg_manager() {
 
 detect_firewall() {
     local _dfw_fw="unknown" _dfw_fw4=0 _dfw_nft=0
-    if command -v fw4 >/dev/null 2>&1; then
+    if command -v fw4 >/dev/null 2>&1 || [ -x /usr/sbin/fw4 ]; then
         _dfw_fw4=1
         if fw4 -q print >/dev/null 2>&1; then
             _dfw_fw="fw4"
         fi
     fi
-    if command -v nft >/dev/null 2>&1; then
+    if command -v nft >/dev/null 2>&1 || [ -x /usr/sbin/nft ]; then
         _dfw_nft=1
     fi
     [ "$_dfw_fw" = "unknown" ] && [ "$_dfw_nft" -eq 1 ] && _dfw_fw="nftables_only"
@@ -245,7 +248,9 @@ detect_firewall() {
 }
 
 detect_upnpc() {
-    command -v upnpc >/dev/null 2>&1 && printf '1' || printf '0'
+    command -v upnpc >/dev/null 2>&1 && printf '1' && return 0
+    [ -x /usr/bin/upnpc ] && printf '1' && return 0
+    printf '0'
 }
 
 resolve_interface_device() {
@@ -2372,7 +2377,9 @@ do_full_status() {
     _dfs_base="$(read_status)"
 
     if ! is_daemon_running; then
-        _dfs_base="$(printf '%s' "$_dfs_base" | sed 's/"running":true/"running":false/')"
+        if printf '%s' "$_dfs_base" | grep -q '"running":true'; then
+            _dfs_base="$(printf '%s' "$_dfs_base" | sed 's/"running":true/"running":false/' | sed 's/"last_result":"[^"]*"/"last_result":"stopped"/')"
+        fi
     fi
 
     ensure_env_cache

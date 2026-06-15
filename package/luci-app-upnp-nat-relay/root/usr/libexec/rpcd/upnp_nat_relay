@@ -1,5 +1,8 @@
 #!/bin/sh
 
+PATH="/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+export PATH
+
 [ -f /lib/functions.sh ] && . /lib/functions.sh
 
 RPCD_VERSION="@PKG_VERSION@"

@@ -55,6 +55,8 @@ function waitForServiceReady(callStatus, options) {
 			status = status || {};
 			if (status.running && status.last_result !== 'starting')
 				return status;
+			if (!status.running && status.last_result === 'stopped')
+				return status;
 			if (Date.now() - startedAt >= timeout)
 				return status;
 			return wait(interval).then(poll);

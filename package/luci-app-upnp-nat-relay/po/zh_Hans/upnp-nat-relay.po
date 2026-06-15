@@ -89,6 +89,12 @@ msgstr "服务操作已完成，但首次同步仍在启动中。正在刷新当
 msgid "Failed to start service: "
 msgstr "启动服务失败："
 
+msgid "Service stopped unexpectedly: "
+msgstr "服务意外停止："
+
+msgid "Service stopped unexpectedly. Check logs for details."
+msgstr "服务意外停止。请查看日志了解详情。"
+
 msgid "Stop"
 msgstr "停止"
 
