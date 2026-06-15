@@ -7,18 +7,6 @@
 'require network';
 'require upnp-nat-relay/utils as utils';
 
-var callStatus = rpc.declare({
-	object: 'upnp_nat_relay',
-	method: 'status',
-	expect: { '': {} }
-});
-
-var callServiceRestart = rpc.declare({
-	object: 'upnp_nat_relay',
-	method: 'restart',
-	expect: { '': {} }
-});
-
 var callCheckNetwork = rpc.declare({
 	object: 'upnp_nat_relay',
 	method: 'check-network',
@@ -746,13 +734,8 @@ return view.extend({
 				return;
 			}
 
-			ui.addNotification(null, E('p', _('Configuration saved. Restarting service...')), 'info');
-			return callServiceRestart().then(utils.requireSuccess).then(function() {
-				return utils.waitForServiceReady(callStatus);
-			}).then(function() {
-				ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
-				utils.reloadSoon(300);
-			});
+			ui.addNotification(null, E('p', _('Configuration saved. The running service will pick up changes on the next sync cycle.')), 'info');
+			utils.reloadSoon(600);
 		}).catch(function(e) {
 			ui.addNotification(null, E('p', _('Failed to apply configuration: ') + e.message), 'error');
 		});

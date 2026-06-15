@@ -19,6 +19,12 @@ var callServiceRestart = rpc.declare({
 	expect: { '': {} }
 });
 
+var callServiceStart = rpc.declare({
+	object: 'upnp_nat_relay',
+	method: 'start',
+	expect: { '': {} }
+});
+
 return view.extend({
 	load: function() {
 		return uci.load('upnp_nat_relay');
@@ -119,46 +125,56 @@ return view.extend({
 	},
 
 	handleSaveApply: function(ev, mode) {
-		var SYNC_CORE_KEYS = ['enabled', 'backend'];
-
-		var oldCoreValues = {};
-		SYNC_CORE_KEYS.forEach(function(key) {
-			oldCoreValues[key] = uci.get('upnp_nat_relay', 'main', key) || '';
-		});
+		var oldEnabled = uci.get('upnp_nat_relay', 'main', 'enabled') || '0';
+		var oldBackend = uci.get('upnp_nat_relay', 'main', 'backend') || '';
 
 		return this.handleSave(ev).then(function() {
 			return utils.safeApply();
 		}).then(function() {
 			return uci.load('upnp_nat_relay');
 		}).then(function() {
-			if (uci.get('upnp_nat_relay', 'main', 'enabled') !== '1') {
-				ui.addNotification(null, E('p', _('Configuration saved and applied.')), 'info');
+			var newEnabled = uci.get('upnp_nat_relay', 'main', 'enabled') || '0';
+			var newBackend = uci.get('upnp_nat_relay', 'main', 'backend') || '';
+			var backendChanged = oldBackend !== newBackend;
+
+			if (newEnabled !== '1') {
+				if (oldEnabled === '1') {
+					ui.addNotification(null, E('p', _('Configuration saved. Service has been stopped.')), 'info');
+				} else {
+					ui.addNotification(null, E('p', _('Configuration saved and applied.')), 'info');
+				}
 				utils.reloadSoon(600);
 				return;
 			}
 
-			var coreChanged = SYNC_CORE_KEYS.some(function(key) {
-				return (uci.get('upnp_nat_relay', 'main', key) || '') !== oldCoreValues[key];
-			});
-
-			if (coreChanged) {
-				ui.addNotification(null, E('p', _('Configuration saved. Restarting service and waiting for first sync...')), 'info');
-				return callServiceRestart().then(utils.requireSuccess).then(function() {
+			if (oldEnabled !== '1') {
+				ui.addNotification(null, E('p', _('Configuration saved. Starting service and waiting for first sync...')), 'info');
+				return callServiceStart().then(utils.requireSuccess).then(function() {
 					return utils.waitForServiceReady(callStatus);
 				}).then(function(status) {
 					if (status && status.last_result === 'starting')
-						ui.addNotification(null, E('p', _('Service restart completed, but the first sync is still starting. Refreshing current status.')), 'warning');
+						ui.addNotification(null, E('p', _('Service started, but the first sync is still in progress. Refreshing current status.')), 'warning');
 					else
 						ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
 					utils.reloadSoon(300);
 				});
-			} else {
-				ui.addNotification(null, E('p', _('Configuration saved. Restarting service...')), 'info');
+			}
+
+			if (backendChanged) {
+				ui.addNotification(null, E('p', _('Configuration saved. Restarting service (backend changed)...')), 'info');
 				return callServiceRestart().then(utils.requireSuccess).then(function() {
-					ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
+					return utils.waitForServiceReady(callStatus);
+				}).then(function(status) {
+					if (status && status.last_result === 'starting')
+						ui.addNotification(null, E('p', _('Service restarted, but the first sync is still in progress. Refreshing current status.')), 'warning');
+					else
+						ui.addNotification(null, E('p', _('Configuration applied and service is ready.')), 'info');
 					utils.reloadSoon(300);
 				});
 			}
+
+			ui.addNotification(null, E('p', _('Configuration saved. The running service will pick up changes on the next sync cycle.')), 'info');
+			utils.reloadSoon(600);
 		}).catch(function(e) {
 			ui.addNotification(null, E('p', _('Failed to apply configuration: ') + e.message), 'error');
 		});
