@@ -28,12 +28,15 @@ service_action() {
 	case "$action" in
 		start)
 			"$INIT_SCRIPT" start >/dev/null 2>&1
+			_rc=$?
 			;;
 		stop)
 			"$INIT_SCRIPT" stop >/dev/null 2>&1
+			_rc=$?
 			;;
 		restart)
 			"$INIT_SCRIPT" restart >/dev/null 2>&1
+			_rc=$?
 			;;
 		*)
 			echo '{"success":false,"error":"unknown_action"}'
@@ -41,7 +44,6 @@ service_action() {
 			;;
 	esac
 
-	_rc=$?
 	if [ "$_rc" -ne 0 ]; then
 		printf '{"success":false,"action":"%s","error":"init_action_failed","rc":%d}\n' "$action" "$_rc"
 		return 0

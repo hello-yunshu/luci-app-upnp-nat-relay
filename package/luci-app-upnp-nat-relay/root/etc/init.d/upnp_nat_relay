@@ -47,7 +47,8 @@ service_triggers() {
 }
 
 reload_service() {
-	restart
+	# Do not restart on config reload to avoid clearing nft rules.
+	# The daemon picks up config changes on its next sync cycle.
 }
 
 validate_upnp_nat_relay() {
