@@ -22,14 +22,21 @@ service_action() {
 				printf '{"success":true,"action":"oneshot","running":false,"sync":%s}\n' "${_sync_result:-{\"success\":false}}"
 				return 0
 			fi
-			# Normal mode: enable and start daemon
-			uci set upnp_nat_relay.main.enabled='1' 2>/dev/null
-			uci commit upnp_nat_relay 2>/dev/null
-			"$INIT_SCRIPT" enable >/dev/null 2>&1
+			# Normal mode: ensure enabled=1 and start daemon
+			# Only uci set+commit if not already enabled to avoid
+			# triggering an extra procd reload
+			if [ "${_current_enabled}" != "1" ]; then
+				uci set upnp_nat_relay.main.enabled='1' 2>/dev/null
+				uci commit upnp_nat_relay 2>/dev/null
+				"$INIT_SCRIPT" enable >/dev/null 2>&1
+			fi
 			;;
 		stop)
-			uci set upnp_nat_relay.main.enabled='0' 2>/dev/null
-			uci commit upnp_nat_relay 2>/dev/null
+			_current_enabled="$(uci -q get upnp_nat_relay.main.enabled 2>/dev/null)"
+			if [ "${_current_enabled}" != "0" ]; then
+				uci set upnp_nat_relay.main.enabled='0' 2>/dev/null
+				uci commit upnp_nat_relay 2>/dev/null
+			fi
 			;;
 	esac
 

@@ -1325,6 +1325,24 @@ msgstr "Configuration applied and service is ready."
 msgid "Configuration saved and applied."
 msgstr "Configuration saved and applied."
 
+msgid "Configuration saved. Service has been stopped."
+msgstr "Configuration saved. Service has been stopped."
+
+msgid "Configuration saved. Starting service and waiting for first sync..."
+msgstr "Configuration saved. Starting service and waiting for first sync..."
+
+msgid "Service started, but the first sync is still in progress. Refreshing current status."
+msgstr "Service started, but the first sync is still in progress. Refreshing current status."
+
+msgid "Configuration saved. Restarting service (backend changed)..."
+msgstr "Configuration saved. Restarting service (backend changed)..."
+
+msgid "Service restarted, but the first sync is still in progress. Refreshing current status."
+msgstr "Service restarted, but the first sync is still in progress. Refreshing current status."
+
+msgid "Configuration saved. The running service will pick up changes on the next sync cycle."
+msgstr "Configuration saved. The running service will pick up changes on the next sync cycle."
+
 msgid "Configuration saved. Restarting service and waiting for first sync..."
 msgstr "Configuration saved. Restarting service and waiting for first sync..."
 

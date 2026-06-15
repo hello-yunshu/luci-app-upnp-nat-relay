@@ -1136,6 +1136,24 @@ msgstr "停止时清除规则"
 msgid "Configuration saved and applied."
 msgstr "配置已保存并应用。"
 
+msgid "Configuration saved. Service has been stopped."
+msgstr "配置已保存，服务已停止。"
+
+msgid "Configuration saved. Starting service and waiting for first sync..."
+msgstr "配置已保存。正在启动服务并等待首次同步..."
+
+msgid "Service started, but the first sync is still in progress. Refreshing current status."
+msgstr "服务已启动，但首次同步仍在进行中。正在刷新当前状态。"
+
+msgid "Configuration saved. Restarting service (backend changed)..."
+msgstr "配置已保存。正在重启服务（后端已变更）..."
+
+msgid "Service restarted, but the first sync is still in progress. Refreshing current status."
+msgstr "服务已重启，但首次同步仍在进行中。正在刷新当前状态。"
+
+msgid "Configuration saved. The running service will pick up changes on the next sync cycle."
+msgstr "配置已保存。运行中的服务将在下次同步周期时自动应用变更。"
+
 msgid "Configuration saved. Restarting service and waiting for first sync..."
 msgstr "配置已保存。正在重启服务并等待首次同步..."
 
