@@ -2960,6 +2960,12 @@ do_daemon() {
 
     while true; do
         do_sync >/dev/null
+        # Re-check enabled after sync (do_sync calls load_config which updates cfg_enabled)
+        if [ "${cfg_enabled}" = "0" ] || [ "${cfg_enabled}" = "false" ]; then
+            log_info "Daemon detected enabled=0, exiting"
+            write_status "false" "$(get_timestamp)" "stopped" "${cfg_backend}" 0 0 0 0 "" "" ""
+            break
+        fi
         _d_i=0
         while [ "$_d_i" -lt "${cfg_interval}" ]; do
             sleep 1

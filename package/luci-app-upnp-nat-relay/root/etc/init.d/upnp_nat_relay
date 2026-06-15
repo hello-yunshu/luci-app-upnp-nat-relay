@@ -47,9 +47,16 @@ service_triggers() {
 }
 
 reload_service() {
-	# Do not restart on config reload to avoid clearing nft rules.
-	# The daemon picks up config changes on its next sync cycle.
-	:
+	# If the service was disabled, stop it; otherwise do not restart
+	# to avoid clearing nft rules. The daemon picks up config changes
+	# on its next sync cycle via load_config.
+	local enabled
+	config_load upnp_nat_relay
+	config_get_bool enabled main enabled 0
+
+	if [ "$enabled" -eq 0 ]; then
+		stop
+	fi
 }
 
 validate_upnp_nat_relay() {
