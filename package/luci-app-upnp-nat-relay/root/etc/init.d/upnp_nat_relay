@@ -37,7 +37,7 @@ stop_service() {
 	[ "$clear_on_stop" -eq 1 ] && /usr/bin/upnp-nat-relay --clear
 
 	if [ -f /tmp/upnp_nat_relay/status.json ]; then
-		sed -i 's/"running":true/"running":false/' /tmp/upnp_nat_relay/status.json 2>/dev/null
+		sed -i 's/"running":true/"running":false/; s/"last_result":"[^"]*"/"last_result":"stopped"/' /tmp/upnp_nat_relay/status.json 2>/dev/null
 	fi
 }
 
