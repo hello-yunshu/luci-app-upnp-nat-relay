@@ -27,6 +27,21 @@
 /* ===== Buttons & Groups ===== */
 .ubr-btn-group { display: flex; flex-wrap: wrap; gap: 0.8em; }
 
+/* ===== Table Action Cell ===== */
+.ubr-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: stretch;
+	align-content: center;
+}
+.ubr-actions button,
+.ubr-actions .cbi-button {
+	margin: 0.1em 0.25em 0.1em 0 !important;
+	white-space: nowrap;
+	padding: 0.4rem 0.8rem;
+	line-height: normal;
+}
+
 /* ===== Command Box ===== */
 .ubr-cmd-box {
 	padding: 0.8em 1em; border-radius: 6px;
@@ -382,6 +397,14 @@
 	}
 	.ubr-responsive-table td[colspan]::before {
 		display: none;
+	}
+	.ubr-responsive-table .ubr-actions {
+		justify-content: flex-start;
+		align-items: stretch;
+	}
+	.ubr-responsive-table .ubr-actions::before {
+		flex: 0 0 100%;
+		margin: 0 0 0.25em;
 	}
 	.ubr-kv-table tr,
 	.ubr-summary-table tr {
