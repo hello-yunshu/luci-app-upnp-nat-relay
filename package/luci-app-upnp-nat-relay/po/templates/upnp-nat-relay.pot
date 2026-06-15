@@ -81,6 +81,12 @@ msgstr ""
 msgid "Failed to start service: "
 msgstr ""
 
+msgid "Service stopped unexpectedly: "
+msgstr ""
+
+msgid "Service stopped unexpectedly. Check logs for details."
+msgstr ""
+
 msgid "Stop"
 msgstr ""
 

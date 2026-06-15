@@ -50,9 +50,16 @@ var callServiceRestart = rpc.declare({
 
 function waitReadyAndReload() {
 	return utils.waitForServiceReady(callStatus).then(function(status) {
-		if (status && status.last_result === 'starting')
+		if (status && !status.running && status.last_result === 'stopped') {
+			var errMsg = status.last_error ? _('Service stopped unexpectedly: ') + status.last_error : _('Service stopped unexpectedly. Check logs for details.');
+			ui.addNotification(null, E('p', errMsg), 'error');
+			utils.reloadSoon(500);
+		} else if (status && status.last_result === 'starting') {
 			ui.addNotification(null, E('p', _('Service action completed, but the first sync is still starting. Refreshing current status.')), 'warning');
-		utils.reloadSoon(300);
+			utils.reloadSoon(300);
+		} else {
+			utils.reloadSoon(300);
+		}
 		return status;
 	});
 }
