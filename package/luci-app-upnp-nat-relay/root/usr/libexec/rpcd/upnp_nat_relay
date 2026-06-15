@@ -118,7 +118,7 @@ EOF
 				_ll="$(uci_get upnp_nat_relay.main.log_level 2>/dev/null)"
 				_ll="${_ll:-info}"
 				case "$_out" in
-					*}) printf '%s\n' "$(printf '%s' "$_out" | sed 's/}/,"log_level":"'"$_ll"'"/')" ;;
+					*}) printf '%s\n' "$(printf '%s' "$_out" | sed 's/}$/,"log_level":"'"$_ll"'"}/')" ;;
 					*)  printf '%s\n' "$_out" ;;
 				esac
 				;;
