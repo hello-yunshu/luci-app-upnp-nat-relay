@@ -199,9 +199,26 @@ return view.extend({
 				'click': function() {
 					var btn = this;
 					utils.setBusy(btn, _('Loading...'));
-					return callServiceStart().then(utils.requireSuccess).then(function() {
-						ui.addNotification(null, E('p', _('Service started. Waiting for first sync...')), 'info');
-						return waitReadyAndReload();
+					return callServiceStart().then(utils.requireSuccess).then(function(result) {
+						if (result && result.action === 'oneshot') {
+							var sync = result.sync || {};
+							var rc = sync.read_count || 0;
+							var ac = sync.accepted_count || 0;
+							var rj = sync.rejected_count || 0;
+							var msg, msgType;
+							if (sync.success) {
+								msg = _('One-shot sync completed: %d read, %d accepted, %d rejected.').format(rc, ac, rj);
+								msgType = ac > 0 ? 'info' : 'warning';
+							} else {
+								msg = _('One-shot sync failed: %s').format(sync.error || _('unknown'));
+								msgType = 'error';
+							}
+							ui.addNotification(null, E('p', msg), msgType);
+							utils.reloadSoon(500);
+						} else {
+							ui.addNotification(null, E('p', _('Service started. Waiting for first sync...')), 'info');
+							return waitReadyAndReload();
+						}
 					}).catch(function(e) {
 						ui.addNotification(null, E('p', _('Failed to start service: ') + e.message), 'error');
 						utils.resetBusy(btn);
@@ -232,9 +249,26 @@ return view.extend({
 			'click': function() {
 				var btn = this;
 				utils.setBusy(btn, _('Loading...'));
-				return callServiceRestart().then(utils.requireSuccess).then(function() {
-					ui.addNotification(null, E('p', _('Service restarted. Waiting for first sync...')), 'info');
-					return waitReadyAndReload();
+				return callServiceRestart().then(utils.requireSuccess).then(function(result) {
+					if (result && result.action === 'oneshot') {
+						var sync = result.sync || {};
+						var rc = sync.read_count || 0;
+						var ac = sync.accepted_count || 0;
+						var rj = sync.rejected_count || 0;
+						var msg, msgType;
+						if (sync.success) {
+							msg = _('One-shot sync completed: %d read, %d accepted, %d rejected.').format(rc, ac, rj);
+							msgType = ac > 0 ? 'info' : 'warning';
+						} else {
+							msg = _('One-shot sync failed: %s').format(sync.error || _('unknown'));
+							msgType = 'error';
+						}
+						ui.addNotification(null, E('p', msg), msgType);
+						utils.reloadSoon(500);
+					} else {
+						ui.addNotification(null, E('p', _('Service restarted. Waiting for first sync...')), 'info');
+						return waitReadyAndReload();
+					}
 				}).catch(function(e) {
 					ui.addNotification(null, E('p', _('Failed to restart service: ') + e.message), 'error');
 					utils.resetBusy(btn);

@@ -1414,3 +1414,9 @@ msgstr "service action failed"
 
 msgid "Enable Service"
 msgstr "Enable Service"
+
+msgid "One-shot sync completed: %d read, %d accepted, %d rejected."
+msgstr "One-shot sync completed: %d read, %d accepted, %d rejected."
+
+msgid "One-shot sync failed: %s"
+msgstr "One-shot sync failed: %s"

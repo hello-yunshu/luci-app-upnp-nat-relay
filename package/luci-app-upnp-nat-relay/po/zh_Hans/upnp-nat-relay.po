@@ -1417,3 +1417,9 @@ msgstr "无法自动检测下游 LAN 网关。"
 
 msgid "Enable Service"
 msgstr "启用服务"
+
+msgid "One-shot sync completed: %d read, %d accepted, %d rejected."
+msgstr "单次同步完成：读取 %d 条，接受 %d 条，拒绝 %d 条。"
+
+msgid "One-shot sync failed: %s"
+msgstr "单次同步失败：%s"
