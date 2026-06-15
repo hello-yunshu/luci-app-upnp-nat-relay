@@ -182,7 +182,7 @@ opkg install miniupnpc nftables coreutils-timeout flock luci-base rpcd uci
 
 ## LuCI 使用
 
-安装后，在 LuCI 中导航到 **服务 → UPnP NAT Relay**。界面提供 7 个子页面：
+安装后，在 LuCI 中导航到 **服务 → UPnP NAT Relay**。界面提供 8 个子页面：
 
 ### 1. 概览
 
@@ -199,22 +199,26 @@ opkg install miniupnpc nftables coreutils-timeout flock luci-base rpcd uci
 - 配置 OpenClash RETURN
 - 启用服务
 
-### 3. 网络与防火墙
+### 3. 基本设置
+
+服务开关、同步间隔、日志级别、停止时清理规则等基础配置。
+
+### 4. 网络与防火墙
 
 查看和配置读取接口与防火墙区域。检测错误配置，如读取接口上的默认路由或区域设置不当。
 
-### 4. 安全过滤
+### 5. 安全过滤
 
 配置允许的端口范围、拒绝端口列表、允许的协议和内部子网。默认：允许 40000-65535 端口，拒绝知名敏感端口。
 
-### 5. 映射表
+### 6. 映射表
 
 三个表格分别显示：
 - 从下游路由器读取的原始 UPnP 映射
 - 上游路由器上当前同步的 DNAT 规则
 - 被拒绝的映射及拒绝原因
 
-### 6. OpenClash
+### 7. OpenClash
 
 OpenClash 兼容性管理：
 - 检测 OpenClash 是否安装并运行
@@ -222,7 +226,7 @@ OpenClash 兼容性管理：
 - 应用或移除 RETURN 规则
 - 备份和恢复 OpenClash 配置
 
-### 7. 诊断与回滚
+### 8. 诊断与回滚
 
 环境检查、网络连通性测试、近期日志、依赖状态和建议的修复命令。
 
@@ -252,7 +256,7 @@ OpenClash 兼容性管理：
 | **prompt**（默认） | 显示建议的 RETURN 规则，但不自动写入 |
 | **auto** | 自动将 RETURN 规则写入 OpenClash 配置 |
 
-默认 RETURN 策略为**端口池**：一条规则覆盖下游路由器 WAN IP + 允许端口范围（如 `192.168.2.2 / 40000-65535 / TCP+UDP / RETURN`）。这种方式稳定且不需要频繁更新。
+默认 RETURN 策略为**逐映射**（per_mapping）：为每个已同步的 UPnP 映射生成独立的 RETURN 规则，精确匹配外部端口。也可选择**端口池**（port_pool）策略：一条规则覆盖下游路由器 WAN IP + 允许端口范围（如 `192.168.2.2 / 40000-65535 / TCP+UDP / RETURN`），端口池方式稳定且不需要频繁更新。
 
 如果自动写入失败（无法识别 OpenClash 配置结构），插件会显示手动配置说明，可直接复制使用。
 
@@ -335,6 +339,121 @@ fw4 reload
 - 建议或执行读取接口与主 LAN 桥接
 - 保证自动识别所有 OpenClash 版本的配置结构
 
+## 项目结构
+
+```
+package/luci-app-upnp-nat-relay/
+├── Makefile                                    # 包定义与构建规则
+├── htdocs/luci-static/resources/
+│   ├── upnp-nat-relay/
+│   │   ├── upnp-nat-relay.css                  # 全局样式
+│   │   └── utils.js                            # 共享工具函数
+│   └── view/upnp-nat-relay/
+│       ├── overview.js                         # 概览仪表盘
+│       ├── wizard.js                           # 设置向导
+│       ├── settings.js                         # 基本设置
+│       ├── network.js                          # 网络与防火墙
+│       ├── security.js                         # 安全过滤
+│       ├── mappings.js                         # 映射表
+│       ├── openclash.js                        # OpenClash 兼容
+│       └── diagnostics.js                      # 诊断与回滚
+├── po/                                         # 翻译文件
+├── root/
+│   ├── etc/
+│   │   ├── config/upnp_nat_relay               # UCI 配置文件
+│   │   └── init.d/upnp_nat_relay               # procd 服务脚本
+│   └── usr/
+│       ├── bin/upnp-nat-relay                  # 核心业务脚本
+│       ├── libexec/rpcd/upnp_nat_relay         # RPC 后端（23 个 API 方法）
+│       └── share/
+│           ├── luci/menu.d/                    # LuCI 菜单注册
+│           └── rpcd/acl.d/                     # RPC 权限控制
+```
+
+## 架构设计
+
+```
+┌──────────────┐     ubus/rpcd     ┌──────────────────┐     UCI      ┌──────────────┐
+│  LuCI 前端    │ ──────────────→  │  rpcd 后端        │ ──────────→ │  UCI 配置     │
+│  (8 个 JS 视图)│ ←──────────────  │  (23 个 API 方法)  │ ←──────────  │  upnp_nat_relay│
+└──────────────┘     JSON 响应      └──────────────────┘              └──────┬───────┘
+                                                                            │
+                                                              upnp-nat-relay
+                                                                            │
+                                                                   ┌────────▼────────┐
+                                                                   │  nftables DNAT   │
+                                                                   │  + OpenClash 规则 │
+                                                                   └────────┬────────┘
+                                                                            │
+                                                              读取 UPnP → 过滤 → 创建规则
+```
+
+**数据流**：
+
+1. 前端通过 `ubus call upnp_nat_relay <method>` 调用 rpcd 后端
+2. 后端调用 `upnp-nat-relay` 执行具体操作
+3. 守护进程按配置间隔自动同步 UPnP 映射
+4. 同步结果写入状态文件 `/tmp/upnp_nat_relay/`
+5. 日志写入 `/tmp/upnp_nat_relay/upnp-nat-relay.log`
+
+## UCI 配置参考
+
+### service section (main)
+
+| 选项 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enabled` | boolean | 0 | 是否启用自动同步 |
+| `interval` | integer | 60 | 同步间隔（秒） |
+| `backend` | string | `upnpc` | UPnP 后端 |
+| `bind_ifname` | string | `eth2` | 绑定接口名 |
+| `bind_ip` | string | `192.168.3.50` | 绑定 IP |
+| `downstream_lan_gateway` | string | `192.168.3.1` | 下游 LAN 网关 |
+| `downstream_lan_subnet` | string | `192.168.3.0/24` | 下游 LAN 子网 |
+| `downstream_wan_ip` | string | `192.168.2.2` | 下游 WAN IP |
+| `upstream_wan_if` | string | `pppoe-wan` | 上游 WAN 接口 |
+| `show_advanced_config` | boolean | 0 | 显示高级配置 |
+| `auto_config_network` | boolean | 0 | 自动配置网络 |
+| `auto_config_firewall_zone` | boolean | 0 | 自动配置防火墙区域 |
+| `firewall_zone_name` | string | `upnp_nat` | 防火墙区域名 |
+| `allowed_external_ports` | string | `40000-65535` | 允许的外部端口范围 |
+| `protocols` | string | `tcp udp` | 允许的协议 |
+| `failure_grace_count` | integer | 3 | 失败宽限次数 |
+| `clear_on_stop` | boolean | 1 | 停止时清理规则 |
+| `dry_run` | boolean | 0 | 试运行模式 |
+| `log_level` | string | `info` | 日志级别 |
+| `deny_low_ports` | boolean | 1 | 拒绝特权端口 |
+| `restrict_to_subnet` | boolean | 1 | 限制到子网 |
+| `deny_empty_description` | boolean | 0 | 拒绝空描述映射 |
+| `log_rejected` | boolean | 1 | 记录被拒绝的映射 |
+| `openclash_mode` | enum | `prompt` | OpenClash 模式：`off` / `prompt` / `auto` |
+| `openclash_return_strategy` | enum | `per_mapping` | RETURN 策略：`per_mapping` / `port_pool` |
+| `openclash_backup` | boolean | 1 | OpenClash 配置备份 |
+| `openclash_rule_remark` | string | `UPnP NAT Relay Auto RETURN` | OpenClash 规则备注 |
+| `openclash_auto_restart` | boolean | 0 | OpenClash 自动重启 |
+| `openclash_sync_interval` | integer | 0 | OpenClash 同步间隔（0=跟随主同步） |
+
+### deny_ports section (default)
+
+| 选项 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `port` | list | 22,23,25,53,80,110,143,443,445,465,587,993,995,1433,3306,3389,5432,6379,8080,8443 | 拒绝的端口列表 |
+
+### backend section (upnpc)
+
+| 选项 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enabled` | boolean | 1 | 是否启用 |
+| `command` | string | `upnpc` | 后端命令 |
+| `timeout` | integer | 10 | 超时时间（秒） |
+
+### backend section (custom)
+
+| 选项 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enabled` | boolean | 0 | 是否启用 |
+| `command` | string | — | 自定义后端命令 |
+| `output_format` | string | `json` | 输出格式 |
+
 ## 命令行参考
 
 ```sh
@@ -344,17 +463,29 @@ upnp-nat-relay --check-env
 # 网络连通性检查
 upnp-nat-relay --check-network
 
+# 读取网络缓存
+upnp-nat-relay --network-cache
+
 # 干跑模式：读取并过滤映射，不写入 nftables
 upnp-nat-relay --dry-run
 
 # 完整同步：读取、过滤并创建 DNAT 规则
 upnp-nat-relay --sync
 
+# 生成 OpenClash RETURN 规则
+upnp-nat-relay --generate-openclash-rule
+
+# 读取 OpenClash 规则缓存
+upnp-nat-relay --openclash-rule-cache
+
 # 清除插件所有 nftables 规则
 upnp-nat-relay --clear
 
 # 显示当前状态
 upnp-nat-relay --status
+
+# 刷新环境信息
+upnp-nat-relay --refresh-env
 
 # 导出下游路由器当前 UPnP 映射
 upnp-nat-relay --dump-mappings
@@ -368,11 +499,26 @@ upnp-nat-relay --fix-zone
 # 应用 OpenClash RETURN 规则
 upnp-nat-relay --setup-openclash
 
+# 重启 OpenClash 服务
+upnp-nat-relay --restart-openclash
+
 # 移除插件的 OpenClash RETURN 规则
 upnp-nat-relay --remove-openclash-rule
 
+# 同步 OpenClash 规则
+upnp-nat-relay --sync-openclash
+
 # 回滚所有插件创建的配置
 upnp-nat-relay --rollback
+
+# 读取日志
+upnp-nat-relay --read-log
+
+# 清除日志
+upnp-nat-relay --clear-log
+
+# 以守护进程模式运行
+upnp-nat-relay --daemon
 ```
 
 ## 许可证

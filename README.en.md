@@ -182,7 +182,7 @@ opkg install miniupnpc nftables coreutils-timeout flock luci-base rpcd uci
 
 ## LuCI Usage
 
-After installation, navigate to **Services → UPnP NAT Relay** in LuCI. The interface provides 7 sub-pages:
+After installation, navigate to **Services → UPnP NAT Relay** in LuCI. The interface provides 8 sub-pages:
 
 ### 1. Overview
 
@@ -199,22 +199,26 @@ Step-by-step guide to configure the plugin:
 - Configure OpenClash RETURN
 - Enable the service
 
-### 3. Network
+### 3. Settings
+
+Service toggle, sync interval, log level, clear-on-stop, and other basic configuration.
+
+### 4. Network
 
 View and configure the reading interface and firewall zone. Detects misconfigurations such as default routes on the reading interface or incorrect zone settings.
 
-### 4. Security
+### 5. Security
 
 Configure allowed port ranges, denied port list, allowed protocols, and allowed internal subnets. Default: allow ports 40000-65535, deny well-known sensitive ports.
 
-### 5. Mappings
+### 6. Mappings
 
 Three tables showing:
 - Raw UPnP mappings read from the downstream router
 - Currently synced DNAT rules on the upstream router
 - Rejected mappings with rejection reasons
 
-### 6. OpenClash
+### 7. OpenClash
 
 OpenClash compatibility management:
 - Detect if OpenClash is installed and running
@@ -222,7 +226,7 @@ OpenClash compatibility management:
 - Apply or remove RETURN rules
 - Backup and restore OpenClash configuration
 
-### 7. Diagnostics
+### 8. Diagnostics
 
 Environment check, network connectivity test, recent logs, dependency status, and suggested fix commands.
 
@@ -252,7 +256,7 @@ Three modes are available:
 | **prompt** (default) | Show the suggested RETURN rule but do not write it automatically |
 | **auto** | Automatically write the RETURN rule to OpenClash configuration |
 
-The default RETURN strategy is **port pool**: a single rule covering the downstream router WAN IP + allowed port range (e.g. `192.168.2.2 / 40000-65535 / TCP+UDP / RETURN`). This is stable and does not need frequent updates.
+The default RETURN strategy is **per-mapping** (per_mapping): an independent RETURN rule is generated for each synced UPnP mapping, precisely matching the external port. Alternatively, the **port pool** (port_pool) strategy uses a single rule covering the downstream router WAN IP + allowed port range (e.g. `192.168.2.2 / 40000-65535 / TCP+UDP / RETURN`), which is stable and does not need frequent updates.
 
 If automatic writing fails (unrecognized OpenClash config structure), the plugin will display manual configuration instructions with copyable text.
 
@@ -335,6 +339,121 @@ This plugin does **NOT**:
 - Recommend or perform bridging the reading interface into the main LAN
 - Guarantee automatic recognition of all OpenClash version config structures
 
+## Project Structure
+
+```
+package/luci-app-upnp-nat-relay/
+├── Makefile                                    # Package definition and build rules
+├── htdocs/luci-static/resources/
+│   ├── upnp-nat-relay/
+│   │   ├── upnp-nat-relay.css                  # Global styles
+│   │   └── utils.js                            # Shared utility functions
+│   └── view/upnp-nat-relay/
+│       ├── overview.js                         # Dashboard overview
+│       ├── wizard.js                           # Setup wizard
+│       ├── settings.js                         # Basic settings
+│       ├── network.js                          # Network & firewall
+│       ├── security.js                         # Security filtering
+│       ├── mappings.js                         # Mapping tables
+│       ├── openclash.js                        # OpenClash compatibility
+│       └── diagnostics.js                      # Diagnostics & rollback
+├── po/                                         # Translation files
+├── root/
+│   ├── etc/
+│   │   ├── config/upnp_nat_relay               # UCI configuration
+│   │   └── init.d/upnp_nat_relay               # procd service script
+│   └── usr/
+│       ├── bin/upnp-nat-relay                  # Core business script
+│       ├── libexec/rpcd/upnp_nat_relay         # RPC backend (23 API methods)
+│       └── share/
+│           ├── luci/menu.d/                    # LuCI menu registration
+│           └── rpcd/acl.d/                     # RPC access control
+```
+
+## Architecture
+
+```
+┌──────────────┐     ubus/rpcd     ┌──────────────────┐     UCI      ┌──────────────┐
+│  LuCI Frontend│ ──────────────→  │  rpcd Backend     │ ──────────→ │  UCI Config   │
+│  (8 JS views) │ ←──────────────  │  (23 API methods) │ ←──────────  │  upnp_nat_relay│
+└──────────────┘     JSON response └──────────────────┘              └──────┬───────┘
+                                                                            │
+                                                              upnp-nat-relay
+                                                                            │
+                                                                   ┌────────▼────────┐
+                                                                   │  nftables DNAT   │
+                                                                   │  + OpenClash rules│
+                                                                   └────────┬────────┘
+                                                                            │
+                                                              Read UPnP → Filter → Create rules
+```
+
+**Data Flow**:
+
+1. Frontend calls rpcd backend via `ubus call upnp_nat_relay <method>`
+2. Backend invokes `upnp-nat-relay` to execute operations
+3. Daemon auto-syncs UPnP mappings at configured intervals
+4. Sync results are written to status files in `/tmp/upnp_nat_relay/`
+5. Logs are written to `/tmp/upnp_nat_relay/upnp-nat-relay.log`
+
+## UCI Configuration Reference
+
+### service section (main)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | 0 | Enable auto-sync |
+| `interval` | integer | 60 | Sync interval (seconds) |
+| `backend` | string | `upnpc` | UPnP backend |
+| `bind_ifname` | string | `eth2` | Bind interface name |
+| `bind_ip` | string | `192.168.3.50` | Bind IP |
+| `downstream_lan_gateway` | string | `192.168.3.1` | Downstream LAN gateway |
+| `downstream_lan_subnet` | string | `192.168.3.0/24` | Downstream LAN subnet |
+| `downstream_wan_ip` | string | `192.168.2.2` | Downstream WAN IP |
+| `upstream_wan_if` | string | `pppoe-wan` | Upstream WAN interface |
+| `show_advanced_config` | boolean | 0 | Show advanced configuration |
+| `auto_config_network` | boolean | 0 | Auto-configure network |
+| `auto_config_firewall_zone` | boolean | 0 | Auto-configure firewall zone |
+| `firewall_zone_name` | string | `upnp_nat` | Firewall zone name |
+| `allowed_external_ports` | string | `40000-65535` | Allowed external port range |
+| `protocols` | string | `tcp udp` | Allowed protocols |
+| `failure_grace_count` | integer | 3 | Failure grace count |
+| `clear_on_stop` | boolean | 1 | Clear rules on stop |
+| `dry_run` | boolean | 0 | Dry-run mode |
+| `log_level` | string | `info` | Log level |
+| `deny_low_ports` | boolean | 1 | Deny privileged ports |
+| `restrict_to_subnet` | boolean | 1 | Restrict to subnet |
+| `deny_empty_description` | boolean | 0 | Deny mappings with empty description |
+| `log_rejected` | boolean | 1 | Log rejected mappings |
+| `openclash_mode` | enum | `prompt` | OpenClash mode: `off` / `prompt` / `auto` |
+| `openclash_return_strategy` | enum | `per_mapping` | RETURN strategy: `per_mapping` / `port_pool` |
+| `openclash_backup` | boolean | 1 | OpenClash config backup |
+| `openclash_rule_remark` | string | `UPnP NAT Relay Auto RETURN` | OpenClash rule remark |
+| `openclash_auto_restart` | boolean | 0 | OpenClash auto-restart |
+| `openclash_sync_interval` | integer | 0 | OpenClash sync interval (0=follow main sync) |
+
+### deny_ports section (default)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `port` | list | 22,23,25,53,80,110,143,443,445,465,587,993,995,1433,3306,3389,5432,6379,8080,8443 | Denied port list |
+
+### backend section (upnpc)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | 1 | Enable |
+| `command` | string | `upnpc` | Backend command |
+| `timeout` | integer | 10 | Timeout (seconds) |
+
+### backend section (custom)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | 0 | Enable |
+| `command` | string | — | Custom backend command |
+| `output_format` | string | `json` | Output format |
+
 ## Command Line Reference
 
 ```sh
@@ -344,17 +463,29 @@ upnp-nat-relay --check-env
 # Network connectivity check
 upnp-nat-relay --check-network
 
+# Read network cache
+upnp-nat-relay --network-cache
+
 # Dry run: read and filter mappings without writing nftables
 upnp-nat-relay --dry-run
 
 # Full sync: read, filter, and create DNAT rules
 upnp-nat-relay --sync
 
+# Generate OpenClash RETURN rule
+upnp-nat-relay --generate-openclash-rule
+
+# Read OpenClash rule cache
+upnp-nat-relay --openclash-rule-cache
+
 # Clear all plugin nftables rules
 upnp-nat-relay --clear
 
 # Show current status
 upnp-nat-relay --status
+
+# Refresh environment info
+upnp-nat-relay --refresh-env
 
 # Dump current UPnP mappings from downstream router
 upnp-nat-relay --dump-mappings
@@ -368,11 +499,26 @@ upnp-nat-relay --fix-zone
 # Apply OpenClash RETURN rule
 upnp-nat-relay --setup-openclash
 
+# Restart OpenClash service
+upnp-nat-relay --restart-openclash
+
 # Remove plugin's OpenClash RETURN rule
 upnp-nat-relay --remove-openclash-rule
 
+# Sync OpenClash rules
+upnp-nat-relay --sync-openclash
+
 # Rollback all plugin-created configurations
 upnp-nat-relay --rollback
+
+# Read log
+upnp-nat-relay --read-log
+
+# Clear log
+upnp-nat-relay --clear-log
+
+# Run as daemon
+upnp-nat-relay --daemon
 ```
 
 ## License
