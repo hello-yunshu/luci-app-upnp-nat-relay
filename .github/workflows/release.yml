@@ -112,7 +112,9 @@ jobs:
       - name: Build package
         working-directory: ${{ env.SDKDIR }}
         run: |
-          set -euo pipefail
+          # SDK 容器内默认 shell 是 busybox ash，不支持 `set -o pipefail`；
+          # 本步骤没有管道，`set -eu` 足够。
+          set -eu
           target="package/$PKG_NAME/compile"
           jobs="$(($(nproc)+1))"
           if make -j"$jobs" "$target"; then
