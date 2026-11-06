@@ -159,6 +159,9 @@ jobs:
 
   release:
     needs: [check-version, build]
+    # 发布门禁：release 只允许手动 workflow_dispatch 触发。
+    # push（含 main）只做构建验证，绝不自动打 tag / 发 Release。
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # main @ 2026-11-05
