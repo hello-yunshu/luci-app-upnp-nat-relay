@@ -640,77 +640,36 @@ check_port_conflict_single() {
         _cpc_ruleset="$(nft list ruleset 2>/dev/null)"
     fi
 
-    # Strip our own table's block from the ruleset to prevent self-conflict.
-    # This is more robust than relying on _cpc_current_table tracking inside
-    # the for loop, which can break due to pathname expansion of unquoted
-    # $nft_ruleset in the for-in loop.
-    _cpc_ruleset="$(printf '%s\n' "$_cpc_ruleset" | awk -v table="${NFT_TABLE_NAME}" '
-        /^table / { in_own = ($3 == table) }
-        !in_own { print }
-    ')"
+    _cpc_proto_lower="$(printf '%s' "$_cpc_proto" | tr 'A-Z' 'a-z')"
 
-    _cpc_proto_lower="$(echo "$_cpc_proto" | tr 'A-Z' 'a-z')"
-    _cpc_conflict_source=""
-    _cpc_current_table=""
-    _cpc_old_ifs="$IFS"
-    IFS='
-'
-    for _cpc_line in $_cpc_ruleset; do
-        IFS="$_cpc_old_ifs"
-        case "$_cpc_line" in
-            table\ *)
-                _cpc_current_table="$(echo "$_cpc_line" | awk '{print $3}')"
-                ;;
-            *"comment \"${NFT_RULE_COMMENT}\""*|*"comment ${NFT_RULE_COMMENT}"*)
-                continue
-                ;;
-        esac
-        _cpc_line_lower="$(echo "$_cpc_line" | tr 'A-Z' 'a-z')"
-        # Skip rules from our own table
-        if [ "$_cpc_current_table" = "${NFT_TABLE_NAME}" ]; then
-            continue
-        fi
-        case "$_cpc_line_lower" in
-            *"dnat"*)
-                _cpc_has_proto=0
-                case "$_cpc_line_lower" in
-                    *"$_cpc_proto_lower"*)
-                        _cpc_has_proto=1
-                        ;;
-                esac
-                [ "$_cpc_has_proto" -eq 0 ] && continue
-                _cpc_after_dport="${_cpc_line_lower#*dport }"
-                [ "$_cpc_after_dport" = "$_cpc_line_lower" ] && continue
-                _cpc_dport="${_cpc_after_dport%% *}"
-                case "$_cpc_dport" in
-                    *[!0-9-]*)
-                        continue
-                        ;;
-                esac
-                _cpc_has_port=0
-                case "$_cpc_dport" in
-                    *[-]*)
-                        _cpc_port_start="${_cpc_dport%%-*}"
-                        _cpc_port_end="${_cpc_dport##*-}"
-                        if [ "$_cpc_ext_port" -ge "$_cpc_port_start" ] 2>/dev/null && \
-                           [ "$_cpc_ext_port" -le "$_cpc_port_end" ] 2>/dev/null; then
-                            _cpc_has_port=1
-                        fi
-                        ;;
-                    *)
-                        if [ "$_cpc_dport" = "$_cpc_ext_port" ] 2>/dev/null; then
-                            _cpc_has_port=1
-                        fi
-                        ;;
-                esac
-                if [ "$_cpc_has_port" -eq 1 ]; then
-                    _cpc_conflict_source="${_cpc_current_table}"
-                    break
-                fi
-                ;;
-        esac
-    done
-    IFS="$_cpc_old_ifs"
+    # Single awk pass instead of per-line echo|tr: the old loop forked
+    # 2-3 processes for every ruleset line on every mapping.
+    _cpc_conflict_source="$(printf '%s\n' "$_cpc_ruleset" | awk \
+        -v own="${NFT_TABLE_NAME}" \
+        -v proto="${_cpc_proto_lower}" \
+        -v port="${_cpc_ext_port}" \
+        -v remark="${NFT_RULE_COMMENT}" '
+        /^table / { current = $3; next }
+        current == own { next }
+        index($0, "comment \"" remark "\"") || index($0, "comment " remark) { next }
+        {
+            line = tolower($0)
+            if (index(line, "dnat") == 0) next
+            if (index(line, proto) == 0) next
+            if (!match(line, /dport [^ ]+/)) next
+            dport = substr(line, RSTART + 6, RLENGTH - 6)
+            if (dport !~ /^[0-9-]+$/) next
+            if (index(dport, "-")) {
+                n = split(dport, range, "-")
+                if (port + 0 >= range[1] + 0 && port + 0 <= range[n] + 0) {
+                    print current
+                    exit
+                }
+            } else if (dport == port) {
+                print current
+                exit
+            }
+        }')"
 
     if [ -n "$_cpc_conflict_source" ]; then
         printf '%s' "$_cpc_conflict_source"
@@ -2374,6 +2333,21 @@ do_generate_openclash_rule() {
 
 do_clear() {
     load_config
+    # Take the same lock as do_sync so a clear cannot race with an in-flight
+    # sync (which would re-create the table right after we delete it).
+    # BusyBox flock has no -w, so wait with a 1s retry loop (up to 30s).
+    exec 9>"${LOCK_FILE}"
+    _clear_wait=0
+    while ! flock -n 9; do
+        if [ "$_clear_wait" -ge 30 ]; then
+            log_warn "Clear skipped: another sync process is still running"
+            printf '{"success":false,"error":"another_sync_running"}\n'
+            exec 9>&-
+            return 1
+        fi
+        sleep 1
+        _clear_wait=$((_clear_wait + 1))
+    done
     openclash_remove_localnetwork
     if nft_delete_table; then
         rm -f "${NFT_APPLIED_CACHE}" 2>/dev/null
@@ -2383,9 +2357,11 @@ do_clear() {
             write_status "false" "$(get_timestamp)" "cleared" "${cfg_backend:-unknown}" 0 0 0 0 "" "" ""
         fi
         printf '{"success":true}\n'
+        exec 9>&-
     else
         log_warn "Failed to clear nft table ${NFT_TABLE_NAME}"
         printf '{"success":false}\n'
+        exec 9>&-
     fi
 }
 
