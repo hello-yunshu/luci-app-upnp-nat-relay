@@ -403,15 +403,13 @@ detect_openclash_status() {
 load_config() {
     cfg_enabled="$(uci_get 'main.enabled')"
     cfg_interval="$(uci_get 'main.interval')"
-    cfg_backend="$(uci_get 'main.backend')"
+    cfg_backend="upnpc"
     cfg_bind_ifname="$(uci_get 'main.bind_ifname')"
     cfg_bind_ip="$(uci_get 'main.bind_ip')"
     cfg_downstream_lan_gateway="$(uci_get 'main.downstream_lan_gateway')"
     cfg_downstream_lan_subnet="$(uci_get 'main.downstream_lan_subnet')"
     cfg_downstream_wan_ip="$(uci_get 'main.downstream_wan_ip')"
     cfg_upstream_wan_if="$(uci_get 'main.upstream_wan_if')"
-    cfg_auto_config_network="$(uci_get 'main.auto_config_network')"
-    cfg_auto_config_firewall_zone="$(uci_get 'main.auto_config_firewall_zone')"
     cfg_firewall_zone_name="$(uci_get 'main.firewall_zone_name')"
     cfg_allowed_external_ports="$(uci_get 'main.allowed_external_ports')"
     cfg_protocols="$(uci_get 'main.protocols')"
@@ -425,12 +423,9 @@ load_config() {
     cfg_openclash_rule_remark="$(uci_get 'main.openclash_rule_remark')"
     cfg_openclash_auto_restart="$(uci_get 'main.openclash_auto_restart')"
     cfg_openclash_sync_interval="$(uci_get 'main.openclash_sync_interval')"
-    cfg_backend_command="$(uci_get 'upnpc.command')"
     cfg_backend_timeout="$(uci_get 'upnpc.timeout')"
 
     [ -z "${cfg_interval}" ] && cfg_interval="60"
-    [ -z "${cfg_backend}" ] && cfg_backend="upnpc"
-    [ -z "${cfg_backend_command}" ] && cfg_backend_command="upnpc"
     [ -z "${cfg_backend_timeout}" ] && cfg_backend_timeout="10"
     [ -z "${cfg_allowed_external_ports}" ] && cfg_allowed_external_ports="40000-65535"
     [ -z "${cfg_protocols}" ] && cfg_protocols="tcp udp"
@@ -1831,6 +1826,14 @@ do_sync() {
         remove_rule_caches
     fi
 
+    exec 9>"${LOCK_FILE}"
+    if ! flock -n 9; then
+        log_warn "Another sync process is running, skipping"
+        printf '{"success":false,"error":"another_sync_running"}\n'
+        exec 9>&-
+        return 1
+    fi
+
     if [ -z "${cfg_bind_ip}" ] || [ -z "${cfg_downstream_wan_ip}" ] || [ -z "${cfg_upstream_wan_if}" ]; then
         _s_missing=""
         [ -z "${cfg_bind_ip}" ] && _s_missing="${_s_missing} bind_ip"
@@ -1838,14 +1841,19 @@ do_sync() {
         [ -z "${cfg_upstream_wan_if}" ] && _s_missing="${_s_missing} upstream_wan_if"
         _s_missing="$(echo "$_s_missing" | sed 's/^ //')"
         log_err "Sync failed: required config missing: ${_s_missing}"
+        if [ "${cfg_dry_run}" != "1" ]; then
+            # Required config is gone: do not leave DNAT / OpenClash return
+            # rules behind, or they keep forwarding to a stale target.
+            nft_delete_table >/dev/null 2>&1
+            rm -f "${NFT_APPLIED_CACHE}" 2>/dev/null
+            update_nft_cache_status "not_present" >/dev/null 2>&1
+            openclash_remove_per_mapping_rules >/dev/null 2>&1
+            log_warn "Stale rules cleared because required config is missing"
+        fi
+        _s_missing_running="false"
+        is_daemon_running && _s_missing_running="true"
+        write_status "$_s_missing_running" "$(get_timestamp)" "failed" "${cfg_backend}" 0 0 0 0 "" "" "missing_required_config: ${_s_missing}"
         printf '{"success":false,"error":"missing_required_config","missing":"%s"}\n' "$(json_escape "$_s_missing")"
-        return 1
-    fi
-
-    exec 9>"${LOCK_FILE}"
-    if ! flock -n 9; then
-        log_warn "Another sync process is running, skipping"
-        printf '{"success":false,"error":"another_sync_running"}\n'
         exec 9>&-
         return 1
     fi
@@ -2349,6 +2357,10 @@ do_clear() {
         _clear_wait=$((_clear_wait + 1))
     done
     openclash_remove_localnetwork
+    _clear_oc_removed="$(openclash_remove_per_mapping_rules 2>/dev/null)"
+    if [ "${_clear_oc_removed:-0}" -gt 0 ] 2>/dev/null; then
+        log_info "Cleared ${_clear_oc_removed} OpenClash rule section(s)"
+    fi
     if nft_delete_table; then
         rm -f "${NFT_APPLIED_CACHE}" 2>/dev/null
         update_nft_cache_status "not_present"
