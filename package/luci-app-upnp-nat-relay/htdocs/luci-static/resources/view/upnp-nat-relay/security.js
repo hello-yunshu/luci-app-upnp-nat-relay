@@ -146,13 +146,7 @@ return view.extend({
 				'</div>';
 		};
 
-		return m.render().then(function(node) {
-			node.classList.add('ubr-security');
-			return utils.appendFooter(node, {
-				project: 'UPnP NAT Relay',
-				repoUrl: 'https://github.com/hello-yunshu/luci-app-upnp-nat-relay'
-			});
-		});
+		return m.render();
 	},
 
 	handleSaveApply: function(ev, mode) {

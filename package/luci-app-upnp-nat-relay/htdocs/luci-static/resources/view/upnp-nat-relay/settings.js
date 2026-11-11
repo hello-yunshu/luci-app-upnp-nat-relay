@@ -84,10 +84,7 @@ return view.extend({
 		o.default = 'info';
 		o.rmempty = false;
 
-		return utils.renderWithFooter(m.render(), {
-			project: 'UPnP NAT Relay',
-			repoUrl: 'https://github.com/hello-yunshu/luci-app-upnp-nat-relay'
-		});
+		return m.render();
 	},
 
 	handleSave: function(ev) {
