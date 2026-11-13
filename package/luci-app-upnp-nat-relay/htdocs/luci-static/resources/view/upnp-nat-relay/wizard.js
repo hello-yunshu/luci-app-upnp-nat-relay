@@ -98,7 +98,7 @@ return view.extend({
 
 		container.appendChild(E('h2', { 'name': 'content' }, _('Setup Wizard')));
 
-		var modeBar = E('div', { 'class': 'cbi-section' });
+		var modeBar = E('div', { 'class': 'cbi-section ys-actions' });
 		var safeBtn = E('button', {
 			'class': 'cbi-button' + (self.wizardMode === 'safe' ? ' cbi-button-apply' : ''),
 			'click': function() {
