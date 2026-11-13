@@ -716,7 +716,7 @@ return view.extend({
 			});
 		};
 
-		return m.render();
+		return utils.renderWithFooter(m.render(), utils.FOOTER_OPTIONS);
 	},
 
 	handleSaveApply: function(ev, mode) {

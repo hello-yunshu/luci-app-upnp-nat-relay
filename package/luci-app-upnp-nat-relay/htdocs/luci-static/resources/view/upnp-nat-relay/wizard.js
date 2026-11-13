@@ -83,11 +83,16 @@ return view.extend({
 	interfaceChoices: [],
 
 	load: function() {
-		return uci.load('upnp_nat_relay');
+		return uci.load('upnp_nat_relay').catch(utils.loadFailed('wizard'));
 	},
 
 	render: function(data) {
 		utils.loadSharedCSS();
+		if (data && data._loadError)
+			return E('div', { 'class': 'cbi-map' }, [
+				E('h2', { 'name': 'content' }, _('Setup Wizard')),
+				utils.errorPanel(_('Unable to load configuration'), _('Retry the page; if it keeps failing, check the service log.'), data._loadError)
+			]);
 		var self = this;
 		var container = E('div', { 'class': 'cbi-map' });
 
@@ -120,6 +125,8 @@ return view.extend({
 		container.appendChild(stepContainer);
 
 		this.renderStep(container);
+
+		utils.appendFooter(container, utils.FOOTER_OPTIONS);
 
 		return container;
 	},

@@ -142,11 +142,16 @@ return view.extend({
 			uci.load('upnp_nat_relay')
 		]).then(function(results) {
 			return results[0];
-		});
+		}).catch(utils.loadFailed('overview'));
 	},
 
 	render: function(status) {
 		utils.loadSharedCSS();
+		if (status && status._loadError)
+			return E('div', { 'class': 'cbi-map' }, [
+				E('h2', { 'name': 'content' }, _('Overview')),
+				utils.errorPanel(_('Unable to load status'), _('Retry the page; if it keeps failing, check the service log.'), status._loadError)
+			]);
 		status = status || {};
 		var running = status.running || false;
 		var lastSync = status.last_sync || '-';
@@ -306,7 +311,7 @@ return view.extend({
 
 		var infoTable = E('table', { 'class': 'table' });
 
-		var versionTd = E('td', {} , version);
+		var versionTd = E('td', { 'data-title': _('Plugin Version') } , version);
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('Plugin Version')),
 			versionTd
@@ -314,7 +319,7 @@ return view.extend({
 
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('GitHub')),
-			E('td', {} , E('a', {
+			E('td', { 'data-title': _('GitHub') } , E('a', {
 				'href': 'https://github.com/hello-yunshu/luci-app-upnp-nat-relay',
 				'target': '_blank',
 				'rel': 'noopener'
@@ -323,12 +328,12 @@ return view.extend({
 
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('Current Backend')),
-			E('td', {} , backend)
+			E('td', { 'data-title': _('Current Backend') } , backend)
 		]));
 
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('Last Sync Time')),
-			E('td', {} , lastSync)
+			E('td', { 'data-title': _('Last Sync Time') } , lastSync)
 		]));
 
 		var lastResultBadge;
@@ -345,25 +350,25 @@ return view.extend({
 	}
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('Last Sync Result')),
-			E('td', {} , lastResultBadge)
+			E('td', { 'data-title': _('Last Sync Result') } , lastResultBadge)
 		]));
 
 		var nftBadge = makeNftBadge(nftStatus);
-		var nftTd = E('td', {} , nftBadge);
+		var nftTd = E('td', { 'data-title': _('nftables Table') } , nftBadge);
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('nftables Table')),
 			nftTd
 		]));
 
 		var ocBadge = makeOcBadge(openclashStatus);
-		var ocTd = E('td', {} , ocBadge);
+		var ocTd = E('td', { 'data-title': _('OpenClash') } , ocBadge);
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('OpenClash')),
 			ocTd
 		]));
 
 		var envUpdatedAt = status.updated_at || '';
-		var envTimeTd = E('td', {} , envUpdatedAt || '-');
+		var envTimeTd = E('td', { 'data-title': _('Last Env Check') } , envUpdatedAt || '-');
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('Last Env Check')),
 			envTimeTd
@@ -411,7 +416,7 @@ return view.extend({
 				badgeVal = sval;
 				badgeStatus = item.statusFn(status[item.statusKey]);
 			}
-			var td = E('td', {} , E('span', { 'class': 'label ' + ({ green: 'success', orange: 'warning', red: 'important', gray: '' }[badgeStatus] || '') }, badgeVal));
+			var td = E('td', { 'data-title': item.label }, E('span', { 'class': 'label ' + ({ green: 'success', orange: 'warning', red: 'important', gray: '' }[badgeStatus] || '') }, badgeVal));
 			envTds.push({ td: td, item: item });
 			envTable.appendChild(E('tr', {}, [
 				E('th', { 'class': 'th' }, item.label),
@@ -489,6 +494,8 @@ return view.extend({
 		if (!status.upnpc) missingDeps.push('miniupnpc');
 		var depSection = buildDepSection(missingDeps, status.package_manager || 'opkg');
 		container.appendChild(depSection);
+
+		utils.appendFooter(container, utils.FOOTER_OPTIONS);
 
 		return container;
 	}

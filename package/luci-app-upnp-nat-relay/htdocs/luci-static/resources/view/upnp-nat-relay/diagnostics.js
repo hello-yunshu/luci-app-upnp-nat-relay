@@ -265,6 +265,8 @@ return view.extend({
 		rollbackSection.appendChild(rollbackBtnBar);
 		container.appendChild(rollbackSection);
 
+		utils.appendFooter(container, utils.FOOTER_OPTIONS);
+
 		return container;
 	}
 });

@@ -194,11 +194,16 @@ return view.extend({
 				env: results[2],
 				ruleCache: results[3]
 			};
-		});
+		}).catch(utils.loadFailed('openclash'));
 	},
 
 	render: function(data) {
 		utils.loadSharedCSS();
+		if (data && data._loadError)
+			return E('div', { 'class': 'cbi-map' }, [
+				E('h2', { 'name': 'content' }, _('OpenClash Compatibility')),
+				utils.errorPanel(_('Unable to load OpenClash status'), _('Retry the page; if it keeps failing, check the service log.'), data._loadError)
+			]);
 		var m, s, o;
 		var status = data.status || {};
 		var env = data.env || {};
@@ -509,7 +514,7 @@ return view.extend({
 			});
 		};
 
-		return m.render();
+		return utils.renderWithFooter(m.render(), utils.FOOTER_OPTIONS);
 	},
 
 	handleSaveApply: function(ev, mode) {
