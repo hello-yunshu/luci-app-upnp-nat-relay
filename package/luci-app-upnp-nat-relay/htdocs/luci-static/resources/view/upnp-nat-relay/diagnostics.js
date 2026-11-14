@@ -42,6 +42,10 @@ var callClearLog = rpc.declare({
 });
 
 return view.extend({
+	handleSave: null,
+	handleSaveApply: null,
+	handleReset: null,
+
 	load: function() {
 		return callStatus().catch(function() { return {}; }).then(function(status) {
 			return { status: status };
