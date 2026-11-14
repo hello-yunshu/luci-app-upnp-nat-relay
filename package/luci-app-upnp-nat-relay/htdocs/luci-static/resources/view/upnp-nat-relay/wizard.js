@@ -1069,5 +1069,9 @@ return view.extend({
 			.catch(function(e) {
 				ui.addNotification(null, E('p', _('Configuration failed:') + ' ' + e.message), 'error');
 			});
-	}
+	},
+
+	handleSave: null,
+	handleSaveApply: null,
+	handleReset: null
 });

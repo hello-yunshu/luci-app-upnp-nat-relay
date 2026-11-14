@@ -498,5 +498,9 @@ return view.extend({
 		utils.appendFooter(container, utils.FOOTER_OPTIONS);
 
 		return container;
-	}
+	},
+
+	handleSave: null,
+	handleSaveApply: null,
+	handleReset: null
 });
