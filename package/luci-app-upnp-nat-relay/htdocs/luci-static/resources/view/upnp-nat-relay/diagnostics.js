@@ -71,6 +71,7 @@ return view.extend({
 			if (state)
 				logArea.classList.add(state);
 
+			logArea.rows = state === 'is-empty' || state === 'is-loading' ? 4 : 20;
 			logArea.value = text;
 			if (!state)
 				logArea.scrollTop = logArea.scrollHeight;
@@ -176,7 +177,7 @@ return view.extend({
 		var logArea = E('textarea', {
 			'class': 'cbi-input-textarea ubr-log-area is-loading',
 			'id': 'log-area',
-			'rows': 20,
+			'rows': 4,
 			'readonly': 'readonly'
 		});
 		logArea.value = _('Loading...');
