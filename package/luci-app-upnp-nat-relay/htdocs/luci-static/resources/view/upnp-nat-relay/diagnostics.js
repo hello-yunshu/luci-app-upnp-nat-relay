@@ -77,7 +77,7 @@ return view.extend({
 				logArea.scrollTop = logArea.scrollHeight;
 		};
 
-		var logBtnBar = E('div', { 'class': 'cbi-page-actions' });
+		var logBtnBar = E('div', { 'class': 'ys-actions ubr-log-controls' });
 
 		var LEVEL_OPTIONS = [
 			{ value: 'all', label: _('All') },
@@ -93,7 +93,7 @@ return view.extend({
 
 		var levelSelect = E('select', {
 			'id': 'log-level-select',
-			'style': 'width:auto;margin-right:4px;'
+			'style': 'width:auto;'
 		});
 
 		LEVEL_OPTIONS.forEach(function(opt) {
