@@ -240,18 +240,6 @@ html[data-darkmode="true"] body.ubr-theme-bootstrap .alert-message.info :is(h3,h
 .cbi-page-actions > form,
 .cbi-page-actions > button { margin: 0; }
 
-/* The aurora theme floats a 40px toolbar against the right edge from 1319px
- * down. Its column covers the last button of every action row and of the
- * footer that reaches the right edge, so reserve that column for those rows
- * instead of changing the page gutter. */
-@supports selector(:has(*)) {
-	@media screen and (max-width: 1319px) {
-		body:has(.floating-toolbar) #maincontent {
-			padding-inline-end: calc(var(--spacing, .25rem) * 15);
-		}
-	}
-}
-
 /* Comma separated port lists and other machine values have no break
  * opportunity, so a long list in a read-only value field widens the whole
  * page instead of wrapping. */

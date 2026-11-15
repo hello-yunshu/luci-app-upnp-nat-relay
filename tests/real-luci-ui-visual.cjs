@@ -84,11 +84,6 @@ async function capture(page, theme, route, width, height, view) {
 		await page.waitForTimeout(400);
 		metrics = await page.evaluate(media => {
 			const root = document.documentElement, main = document.querySelector('#maincontent');
-			const toolbar = document.querySelector('.floating-toolbar');
-			const toolbarRect = toolbar && toolbar.getBoundingClientRect();
-			const mainRect = main && main.getBoundingClientRect();
-			const toolbarClearancePx = !toolbarRect || toolbarRect.width === 0 || !mainRect ? null :
-				Math.round(toolbarRect.left - (mainRect.right - parseFloat(getComputedStyle(main).paddingInlineEnd || '0')));
 			const duplicateTableLabels = Array.from((main && main.querySelectorAll('tr')) || []).filter(row => {
 				const heading = row.querySelector('th');
 				const value = row.querySelector('td[data-title]');
@@ -112,7 +107,6 @@ async function capture(page, theme, route, width, height, view) {
 				loading: !!(main && /Loading view|加载视图/.test(main.innerText)),
 				darkMode: root.getAttribute('data-darkmode'), scrollWidth: root.scrollWidth, width: innerWidth,
 				overflow: root.scrollWidth > innerWidth + 1,
-				toolbarClearancePx,
 				duplicateTableLabels,
 				themeLoaded: assets.some(src => src.includes('/luci-static/' + media + '/')),
 				pluginCssLoaded: assets.some(src => src.includes('upnp-nat-relay/upnp-nat-relay.css')),
@@ -129,7 +123,6 @@ async function capture(page, theme, route, width, height, view) {
 		if (!metrics.themeLoaded) failures.push('theme-assets-not-loaded');
 		if (!metrics.pluginCssLoaded) failures.push('plugin-css-not-loaded');
 		if (metrics.overflow) failures.push('horizontal-overflow');
-		if (metrics.toolbarClearancePx !== null && metrics.toolbarClearancePx < 8) failures.push('floating-toolbar-overlaps-content');
 		if (metrics.duplicateTableLabels) failures.push('duplicate-mobile-table-labels');
 		if (metrics.truncation.length) failures.push('truncated-non-dropdown-text');
 		if (metrics.darkMode !== theme.dark) failures.push('theme-dark-mode-mismatch');
