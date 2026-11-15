@@ -85,7 +85,10 @@ async function capture(page, theme, route, width, height, view) {
 		metrics = await page.evaluate(({ media, routeId }) => {
 			const root = document.documentElement, main = document.querySelector('#maincontent');
 			const wizardProgress = routeId === 'wizard' && main && main.querySelector('.ubr-wizard-progress');
-			const wizardProgressRows = wizardProgress ? new Set(Array.from(wizardProgress.children).map(el => Math.round(el.getBoundingClientRect().top))).size : null;
+		// Connector lines sit on the dots' center line, so count only the step
+		// markers when measuring rows; treating each child top as a row creates a
+		// false second row even when all markers are on one line.
+		const wizardProgressRows = wizardProgress ? new Set(Array.from(wizardProgress.querySelectorAll('.ubr-wizard-dot')).map(el => Math.round(el.getBoundingClientRect().top))).size : null;
 			const duplicateTableLabels = Array.from((main && main.querySelectorAll('tr')) || []).filter(row => {
 				const heading = row.querySelector('th');
 				const value = row.querySelector('td[data-title]');
