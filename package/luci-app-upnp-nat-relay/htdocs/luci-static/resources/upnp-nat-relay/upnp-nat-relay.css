@@ -88,53 +88,6 @@
 	}
 }
 
-/* ===== Bootstrap 兼容层（例外 E20） ===== */
-/* 仅当 body.ubr-theme-bootstrap（由 utils.loadSharedCSS 按主题样式表探测）时生效，
- * aurora 与其他主题完全不受影响。 */
-
-/* 触摸目标 >= 32px（主题按钮 28–30px，达不到可访问性底线） */
-body.ubr-theme-bootstrap .cbi-button,
-body.ubr-theme-bootstrap .cbi-page-actions button { min-height: 32px; line-height: 30px; }
-body.ubr-theme-bootstrap .cbi-tabmenu > li > a {
-	line-height: 32px; padding-top: 0; padding-bottom: 0;
-}
-
-/* 窄屏按钮换行，避免 flex 等分后出现省略号 */
-@media screen and (max-width: 600px) {
-	body.ubr-theme-bootstrap .cbi-page-actions { flex-wrap: wrap; }
-	body.ubr-theme-bootstrap .cbi-page-actions .cbi-button {
-		flex: 1 1 100%; white-space: normal;
-		overflow: visible; text-overflow: clip;
-	}
-}
-
-/* 对比度补偿：括号内为按主题实际背景计算的对比度（WCAG AA 正文 >= 4.5） */
-/* Save 在“有 Apply 在前”时用浅底绿字、否则用绿底白字，两套都低估；
- * 统一成同一套深绿底白字，避免受兄弟选择器影响。 */
-body.ubr-theme-bootstrap .cbi-page-actions .cbi-button-save {
-	background: #00713d; border-color: #006635; color: #fff; /* 6.1:1 */
-}
-body.ubr-theme-bootstrap .cbi-button-reset { color: #b3261e; } /* 6.0:1 */
-html[data-darkmode="true"] body.ubr-theme-bootstrap .cbi-button-reset { color: #ff9d97; } /* 8.0:1 */
-html[data-darkmode="true"] body.ubr-theme-bootstrap .cbi-page-actions .cbi-button-apply {
-	background: #2a6a80; color: #fff; /* 6.1:1 */
-}
-body.ubr-theme-bootstrap .cbi-input-invalid { color: #b3261e; } /* 6.0:1 */
-html[data-darkmode="true"] body.ubr-theme-bootstrap .cbi-input-invalid { color: #ff9d97; } /* 8.0:1 */
-body.ubr-theme-bootstrap .label.success { background: #00713d; border-color: #006635; color: #fff; } /* 6.1:1 */
-body.ubr-theme-bootstrap .alert-message.success { background: #007a4a; color: #fff; } /* 5.4:1 */
-/* danger 在暗色下主题给的是深灰字，裸文本节点没有 h3/p 可挂，必须改容器色 */
-body.ubr-theme-bootstrap .alert-message.danger { color: #fff; } /* 亮 5.7:1 / 暗 5.4:1 */
-html[data-darkmode="true"] body.ubr-theme-bootstrap .alert-message.info {
-	background: #2a5f70; color: #fff; /* 7.1:1 */
-}
-/* 主题只给提示块容器上色，h3/p/b 有各自颜色规则（深灰），需显式跟随白字 */
-body.ubr-theme-bootstrap .alert-message.success :is(h3,h4,h5,p,b,strong,li),
-body.ubr-theme-bootstrap .alert-message.danger :is(h3,h4,h5,p,b,strong,li),
-html[data-darkmode="true"] body.ubr-theme-bootstrap .alert-message.info :is(h3,h4,h5,p,b,strong,li) {
-	color: #fff;
-}
-
 /* Shared Yunshu OpenWrt plugin footer. Keep this block identical across
  * sibling LuCI plugins so every page shows the same version bar. */
 .ys-tool-footer {
