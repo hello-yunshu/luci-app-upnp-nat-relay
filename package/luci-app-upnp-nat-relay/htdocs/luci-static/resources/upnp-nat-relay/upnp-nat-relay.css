@@ -47,6 +47,17 @@
 	padding-top: 1em; border-top: 1px solid;
 	flex-wrap: wrap;
 }
+@media screen and (max-width: 375px) {
+	.ubr-wizard-progress { flex-wrap: nowrap; }
+	.ubr-wizard-dot {
+		box-sizing: border-box;
+		flex: 0 0 20px;
+		width: 20px;
+		height: 20px;
+		font-size: 0.7em;
+	}
+	.ubr-wizard-line { min-width: 0; }
+}
 
 /* ===== Diagnostics Log ===== */
 .ubr-log-area {

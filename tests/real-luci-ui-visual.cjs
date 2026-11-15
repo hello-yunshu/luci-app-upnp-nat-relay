@@ -82,8 +82,10 @@ async function capture(page, theme, route, width, height, view) {
 			return main && main.innerText.trim().length > 10 && !/Loading view|加载视图/.test(main.innerText);
 		}, null, { timeout: 20000 });
 		await page.waitForTimeout(400);
-		metrics = await page.evaluate(media => {
+		metrics = await page.evaluate(({ media, routeId }) => {
 			const root = document.documentElement, main = document.querySelector('#maincontent');
+			const wizardProgress = routeId === 'wizard' && main && main.querySelector('.ubr-wizard-progress');
+			const wizardProgressRows = wizardProgress ? new Set(Array.from(wizardProgress.children).map(el => Math.round(el.getBoundingClientRect().top))).size : null;
 			const duplicateTableLabels = Array.from((main && main.querySelectorAll('tr')) || []).filter(row => {
 				const heading = row.querySelector('th');
 				const value = row.querySelector('td[data-title]');
@@ -111,8 +113,9 @@ async function capture(page, theme, route, width, height, view) {
 				themeLoaded: assets.some(src => src.includes('/luci-static/' + media + '/')),
 				pluginCssLoaded: assets.some(src => src.includes('upnp-nat-relay/upnp-nat-relay.css')),
 				tabMenu: { count: links.length, visibleCount: links.filter(x => x.visible).length, links, active },
+				wizardProgressRows,
 				truncation };
-		}, theme.media);
+		}, { media: theme.media, routeId: route && route.id });
 		await page.screenshot({ path: path.join(output, name), fullPage: true, animations: 'disabled' });
 	} catch (e) { navigationError = e.message; }
 	finally { page.off('console', onConsole); page.off('pageerror', onPageError); }
@@ -129,6 +132,7 @@ async function capture(page, theme, route, width, height, view) {
 		if (metrics.tabMenu.active.some(x => !x.visible)) failures.push('active-tab-outside-visible-strip');
 		if (metrics.tabMenu.count !== routes.length || metrics.tabMenu.visibleCount !== metrics.tabMenu.count) failures.push('route-tab-outside-visible-strip');
 		if (route && !metrics.tabMenu.active.some(x => x.label === route.label[lang])) failures.push('wrong-active-tab');
+		if (route && route.id === 'wizard' && width <= 375 && metrics.wizardProgressRows !== 1) failures.push('wizard-progress-wraps-at-mobile-width');
 	}
 	if (errors.length) failures.push('browser-errors');
 	const row = { theme: theme.id, language, route: 'admin/services/upnp_nat_relay' + (route ? '/' + route.path : ''),
