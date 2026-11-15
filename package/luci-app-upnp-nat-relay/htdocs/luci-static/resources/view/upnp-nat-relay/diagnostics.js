@@ -190,7 +190,7 @@ return view.extend({
 		}
 		container.appendChild(logSection);
 
-		var rollbackSection = E('div', { 'class': 'cbi-section' });
+		var rollbackSection = E('div', { 'class': 'cbi-section ubr-rollback-section' });
 		rollbackSection.appendChild(E('h3', {}, _('Rollback & Cleanup')));
 
 		rollbackSection.appendChild(E('div', { 'class': 'alert-message warning' },
