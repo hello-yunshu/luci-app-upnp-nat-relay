@@ -196,7 +196,7 @@ return view.extend({
 		rollbackSection.appendChild(E('div', { 'class': 'alert-message warning' },
 			E('p', {}, _('Warning: Rollback operations will remove configurations created by this plugin. Proceed with caution.'))));
 
-		var rollbackBtnBar = E('div', { 'class': 'cbi-page-actions' });
+		var rollbackBtnBar = E('div', { 'class': 'ys-actions' });
 
 		rollbackBtnBar.appendChild(E('button', {
 			'class': 'cbi-button cbi-button-reset',
