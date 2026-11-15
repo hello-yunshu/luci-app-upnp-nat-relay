@@ -25,7 +25,7 @@ const routes = [
 	{ path: 'diagnostics', id: 'diagnostics', label: ['Logs', '日志'] }
 ];
 const commonWidths = [320, 360, 375, 390, 430, 640, 768, 1024, 1280, 1440, 1920];
-const breakpoints = [600, 700, 768, 1048, 1319];
+const breakpoints = [600, 700, 768, 900, 1048, 1319];
 const allWidths = [...new Set([...commonWidths, ...breakpoints.flatMap(w => [w - 1, w, w + 1])])].sort((a, b) => a - b);
 const shortViewports = [{ width: 320, height: 568 }, { width: 568, height: 320 }];
 const themes = [
@@ -120,6 +120,7 @@ async function capture(page, theme, route, width, height, view) {
 		if (metrics.truncation.length) failures.push('truncated-non-dropdown-text');
 		if (metrics.darkMode !== theme.dark) failures.push('theme-dark-mode-mismatch');
 		if (metrics.tabMenu.active.some(x => !x.visible)) failures.push('active-tab-outside-visible-strip');
+		if (metrics.tabMenu.count !== routes.length || metrics.tabMenu.visibleCount !== metrics.tabMenu.count) failures.push('route-tab-outside-visible-strip');
 		if (route && !metrics.tabMenu.active.some(x => x.label === route.label[lang])) failures.push('wrong-active-tab');
 	}
 	if (errors.length) failures.push('browser-errors');

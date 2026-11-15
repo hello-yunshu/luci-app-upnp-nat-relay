@@ -69,6 +69,14 @@
 	.ubr-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* Keep every native route tab reachable through tablet widths. */
+@media screen and (max-width: 900px) {
+	#tabmenu ul.tabs {
+		flex-wrap: wrap;
+		overflow-x: visible;
+	}
+}
+
 /* ===== Bootstrap 兼容层（例外 E20） ===== */
 /* 仅当 body.ubr-theme-bootstrap（由 utils.loadSharedCSS 按主题样式表探测）时生效，
  * aurora 与其他主题完全不受影响。 */
