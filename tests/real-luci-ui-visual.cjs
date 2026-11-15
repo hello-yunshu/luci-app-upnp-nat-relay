@@ -25,7 +25,7 @@ const routes = [
 	{ path: 'diagnostics', id: 'diagnostics', label: ['Logs', '日志'] }
 ];
 const commonWidths = [320, 360, 375, 390, 430, 640, 768, 1024, 1280, 1440, 1920];
-const breakpoints = [600, 700, 768, 900, 1048, 1319];
+const breakpoints = [600, 700, 768, 900, 991, 1048, 1319];
 const allWidths = [...new Set([...commonWidths, ...breakpoints.flatMap(w => [w - 1, w, w + 1])])].sort((a, b) => a - b);
 const shortViewports = [{ width: 320, height: 568 }, { width: 568, height: 320 }];
 const themes = [
@@ -84,6 +84,16 @@ async function capture(page, theme, route, width, height, view) {
 		await page.waitForTimeout(400);
 		metrics = await page.evaluate(media => {
 			const root = document.documentElement, main = document.querySelector('#maincontent');
+			const toolbar = document.querySelector('.floating-toolbar');
+			const toolbarRect = toolbar && toolbar.getBoundingClientRect();
+			const mainRect = main && main.getBoundingClientRect();
+			const toolbarClearancePx = !toolbarRect || toolbarRect.width === 0 || !mainRect ? null :
+				Math.round(toolbarRect.left - (mainRect.right - parseFloat(getComputedStyle(main).paddingInlineEnd || '0')));
+			const duplicateTableLabels = Array.from((main && main.querySelectorAll('tr')) || []).filter(row => {
+				const heading = row.querySelector('th');
+				const value = row.querySelector('td[data-title]');
+				return heading && value && heading.textContent.trim() === value.getAttribute('data-title').trim();
+			}).length;
 			const menu = document.querySelector('#tabmenu');
 			const links = menu ? Array.from(menu.querySelectorAll('a')).map(a => {
 				const r = a.getBoundingClientRect();
@@ -102,6 +112,8 @@ async function capture(page, theme, route, width, height, view) {
 				loading: !!(main && /Loading view|加载视图/.test(main.innerText)),
 				darkMode: root.getAttribute('data-darkmode'), scrollWidth: root.scrollWidth, width: innerWidth,
 				overflow: root.scrollWidth > innerWidth + 1,
+				toolbarClearancePx,
+				duplicateTableLabels,
 				themeLoaded: assets.some(src => src.includes('/luci-static/' + media + '/')),
 				pluginCssLoaded: assets.some(src => src.includes('upnp-nat-relay/upnp-nat-relay.css')),
 				tabMenu: { count: links.length, visibleCount: links.filter(x => x.visible).length, links, active },
@@ -117,6 +129,8 @@ async function capture(page, theme, route, width, height, view) {
 		if (!metrics.themeLoaded) failures.push('theme-assets-not-loaded');
 		if (!metrics.pluginCssLoaded) failures.push('plugin-css-not-loaded');
 		if (metrics.overflow) failures.push('horizontal-overflow');
+		if (metrics.toolbarClearancePx !== null && metrics.toolbarClearancePx < 8) failures.push('floating-toolbar-overlaps-content');
+		if (metrics.duplicateTableLabels) failures.push('duplicate-mobile-table-labels');
 		if (metrics.truncation.length) failures.push('truncated-non-dropdown-text');
 		if (metrics.darkMode !== theme.dark) failures.push('theme-dark-mode-mismatch');
 		if (metrics.tabMenu.active.some(x => !x.visible)) failures.push('active-tab-outside-visible-strip');

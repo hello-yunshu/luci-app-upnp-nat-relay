@@ -311,7 +311,7 @@ return view.extend({
 
 		var infoTable = E('table', { 'class': 'table' });
 
-		var versionTd = E('td', { 'data-title': _('Plugin Version') } , version);
+		var versionTd = E('td', {} , version);
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('Plugin Version')),
 			versionTd
@@ -319,7 +319,7 @@ return view.extend({
 
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('GitHub')),
-			E('td', { 'data-title': _('GitHub') } , E('a', {
+			E('td', {} , E('a', {
 				'href': 'https://github.com/hello-yunshu/luci-app-upnp-nat-relay',
 				'target': '_blank',
 				'rel': 'noopener'
@@ -328,12 +328,12 @@ return view.extend({
 
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('Current Backend')),
-			E('td', { 'data-title': _('Current Backend') } , backend)
+			E('td', {} , backend)
 		]));
 
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('Last Sync Time')),
-			E('td', { 'data-title': _('Last Sync Time') } , lastSync)
+			E('td', {} , lastSync)
 		]));
 
 		var lastResultBadge;
@@ -350,25 +350,25 @@ return view.extend({
 	}
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('Last Sync Result')),
-			E('td', { 'data-title': _('Last Sync Result') } , lastResultBadge)
+			E('td', {} , lastResultBadge)
 		]));
 
 		var nftBadge = makeNftBadge(nftStatus);
-		var nftTd = E('td', { 'data-title': _('nftables Table') } , nftBadge);
+		var nftTd = E('td', {} , nftBadge);
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('nftables Table')),
 			nftTd
 		]));
 
 		var ocBadge = makeOcBadge(openclashStatus);
-		var ocTd = E('td', { 'data-title': _('OpenClash') } , ocBadge);
+		var ocTd = E('td', {} , ocBadge);
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('OpenClash')),
 			ocTd
 		]));
 
 		var envUpdatedAt = status.updated_at || '';
-		var envTimeTd = E('td', { 'data-title': _('Last Env Check') } , envUpdatedAt || '-');
+		var envTimeTd = E('td', {} , envUpdatedAt || '-');
 		infoTable.appendChild(E('tr', {}, [
 			E('th', { 'class': 'th' }, _('Last Env Check')),
 			envTimeTd
@@ -416,7 +416,7 @@ return view.extend({
 				badgeVal = sval;
 				badgeStatus = item.statusFn(status[item.statusKey]);
 			}
-			var td = E('td', { 'data-title': item.label }, E('span', { 'class': 'label ' + ({ green: 'success', orange: 'warning', red: 'important', gray: '' }[badgeStatus] || '') }, badgeVal));
+			var td = E('td', {}, E('span', { 'class': 'label ' + ({ green: 'success', orange: 'warning', red: 'important', gray: '' }[badgeStatus] || '') }, badgeVal));
 			envTds.push({ td: td, item: item });
 			envTable.appendChild(E('tr', {}, [
 				E('th', { 'class': 'th' }, item.label),
