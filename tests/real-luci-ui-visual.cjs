@@ -159,6 +159,11 @@ async function capture(page, theme, route, width, height, view) {
 				truncation };
 		}, { media: theme.media, routeId: route && route.id });
 		await page.screenshot({ path: path.join(output, name), fullPage: true, animations: 'disabled' });
+		if (height < 900) {
+			const viewportName = name.replace(/\.png$/, '-viewport.png');
+			await page.screenshot({ path: path.join(output, viewportName), fullPage: false, animations: 'disabled' });
+			var viewportScreenshot = viewportName;
+		}
 	} catch (e) { navigationError = e.message; }
 	finally { page.off('console', onConsole); page.off('pageerror', onPageError); }
 	const failures = [];
@@ -182,7 +187,7 @@ async function capture(page, theme, route, width, height, view) {
 	if (errors.length) failures.push('browser-errors');
 	const row = { theme: theme.id, language, route: 'admin/services/upnp_nat_relay' + (route ? '/' + route.path : ''),
 		view, viewport: `${width}x${height}`, result: failures.length ? 'FAIL' : 'PASS', failures, metrics,
-		screenshot: name, errors: errors.slice(0, 8) };
+		screenshot: name, viewportScreenshot: typeof viewportScreenshot === 'undefined' ? undefined : viewportScreenshot, errors: errors.slice(0, 8) };
 	report.rows.push(row);
 	if (failures.length) report.errors.push({ route: row.route, theme: theme.id, viewport: row.viewport, failures, errors: errors.slice(0, 8) });
 	fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
