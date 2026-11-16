@@ -88,6 +88,10 @@ async function capture(page, theme, route, width, height, view) {
 		const logArea = routeId === 'diagnostics' && main && main.querySelector('.ubr-log-area');
 		const rollbackSection = routeId === 'diagnostics' && main && main.querySelector('.ubr-rollback-section');
 		const logToRollbackGap = logArea && rollbackSection ? Math.round(rollbackSection.getBoundingClientRect().top - logArea.getBoundingClientRect().bottom) : null;
+		const mappingEmptyState = routeId === 'mappings' && main ? {
+			tables: ['raw-mappings-table', 'synced-mappings-table', 'rejected-mappings-table'].filter(id => main.querySelector('#' + id)).length,
+			messages: Array.from(main.querySelectorAll('[data-empty-mapping-state]')).filter(el => el.textContent.trim() && el.getClientRects().length).length
+		} : null;
 		// Connector lines sit on the dots' center line, so count only the step
 		// markers when measuring rows; treating each child top as a row creates a
 		// false second row even when all markers are on one line.
@@ -121,6 +125,7 @@ async function capture(page, theme, route, width, height, view) {
 				tabMenu: { count: links.length, visibleCount: links.filter(x => x.visible).length, links, active },
 				wizardProgressRows,
 				logToRollbackGap,
+				mappingEmptyState,
 				truncation };
 		}, { media: theme.media, routeId: route && route.id });
 		await page.screenshot({ path: path.join(output, name), fullPage: true, animations: 'disabled' });
@@ -141,6 +146,7 @@ async function capture(page, theme, route, width, height, view) {
 		if (route && !metrics.tabMenu.active.some(x => x.label === route.label[lang])) failures.push('wrong-active-tab');
 		if (route && route.id === 'wizard' && width <= 375 && metrics.wizardProgressRows !== 1) failures.push('wizard-progress-wraps-at-mobile-width');
 		if (route && route.id === 'diagnostics' && metrics.logToRollbackGap < 12) failures.push('log-output-and-rollback-section-too-close');
+		if (route && route.id === 'mappings' && metrics.mappingEmptyState && (metrics.mappingEmptyState.tables !== 0 || metrics.mappingEmptyState.messages !== 3)) failures.push('empty-mapping-state-renders-unused-table-headers');
 	}
 	if (errors.length) failures.push('browser-errors');
 	const row = { theme: theme.id, language, route: 'admin/services/upnp_nat_relay' + (route ? '/' + route.path : ''),
