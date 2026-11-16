@@ -84,6 +84,11 @@ async function capture(page, theme, route, width, height, view) {
 		await page.waitForTimeout(400);
 		metrics = await page.evaluate(({ media, routeId }) => {
 			const root = document.documentElement, main = document.querySelector('#maincontent');
+			const overviewControlSection = routeId === 'overview' && main
+				? main.querySelector('.ubr-overview-control-section') : null;
+			const overviewControlNext = overviewControlSection && overviewControlSection.nextElementSibling;
+			const overviewControlGap = overviewControlSection && overviewControlNext
+				? Math.round(overviewControlNext.getBoundingClientRect().top - overviewControlSection.getBoundingClientRect().bottom) : null;
 			const wizardProgress = routeId === 'wizard' && main && main.querySelector('.ubr-wizard-progress');
 		const logArea = routeId === 'diagnostics' && main && main.querySelector('.ubr-log-area');
 		const rollbackSection = routeId === 'diagnostics' && main && main.querySelector('.ubr-rollback-section');
@@ -124,6 +129,7 @@ async function capture(page, theme, route, width, height, view) {
 				pluginCssLoaded: assets.some(src => src.includes('upnp-nat-relay/upnp-nat-relay.css')),
 				tabMenu: { count: links.length, visibleCount: links.filter(x => x.visible).length, links, active },
 				wizardProgressRows,
+				overviewControlGap,
 				logToRollbackGap,
 				mappingEmptyState,
 				truncation };
@@ -145,6 +151,7 @@ async function capture(page, theme, route, width, height, view) {
 		if (metrics.tabMenu.count !== routes.length || metrics.tabMenu.visibleCount !== metrics.tabMenu.count) failures.push('route-tab-outside-visible-strip');
 		if (route && !metrics.tabMenu.active.some(x => x.label === route.label[lang])) failures.push('wrong-active-tab');
 		if (route && route.id === 'wizard' && width <= 375 && metrics.wizardProgressRows !== 1) failures.push('wizard-progress-wraps-at-mobile-width');
+		if (route && route.id === 'overview' && (metrics.overviewControlGap == null || metrics.overviewControlGap < 16)) failures.push('overview-controls-and-service-information-too-close');
 		if (route && route.id === 'diagnostics' && metrics.logToRollbackGap < 12) failures.push('log-output-and-rollback-section-too-close');
 		if (route && route.id === 'mappings' && metrics.mappingEmptyState && (metrics.mappingEmptyState.tables !== 0 || metrics.mappingEmptyState.messages !== 3)) failures.push('empty-mapping-state-renders-unused-table-headers');
 	}
