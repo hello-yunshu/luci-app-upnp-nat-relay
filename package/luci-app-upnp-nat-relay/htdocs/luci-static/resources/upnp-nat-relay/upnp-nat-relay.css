@@ -33,6 +33,7 @@
 	display: flex; align-items: center; margin-bottom: 1.5em;
 	flex-wrap: wrap;
 }
+.ubr-wizard-mode-bar { margin-bottom: calc(var(--spacing, .25rem) * 4); }
 .ubr-wizard-dot {
 	display: flex; align-items: center; justify-content: center;
 	width: 28px; height: 28px; border-radius: 50%;
