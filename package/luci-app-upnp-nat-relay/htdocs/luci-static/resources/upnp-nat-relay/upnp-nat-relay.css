@@ -211,6 +211,12 @@
  * page instead of wrapping. */
 #maincontent .cbi-value-field { overflow-wrap: anywhere; }
 
+/* Native CBI rows may wrap a long action button beneath its label on narrow
+ * layouts. Keep a theme-scaled gap between those wrapped parts. */
+#maincontent .ubr-openclash-actions .cbi-value {
+	row-gap: calc(var(--spacing, .25rem) * 2);
+}
+
 /* Shared table contract: every table on the page shares one first-column
  * basis (minimum width + alignment) instead of content-driven widths. */
 @media screen and (min-width: 48rem) {

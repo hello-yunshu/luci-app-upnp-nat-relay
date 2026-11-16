@@ -514,7 +514,15 @@ return view.extend({
 			});
 		};
 
-		return utils.renderWithFooter(m.render(), utils.FOOTER_OPTIONS);
+		return m.render().then(function(node) {
+			var firstAction = node.querySelector('[data-name="_sync_oc_now"]');
+			var actionSection = firstAction && firstAction.closest('.cbi-section');
+
+			if (actionSection)
+				actionSection.classList.add('ubr-openclash-actions');
+
+			return utils.appendFooter(node, utils.FOOTER_OPTIONS);
+		});
 	},
 
 	handleSaveApply: function(ev, mode) {
