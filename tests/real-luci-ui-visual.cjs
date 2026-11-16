@@ -84,8 +84,29 @@ async function capture(page, theme, route, width, height, view) {
 		await page.waitForTimeout(400);
 		metrics = await page.evaluate(({ media, routeId }) => {
 			const root = document.documentElement, main = document.querySelector('#maincontent');
+			const overviewStatsGrid = routeId === 'overview' && main ? main.querySelector('.ubr-stats-grid') : null;
+			const overviewStatusBanner = overviewStatsGrid && overviewStatsGrid.previousElementSibling;
+			const overviewFirstStatValue = overviewStatsGrid && overviewStatsGrid.querySelector('.ubr-stat-value');
+			const overviewStatLabels = overviewStatsGrid ? Array.from(overviewStatsGrid.querySelectorAll('.ubr-stat-label')) : [];
+			const overviewLastStatLabel = overviewStatLabels.length ? overviewStatLabels[overviewStatLabels.length - 1] : null;
+			const visibleTextRect = (element, edge) => {
+				if (!element) return null;
+				const range = document.createRange();
+				range.selectNodeContents(element);
+				const rects = Array.from(range.getClientRects());
+				if (!rects.length) return null;
+				const rect = edge === 'bottom' ? rects[rects.length - 1] : rects[0];
+				return edge === 'bottom' ? rect.bottom : rect.top;
+			};
 			const overviewControlSection = routeId === 'overview' && main
 				? main.querySelector('.ubr-overview-control-section') : null;
+			const overviewControlHeading = overviewControlSection && overviewControlSection.querySelector('h3');
+			const overviewStatsVisibleTopGap = overviewStatusBanner && overviewFirstStatValue
+				? Math.round(visibleTextRect(overviewFirstStatValue, 'top') - overviewStatusBanner.getBoundingClientRect().bottom) : null;
+			const overviewStatsVisibleBottomGap = overviewLastStatLabel && overviewControlHeading
+				? Math.round(visibleTextRect(overviewControlHeading, 'top') - visibleTextRect(overviewLastStatLabel, 'bottom')) : null;
+			const overviewStatsVisibleGapDelta = overviewStatsVisibleTopGap == null || overviewStatsVisibleBottomGap == null
+				? null : Math.abs(overviewStatsVisibleTopGap - overviewStatsVisibleBottomGap);
 			const overviewControlNext = overviewControlSection && overviewControlSection.nextElementSibling;
 			const overviewControlGap = overviewControlSection && overviewControlNext
 				? Math.round(overviewControlNext.getBoundingClientRect().top - overviewControlSection.getBoundingClientRect().bottom) : null;
@@ -130,6 +151,9 @@ async function capture(page, theme, route, width, height, view) {
 				tabMenu: { count: links.length, visibleCount: links.filter(x => x.visible).length, links, active },
 				wizardProgressRows,
 				overviewControlGap,
+				overviewStatsVisibleTopGap,
+				overviewStatsVisibleBottomGap,
+				overviewStatsVisibleGapDelta,
 				logToRollbackGap,
 				mappingEmptyState,
 				truncation };
