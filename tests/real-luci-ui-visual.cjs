@@ -128,6 +128,7 @@ async function capture(page, theme, route, width, height, view) {
 				return heading && value && heading.textContent.trim() === value.getAttribute('data-title').trim();
 			}).length;
 			const menu = document.querySelector('#tabmenu');
+			const assets = Array.from(document.querySelectorAll('link[href],script[src]')).map(x => x.href || x.src);
 			const footer = document.querySelector('.ys-tool-footer');
 			const footerMark = footer && footer.querySelector('.ys-tool-footer-mark');
 			const footerSocial = footer && footer.querySelector('.ys-tool-footer-link.github');
@@ -154,7 +155,6 @@ async function capture(page, theme, route, width, height, view) {
 				const css = getComputedStyle(el);
 				return css.whiteSpace === 'nowrap' && el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 2;
 			}).slice(0, 8).map(el => ({ tag: el.tagName, text: (el.innerText || '').trim().slice(0, 80) }));
-			const assets = Array.from(document.querySelectorAll('link[href],script[src]')).map(x => x.href || x.src);
 			return { heading: (main && main.querySelector('h2[name="content"], .view h2, h2') || {}).textContent?.trim() || '',
 				hasMain: !!main, mainLength: (main && main.innerText || '').trim().length,
 				loading: !!(main && /Loading view|加载视图/.test(main.innerText)),
