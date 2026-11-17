@@ -854,8 +854,8 @@ msgstr "此设备上没有可用的系统日志读取器。"
 msgid "Last Error:"
 msgstr "最近错误："
 
-msgid "Missing Dependencies & Fix Commands"
-msgstr "缺失依赖与修复命令"
+msgid "Dependency Status"
+msgstr "依赖状态"
 
 msgid "Missing dependencies:"
 msgstr "缺失依赖："

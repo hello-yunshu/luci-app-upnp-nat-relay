@@ -120,7 +120,7 @@ function makeOcBadge(status) {
 
 function buildDepSection(missingDeps, pkgManager) {
 	var section = E('div', { 'class': 'cbi-section' });
-	section.appendChild(E('h3', {}, _('Missing Dependencies & Fix Commands')));
+	section.appendChild(E('h3', {}, _('Dependency Status')));
 	if (missingDeps.length > 0) {
 		var installCmd = pkgManager === 'apk' ?
 			'apk add --allow-untrusted ' + missingDeps.join(' ') :

@@ -845,8 +845,8 @@ msgstr "System log reader is not available on this device."
 msgid "Last Error:"
 msgstr "Last Error:"
 
-msgid "Missing Dependencies & Fix Commands"
-msgstr "Missing Dependencies & Fix Commands"
+msgid "Dependency Status"
+msgstr "Dependency Status"
 
 msgid "Missing dependencies:"
 msgstr "Missing dependencies:"

@@ -843,7 +843,7 @@ msgstr ""
 msgid "Last Error:"
 msgstr ""
 
-msgid "Missing Dependencies & Fix Commands"
+msgid "Dependency Status"
 msgstr ""
 
 msgid "Missing dependencies:"

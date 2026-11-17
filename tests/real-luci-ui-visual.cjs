@@ -101,6 +101,9 @@ async function capture(page, theme, route, width, height, view) {
 			const overviewControlSection = routeId === 'overview' && main
 				? main.querySelector('.ubr-overview-control-section') : null;
 			const overviewControlHeading = overviewControlSection && overviewControlSection.querySelector('h3');
+			const dependencyHeading = routeId === 'overview' && main
+				? Array.from(main.querySelectorAll('.cbi-section h3')).map(el => el.textContent.trim()).find(text => text === 'Dependency Status' || text === '依赖状态') || null
+				: null;
 			const overviewStatsVisibleTopGap = overviewStatusBanner && overviewFirstStatValue
 				? Math.round(visibleTextRect(overviewFirstStatValue, 'top') - overviewStatusBanner.getBoundingClientRect().bottom) : null;
 			const overviewStatsVisibleBottomGap = overviewLastStatLabel && overviewControlHeading
@@ -167,6 +170,7 @@ async function capture(page, theme, route, width, height, view) {
 				footerMatchesPm,
 				tabMenu: { count: links.length, visibleCount: links.filter(x => x.visible).length, links, active },
 				wizardProgressRows,
+				dependencyHeading,
 				overviewControlGap,
 				overviewStatsVisibleTopGap,
 				overviewStatsVisibleBottomGap,
@@ -192,6 +196,7 @@ async function capture(page, theme, route, width, height, view) {
 		if (!metrics.footerCssFresh || !metrics.footerMatchesPm) failures.push('footer-not-matched-to-performance-manager');
 		if (metrics.overflow) failures.push('horizontal-overflow');
 		if (metrics.duplicateTableLabels) failures.push('duplicate-mobile-table-labels');
+		if (route && route.id === 'overview' && !metrics.dependencyHeading) failures.push('dependency-status-heading-missing');
 		if (metrics.truncation.length) failures.push('truncated-non-dropdown-text');
 		if (metrics.darkMode !== theme.dark) failures.push('theme-dark-mode-mismatch');
 		if (metrics.tabMenu.active.some(x => !x.visible)) failures.push('active-tab-outside-visible-strip');
