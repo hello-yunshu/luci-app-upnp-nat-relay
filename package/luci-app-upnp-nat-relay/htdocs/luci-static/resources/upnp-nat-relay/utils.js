@@ -152,7 +152,7 @@ function loadSharedCSS() {
 		var link = E('link', {
 			'id': 'upnp-shared-css',
 			'rel': 'stylesheet',
-			'href': L.resource('upnp-nat-relay/upnp-nat-relay.css') + '?v=@PKG_FULL_VERSION@'
+			'href': L.resource('upnp-nat-relay/upnp-nat-relay.css') + '?v=@PKG_FULL_VERSION@&ui=footer-pm-match-1'
 		});
 		document.head.appendChild(link);
 	}

@@ -128,6 +128,21 @@ async function capture(page, theme, route, width, height, view) {
 				return heading && value && heading.textContent.trim() === value.getAttribute('data-title').trim();
 			}).length;
 			const menu = document.querySelector('#tabmenu');
+			const footer = document.querySelector('.ys-tool-footer');
+			const footerMark = footer && footer.querySelector('.ys-tool-footer-mark');
+			const footerSocial = footer && footer.querySelector('.ys-tool-footer-link.github');
+			const footerLabel = footerSocial && footerSocial.querySelector('.ys-tool-footer-link-label');
+			const footerCssFresh = assets.some(src => src.includes('upnp-nat-relay.css') && src.includes('ui=footer-pm-match-1'));
+			const footerMarkHeight = footerMark ? footerMark.getBoundingClientRect().height : null;
+			const footerSocialRect = footerSocial && footerSocial.getBoundingClientRect();
+			const footerLabelRect = footerLabel && footerLabel.getBoundingClientRect();
+			const footerSocialBg = footerSocial && getComputedStyle(footerSocial, '::before');
+			const footerMatchesPm = !!(footerMarkHeight && footerSocialRect && footerLabelRect && footerSocialBg &&
+				Math.abs(parseFloat(footerSocialBg.height) - footerMarkHeight) <= 1 &&
+				footerSocialBg.left === '0px' && footerSocialBg.right === '0px' &&
+				footerSocialBg.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+				getComputedStyle(footerSocial).backgroundColor === 'rgba(0, 0, 0, 0)' &&
+				footerLabelRect.left >= footerSocialRect.left && footerLabelRect.right <= footerSocialRect.right + 1);
 			const links = menu ? Array.from(menu.querySelectorAll('a')).map(a => {
 				const r = a.getBoundingClientRect();
 				return { label: a.textContent.trim(), active: !!a.closest('li.active, [aria-current="page"]'),
@@ -148,6 +163,8 @@ async function capture(page, theme, route, width, height, view) {
 				duplicateTableLabels,
 				themeLoaded: assets.some(src => src.includes('/luci-static/' + media + '/')),
 				pluginCssLoaded: assets.some(src => src.includes('upnp-nat-relay/upnp-nat-relay.css')),
+				footerCssFresh,
+				footerMatchesPm,
 				tabMenu: { count: links.length, visibleCount: links.filter(x => x.visible).length, links, active },
 				wizardProgressRows,
 				overviewControlGap,
@@ -172,6 +189,7 @@ async function capture(page, theme, route, width, height, view) {
 		if (!metrics.hasMain || metrics.mainLength < 10 || metrics.loading) failures.push('blank-or-loading-view');
 		if (!metrics.themeLoaded) failures.push('theme-assets-not-loaded');
 		if (!metrics.pluginCssLoaded) failures.push('plugin-css-not-loaded');
+		if (!metrics.footerCssFresh || !metrics.footerMatchesPm) failures.push('footer-not-matched-to-performance-manager');
 		if (metrics.overflow) failures.push('horizontal-overflow');
 		if (metrics.duplicateTableLabels) failures.push('duplicate-mobile-table-labels');
 		if (metrics.truncation.length) failures.push('truncated-non-dropdown-text');
