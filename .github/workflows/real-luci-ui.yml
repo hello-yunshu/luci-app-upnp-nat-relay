@@ -60,13 +60,13 @@ jobs:
             local task="$1"
             case "$task" in
               update)
-                docker exec -d upnp-ui-gate sh -c '
+                timeout --kill-after=2s 15s docker exec -d upnp-ui-gate sh -c '
                   rm -f /tmp/upnp-ui-opkg.status
                   ( opkg update; echo $? > /tmp/upnp-ui-opkg.status ) > /tmp/upnp-ui-opkg.log 2>&1 </dev/null &
                 '
                 ;;
               install)
-                docker exec -d upnp-ui-gate sh -c '
+                timeout --kill-after=2s 15s docker exec -d upnp-ui-gate sh -c '
                   rm -f /tmp/upnp-ui-opkg.status
                   ( opkg install bash jq curl luci-base luci-theme-bootstrap luci-i18n-base-zh-cn \
                     uhttpd rpcd ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl \
@@ -94,8 +94,7 @@ jobs:
           updated=false
           for attempt in 1 2 3; do
             echo "OpenWrt opkg update attempt $attempt"
-            start_opkg_task update
-            if wait_opkg_task 300; then
+            if start_opkg_task update && wait_opkg_task 300; then
               updated=true
               break
             fi
