@@ -56,23 +56,58 @@ jobs:
       - name: Install LuCI runtime and declared package dependencies
         run: |
           set -euo pipefail
+          start_opkg_task() {
+            local task="$1"
+            case "$task" in
+              update)
+                docker exec -d upnp-ui-gate sh -c '
+                  rm -f /tmp/upnp-ui-opkg.status
+                  ( opkg update; echo $? > /tmp/upnp-ui-opkg.status ) > /tmp/upnp-ui-opkg.log 2>&1 </dev/null &
+                '
+                ;;
+              install)
+                docker exec -d upnp-ui-gate sh -c '
+                  rm -f /tmp/upnp-ui-opkg.status
+                  ( opkg install bash jq curl luci-base luci-theme-bootstrap luci-i18n-base-zh-cn \
+                    uhttpd rpcd ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl \
+                    ucode-mod-uloop ucode-mod-socket miniupnpc nftables coreutils-timeout flock openssl-util; \
+                    echo $? > /tmp/upnp-ui-opkg.status ) > /tmp/upnp-ui-opkg.log 2>&1 </dev/null &
+                '
+                ;;
+            esac
+          }
+          wait_opkg_task() {
+            local deadline=$((SECONDS + $1))
+            local status
+            while (( SECONDS < deadline )); do
+              status="$(timeout --kill-after=2s 5s docker exec upnp-ui-gate cat /tmp/upnp-ui-opkg.status 2>/dev/null || true)"
+              if [[ "$status" =~ ^[0-9]+$ ]]; then
+                timeout --kill-after=2s 10s docker exec upnp-ui-gate cat /tmp/upnp-ui-opkg.log || true
+                return "$status"
+              fi
+              sleep 5
+            done
+            echo "OpenWrt opkg task exceeded its ${1}s limit" >&2
+            timeout --kill-after=2s 10s docker exec upnp-ui-gate cat /tmp/upnp-ui-opkg.log || true
+            return 124
+          }
           updated=false
           for attempt in 1 2 3; do
             echo "OpenWrt opkg update attempt $attempt"
-            if timeout --kill-after=10s 300s docker exec upnp-ui-gate opkg update; then
+            start_opkg_task update
+            if wait_opkg_task 300; then
               updated=true
               break
             fi
+            timeout --kill-after=2s 10s docker exec -d upnp-ui-gate sh -c 'killall opkg 2>/dev/null || true' || true
             sleep 5
           done
           if [ "$updated" != true ]; then
             echo 'OpenWrt package index refresh failed after three bounded attempts' >&2
             exit 1
           fi
-          timeout --kill-after=10s 600s docker exec upnp-ui-gate opkg install \
-              bash jq curl luci-base luci-theme-bootstrap luci-i18n-base-zh-cn \
-              uhttpd rpcd ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl \
-              ucode-mod-uloop ucode-mod-socket miniupnpc nftables coreutils-timeout flock openssl-util
+          start_opkg_task install
+          wait_opkg_task 600
           docker exec upnp-ui-gate sh -c '
             for command in bash jq curl ubus uci openssl upnpc nft flock timeout; do command -v "$command" >/dev/null; done
           '
