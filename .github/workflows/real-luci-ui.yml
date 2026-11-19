@@ -18,11 +18,17 @@ on:
   workflow_dispatch:
     inputs:
       language:
-        description: Language for the full screenshot matrix
+        description: Language for the screenshot matrix
         required: false
         type: choice
         options: [all, en, zh_cn]
         default: all
+      scope:
+        description: Capture the full gate or only the wizard interaction matrix
+        required: false
+        type: choice
+        options: [full, wizard-flow]
+        default: full
 
 permissions:
   contents: read
@@ -60,13 +66,13 @@ jobs:
             local task="$1"
             case "$task" in
               update)
-                docker exec -d upnp-ui-gate sh -c '
+                timeout --kill-after=2s 15s docker exec -d upnp-ui-gate sh -c '
                   rm -f /tmp/upnp-ui-opkg.status
                   ( opkg update; echo $? > /tmp/upnp-ui-opkg.status ) > /tmp/upnp-ui-opkg.log 2>&1 </dev/null &
                 '
                 ;;
               install)
-                docker exec -d upnp-ui-gate sh -c '
+                timeout --kill-after=2s 15s docker exec -d upnp-ui-gate sh -c '
                   rm -f /tmp/upnp-ui-opkg.status
                   ( opkg install bash jq curl luci-base luci-theme-bootstrap luci-i18n-base-zh-cn \
                     uhttpd rpcd ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl \
@@ -94,8 +100,7 @@ jobs:
           updated=false
           for attempt in 1 2 3; do
             echo "OpenWrt opkg update attempt $attempt"
-            start_opkg_task update
-            if wait_opkg_task 300; then
+            if start_opkg_task update && wait_opkg_task 300; then
               updated=true
               break
             fi
@@ -146,6 +151,7 @@ jobs:
           docker cp "$RUNNER_TEMP/luci-theme-aurora.ipk" upnp-ui-gate:/tmp/luci-theme-aurora.ipk
           docker exec upnp-ui-gate opkg install /tmp/luci-theme-aurora.ipk
       - name: Capture all views and viewport/theme states
+        if: ${{ inputs.scope != 'wizard-flow' }}
         run: |
           set -euo pipefail
           language='${{ matrix.language }}'
@@ -154,12 +160,20 @@ jobs:
             UPNP_UI_LANG="$language" UPNP_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
             node tests/real-luci-ui-visual.cjs
       - name: Capture setup wizard selected-mode states
+        if: ${{ inputs.scope != 'wizard-flow' }}
         run: |
           set -euo pipefail
           language='${{ matrix.language }}'
           NODE_PATH="$RUNNER_TEMP/ui/node_modules" UPNP_UI_CONTAINER=upnp-ui-gate \
             UPNP_UI_LANG="$language" UPNP_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
             node tests/real-luci-ui-wizard-mode.cjs
+      - name: Capture all setup wizard steps and verify safe save
+        run: |
+          set -euo pipefail
+          language='${{ matrix.language }}'
+          NODE_PATH="$RUNNER_TEMP/ui/node_modules" UPNP_UI_CONTAINER=upnp-ui-gate \
+            UPNP_UI_LANG="$language" UPNP_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
+            node tests/real-luci-ui-wizard-flow.cjs
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()
         with:
