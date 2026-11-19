@@ -31,13 +31,12 @@ const report = {
 	schemaVersion: 1,
 	sha: process.env.GITHUB_SHA || 'unknown',
 	language,
-	mode: 'all-wizard-steps-safe-mode-plus-real-safe-save',
+	mode: 'all-wizard-steps-with-real-read-only-checks-plus-real-safe-save',
 	widths,
 	shortViewports: viewports.filter(v => v.height !== 900),
-	notCovered: ['Auto mode network/firewall changes and service start are intentionally excluded from this host-network LuCI container.'],
+	notCovered: ['Auto mode network/firewall changes and service start are intentionally excluded from this disposable host-network LuCI container.'],
 	rows: [],
 	errors: [],
-	checkNetworkFixtureCalls: 0,
 	safeSave: null
 };
 fs.mkdirSync(output, { recursive: true });
@@ -76,7 +75,7 @@ async function ensureChoice(select, value, label) {
 	await select.dispatchEvent('change');
 }
 
-async function prepareStep(page, step, fixtureNetwork) {
+async function prepareStep(page, step) {
 	if (step === 1) {
 		const iface = page.locator('#wiz-ifname');
 		await page.waitForTimeout(150);
@@ -92,7 +91,7 @@ async function prepareStep(page, step, fixtureNetwork) {
 		await page.waitForFunction(selector => {
 			const node = document.querySelector(selector);
 			return node && (!node.textContent.includes('Testing') && !node.textContent.includes('正在测试'));
-		}, step === 4 ? '#wiz-ping-result' : '#wiz-upnpc-result', { timeout: fixtureNetwork ? 8000 : 25000 });
+		}, step === 4 ? '#wiz-ping-result' : '#wiz-upnpc-result', { timeout: 25000 });
 	} else if (step === 6) {
 		await page.locator('#wiz-wan-ip').fill('198.51.100.2');
 	} else if (step === 7) {
@@ -162,11 +161,11 @@ async function openWizard(page, viewport) {
 	await waitForStep(page, 1);
 }
 
-async function runFlow(page, theme, viewport, fixtureNetwork, takeScreenshots) {
+async function runFlow(page, theme, viewport, takeScreenshots) {
 	await openWizard(page, viewport);
 	for (let step = 1; step <= 10; step++) {
 		await waitForStep(page, step);
-		await prepareStep(page, step, fixtureNetwork);
+		await prepareStep(page, step);
 		if (takeScreenshots) await captureStep(page, theme, viewport, step);
 		if (step < 10) await advance(page, step);
 	}
@@ -183,20 +182,8 @@ async function runFlow(page, theme, viewport, fixtureNetwork, takeScreenshots) {
 			if (theme.aurora) await context.addInitScript(mode => localStorage.setItem('aurora.theme', mode), theme.aurora);
 			page = await context.newPage();
 			await login(page);
-			await page.route('**/ubus/', async route => {
-				let body;
-				try { body = route.request().postDataJSON(); } catch (_) { return route.continue(); }
-				if (JSON.stringify(body).includes('check-network')) {
-					report.checkNetworkFixtureCalls++;
-					return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-						jsonrpc: '2.0', id: body.id,
-						result: [0, { iface_exists: 0, bind_ip_configured: 0, gateway_reachable: 0, upnpc_readable: 0, error: 'deterministic visual fixture' }]
-					}) });
-				}
-				return route.continue();
-			});
 			for (const viewport of viewports)
-				await runFlow(page, theme, viewport, true, true);
+				await runFlow(page, theme, viewport, true);
 			await context.close();
 		}
 
@@ -207,7 +194,7 @@ async function runFlow(page, theme, viewport, fixtureNetwork, takeScreenshots) {
 		const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
 		page = await context.newPage();
 		await login(page);
-		await runFlow(page, { id: 'safe-save-real' }, { width: 1280, height: 900 }, false, false);
+		await runFlow(page, { id: 'safe-save-real' }, { width: 1280, height: 900 }, false);
 		await page.locator('#wiz-apply-btn').click();
 		const savedMessage = language === 'en' ? 'Configuration saved successfully.' : '配置保存成功。';
 		await page.getByText(savedMessage).waitFor({ state: 'visible', timeout: 30000 });
@@ -235,8 +222,8 @@ async function runFlow(page, theme, viewport, fixtureNetwork, takeScreenshots) {
 	}
 	const expectedRows = themes.length * viewports.length * 10;
 	const pass = report.rows.filter(row => row.result === 'PASS').length;
-	console.log('WIZARD_FLOW_MATRIX ' + JSON.stringify({ total: report.rows.length, expected: expectedRows, pass, fail: report.errors.length, checkNetworkFixtureCalls: report.checkNetworkFixtureCalls, safeSave: report.safeSave }));
-	if (report.rows.length !== expectedRows || report.errors.length || report.safeSave?.result !== 'PASS' || report.checkNetworkFixtureCalls !== themes.length * viewports.length * 2) process.exitCode = 1;
+	console.log('WIZARD_FLOW_MATRIX ' + JSON.stringify({ total: report.rows.length, expected: expectedRows, pass, fail: report.errors.length, safeSave: report.safeSave }));
+	if (report.rows.length !== expectedRows || report.errors.length || report.safeSave?.result !== 'PASS') process.exitCode = 1;
 })().catch(error => {
 	console.error(error);
 	process.exitCode = 1;
