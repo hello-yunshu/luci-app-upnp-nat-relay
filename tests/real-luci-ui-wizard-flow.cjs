@@ -89,10 +89,10 @@ async function prepareStep(page, step, fixtureNetwork) {
 	} else if (step === 4 || step === 5) {
 		const result = page.locator(step === 4 ? '#wiz-ping-result' : '#wiz-upnpc-result');
 		await result.waitFor({ state: 'visible', timeout: 5000 });
-		await page.waitForFunction((selector, fixture) => {
+		await page.waitForFunction(selector => {
 			const node = document.querySelector(selector);
 			return node && (!node.textContent.includes('Testing') && !node.textContent.includes('正在测试'));
-		}, step === 4 ? '#wiz-ping-result' : '#wiz-upnpc-result', null, { timeout: fixtureNetwork ? 8000 : 25000 });
+		}, step === 4 ? '#wiz-ping-result' : '#wiz-upnpc-result', { timeout: fixtureNetwork ? 8000 : 25000 });
 	} else if (step === 6) {
 		await page.locator('#wiz-wan-ip').fill('198.51.100.2');
 	} else if (step === 7) {
