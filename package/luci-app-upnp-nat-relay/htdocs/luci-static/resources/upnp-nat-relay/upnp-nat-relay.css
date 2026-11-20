@@ -34,21 +34,38 @@
 /* ===== Wizard Progress ===== */
 .ubr-wizard-progress {
 	display: flex; align-items: center; margin-bottom: 1.5em;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 }
 .ubr-wizard-mode-bar { margin-bottom: calc(var(--spacing, .25rem) * 4); }
 .ubr-wizard-dot {
 	display: flex; align-items: center; justify-content: center;
-	width: 28px; height: 28px; border-radius: 50%;
-	border: 1px solid;
-	font-size: 0.8em; font-weight: bold;
+	box-sizing: border-box; flex: 0 0 28px;
+	width: 28px; height: 28px; border: 1px solid;
+	border-color: var(--border-color, color-mix(in srgb, currentColor 24%, transparent));
+	border-radius: 50%;
+	background: var(--background-color-low, var(--surface-sunken, transparent));
+	color: var(--subtext-color, var(--text-muted, currentColor));
+	font-size: 0.75em; font-weight: 600;
 }
-.ubr-wizard-dot.done,
-.ubr-wizard-dot.active { outline: 2px solid currentColor; }
-.ubr-wizard-line { flex: 1; height: 3px; border-top: 3px solid currentColor; }
+.ubr-wizard-dot.done {
+	border-color: color-mix(in srgb, var(--brand, var(--main-color, currentColor)) 35%, transparent);
+	background: color-mix(in srgb, var(--brand, var(--main-color, currentColor)) 12%, transparent);
+	color: var(--brand, var(--main-color, currentColor));
+}
+.ubr-wizard-dot.active {
+	border-color: var(--brand, var(--main-color, currentColor));
+	background: var(--brand, var(--main-color, currentColor));
+	color: var(--on-brand, #fff);
+}
+.ubr-wizard-line {
+	flex: 1 1 auto; min-width: 0; height: 2px;
+	background: color-mix(in srgb, currentColor 16%, transparent);
+}
+.ubr-wizard-line.done {
+	background: color-mix(in srgb, var(--brand, var(--main-color, currentColor)) 55%, transparent);
+}
 .ubr-wizard-nav {
 	display: flex; gap: 1em; margin-top: 1.2em;
-	padding-top: 1em; border-top: 1px solid;
 	flex-wrap: wrap;
 }
 @media screen and (max-width: 375px) {
