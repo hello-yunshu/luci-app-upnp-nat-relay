@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Create the GitHub release and tag"
+        type: boolean
+        default: true
 
 concurrency:
   group: release-${{ github.ref }}
@@ -57,8 +62,17 @@ jobs:
             echo "release=${PKG_RELEASE}"
           } >> "$GITHUB_OUTPUT"
 
+  upstream-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Block package builds when proxy upstream refs need requalification
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/check-proxy-upstreams.py --baseline proxy-upstream-baseline.json --output "$RUNNER_TEMP/proxy-upstreams.json"
+
   build:
-    needs: check-version
+    needs: [check-version, upstream-compatibility]
     if: needs.check-version.outputs.changed == 'true'
     strategy:
       fail-fast: false
@@ -159,9 +173,10 @@ jobs:
 
   release:
     needs: [check-version, build]
-    # 发布门禁：release 只允许手动 workflow_dispatch 触发。
+    # 发布门禁：release 只允许手动 workflow_dispatch 触发，且默认发布；
+    # 传 publish=false 只构建产物，用于在功能分支上验证包而不动 tag。
     # push（含 main）只做构建验证，绝不自动打 tag / 发 Release。
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.publish
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # main @ 2026-11-05

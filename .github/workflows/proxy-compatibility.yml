@@ -1,0 +1,54 @@
+name: Proxy compatibility canary
+
+on:
+  push:
+    paths:
+      - '.github/workflows/proxy-compatibility.yml'
+      - 'proxy-upstream-baseline.json'
+      - 'scripts/check-proxy-upstreams.py'
+      - 'package/luci-app-upnp-nat-relay/root/usr/bin/upnp-nat-relay'
+      - 'package/luci-app-upnp-nat-relay/root/etc/init.d/upnp_nat_relay'
+      - 'tests/**'
+  pull_request:
+    paths:
+      - '.github/workflows/proxy-compatibility.yml'
+      - 'proxy-upstream-baseline.json'
+      - 'scripts/check-proxy-upstreams.py'
+      - 'package/luci-app-upnp-nat-relay/root/usr/bin/upnp-nat-relay'
+      - 'package/luci-app-upnp-nat-relay/root/etc/init.d/upnp_nat_relay'
+      - 'tests/**'
+  schedule:
+    - cron: '23 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proxy-compatibility-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  relay-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Run firewall and proxy adapter contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash tests/runtime-hot-apply-contract.sh
+          bash tests/nft-atomic-rebuild.sh
+          bash tests/openclash-inbound-bypass-unsupported.sh
+          bash tests/reload-enable-transitions.sh
+          bash tests/uci-deny-port-list-contract.sh
+          bash tests/fw4-detection-timeout.sh
+
+  upstream-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Compare latest upstream refs with the qualified snapshot
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/check-proxy-upstreams.py --baseline proxy-upstream-baseline.json --output "$RUNNER_TEMP/proxy-upstreams.json"

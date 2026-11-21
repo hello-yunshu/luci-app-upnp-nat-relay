@@ -1,0 +1,208 @@
+name: Real LuCI UI Gate
+
+on:
+  push:
+    paths:
+      - 'package/luci-app-upnp-nat-relay/htdocs/**'
+      - 'package/luci-app-upnp-nat-relay/root/**'
+      - 'package/luci-app-upnp-nat-relay/po/**'
+      - 'tests/real-luci-ui*'
+      - 'tests/openclash-inbound-bypass-unsupported.sh'
+      - 'tests/reload-enable-transitions.sh'
+      - 'tests/runtime-hot-apply-contract.sh'
+      - 'tests/fw4-detection-timeout.sh'
+      - 'tests/nft-atomic-rebuild.sh'
+      - 'tests/uci-deny-port-list-contract.sh'
+      - '.github/workflows/real-luci-ui.yml'
+  pull_request:
+    paths:
+      - 'package/luci-app-upnp-nat-relay/htdocs/**'
+      - 'package/luci-app-upnp-nat-relay/root/**'
+      - 'package/luci-app-upnp-nat-relay/po/**'
+      - 'tests/real-luci-ui*'
+      - 'tests/openclash-inbound-bypass-unsupported.sh'
+      - 'tests/reload-enable-transitions.sh'
+      - 'tests/runtime-hot-apply-contract.sh'
+      - 'tests/fw4-detection-timeout.sh'
+      - 'tests/nft-atomic-rebuild.sh'
+      - 'tests/uci-deny-port-list-contract.sh'
+      - '.github/workflows/real-luci-ui.yml'
+  workflow_dispatch:
+    inputs:
+      language:
+        description: Language for the screenshot matrix
+        required: false
+        type: choice
+        options: [all, en, zh_cn]
+        default: all
+      scope:
+        description: Capture the full gate or only the wizard interaction matrix
+        required: false
+        type: choice
+        options: [full, wizard-flow]
+        default: full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-luci-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        language: ${{ inputs.language == 'en' && fromJSON('["en"]') || inputs.language == 'zh_cn' && fromJSON('["zh_cn"]') || fromJSON('["en","zh_cn"]') }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Run relay lifecycle and OpenClash contracts
+        run: |
+          set -euo pipefail
+          bash tests/openclash-inbound-bypass-unsupported.sh
+          bash tests/reload-enable-transitions.sh
+          bash tests/runtime-hot-apply-contract.sh
+          bash tests/fw4-detection-timeout.sh
+          sh tests/nft-atomic-rebuild.sh
+          sh tests/uci-deny-port-list-contract.sh
+          sh -n package/luci-app-upnp-nat-relay/root/usr/bin/upnp-nat-relay
+          sh -n package/luci-app-upnp-nat-relay/root/etc/init.d/upnp_nat_relay
+      - name: Start isolated OpenWrt rootfs
+        run: |
+          set -euo pipefail
+          docker run -d --name upnp-ui-gate --network host --cap-add=NET_ADMIN \
+            openwrt/rootfs:x86_64-24.10.8 /sbin/init
+          for _ in $(seq 1 30); do
+            docker exec upnp-ui-gate true 2>/dev/null && exit 0
+            sleep 2
+          done
+          echo 'OpenWrt container did not start' >&2
+          exit 1
+      - name: Install LuCI runtime and declared package dependencies
+        run: |
+          set -euo pipefail
+          start_opkg_task() {
+            local task="$1"
+            case "$task" in
+              update)
+                timeout --kill-after=2s 15s docker exec -d upnp-ui-gate sh -c '
+                  rm -f /tmp/upnp-ui-opkg.status
+                  ( opkg update; echo $? > /tmp/upnp-ui-opkg.status ) > /tmp/upnp-ui-opkg.log 2>&1 </dev/null &
+                '
+                ;;
+              install)
+                timeout --kill-after=2s 15s docker exec -d upnp-ui-gate sh -c '
+                  rm -f /tmp/upnp-ui-opkg.status
+                  ( opkg install bash jq curl luci-base luci-theme-bootstrap luci-i18n-base-zh-cn \
+                    uhttpd rpcd ucode ucode-mod-fs ucode-mod-ubus ucode-mod-uci ucode-mod-rtnl \
+                    ucode-mod-uloop ucode-mod-socket miniupnpc nftables coreutils-timeout flock openssl-util; \
+                    echo $? > /tmp/upnp-ui-opkg.status ) > /tmp/upnp-ui-opkg.log 2>&1 </dev/null &
+                '
+                ;;
+            esac
+          }
+          wait_opkg_task() {
+            local deadline=$((SECONDS + $1))
+            local status
+            while (( SECONDS < deadline )); do
+              status="$(timeout --kill-after=2s 5s docker exec upnp-ui-gate cat /tmp/upnp-ui-opkg.status 2>/dev/null || true)"
+              if [[ "$status" =~ ^[0-9]+$ ]]; then
+                timeout --kill-after=2s 10s docker exec upnp-ui-gate cat /tmp/upnp-ui-opkg.log || true
+                return "$status"
+              fi
+              sleep 5
+            done
+            echo "OpenWrt opkg task exceeded its ${1}s limit" >&2
+            timeout --kill-after=2s 10s docker exec upnp-ui-gate cat /tmp/upnp-ui-opkg.log || true
+            return 124
+          }
+          updated=false
+          for attempt in 1 2 3; do
+            echo "OpenWrt opkg update attempt $attempt"
+            if start_opkg_task update && wait_opkg_task 300; then
+              updated=true
+              break
+            fi
+            timeout --kill-after=2s 10s docker exec -d upnp-ui-gate sh -c 'killall opkg 2>/dev/null || true' || true
+            sleep 5
+          done
+          if [ "$updated" != true ]; then
+            echo 'OpenWrt package index refresh failed after three bounded attempts' >&2
+            exit 1
+          fi
+          start_opkg_task install
+          wait_opkg_task 600
+          docker exec upnp-ui-gate sh -c '
+            for command in bash jq curl ubus uci openssl upnpc nft flock timeout; do command -v "$command" >/dev/null; done
+          '
+      - name: Compile Simplified Chinese catalog
+        if: ${{ matrix.language == 'zh_cn' }}
+        run: |
+          set -euo pipefail
+          source_dir="$RUNNER_TEMP/luci-po2lmo"
+          mkdir -p "$source_dir"
+          curl -fL --retry 3 -o "$RUNNER_TEMP/luci-openwrt-24.10.tar.gz" https://codeload.github.com/openwrt/luci/tar.gz/aa4865e8e6472d6ba68e541688065fc2235bbd83
+          tar -xzf "$RUNNER_TEMP/luci-openwrt-24.10.tar.gz" -C "$source_dir" --strip-components=1
+          make -C "$source_dir/modules/luci-base/src" po2lmo
+          "$source_dir/modules/luci-base/src/po2lmo" \
+            "$GITHUB_WORKSPACE/package/luci-app-upnp-nat-relay/po/zh_Hans/upnp-nat-relay.po" \
+            "$RUNNER_TEMP/upnp-nat-relay.zh-cn.lmo"
+          test -s "$RUNNER_TEMP/upnp-nat-relay.zh-cn.lmo"
+          echo "UPNP_UI_LMO=$RUNNER_TEMP/upnp-nat-relay.zh-cn.lmo" >> "$GITHUB_ENV"
+      - name: Provision LuCI and the plugin's real rpcd API
+        run: UPNP_UI_LANG='${{ matrix.language }}' bash tests/real-luci-ui-provision.sh upnp-ui-gate 18083
+      - name: Install Playwright and find Chrome
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y fontconfig fonts-noto-cjk
+          fc-list :lang=zh family | grep -qi 'Noto Sans CJK'
+          npm install --prefix "$RUNNER_TEMP/ui" --no-audit --no-fund playwright@1.55.0
+          browser="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$browser" || { echo 'No Chrome executable on runner' >&2; exit 1; }
+          echo "PLAYWRIGHT_EXECUTABLE=$browser" >> "$GITHUB_ENV"
+          "$browser" --version
+      - name: Install checksum-pinned Aurora theme
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 -o "$RUNNER_TEMP/luci-theme-aurora.ipk" https://github.com/eamonxg/luci-theme-aurora/releases/download/v1.4.0/luci-theme-aurora_1.4.0-r20260920_all.ipk
+          echo "5b3f2d669ef82e575498d1b99c4b9b498088540eeff7db989f214b63d3ef8a8e  $RUNNER_TEMP/luci-theme-aurora.ipk" | sha256sum -c -
+          docker cp "$RUNNER_TEMP/luci-theme-aurora.ipk" upnp-ui-gate:/tmp/luci-theme-aurora.ipk
+          docker exec upnp-ui-gate opkg install /tmp/luci-theme-aurora.ipk
+      - name: Capture all views and viewport/theme states
+        if: ${{ inputs.scope != 'wizard-flow' }}
+        run: |
+          set -euo pipefail
+          language='${{ matrix.language }}'
+          docker exec upnp-ui-gate sh -c "uci set luci.main.lang='$language'; uci commit luci; rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache*"
+          NODE_PATH="$RUNNER_TEMP/ui/node_modules" UPNP_UI_CONTAINER=upnp-ui-gate \
+            UPNP_UI_LANG="$language" UPNP_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
+            node tests/real-luci-ui-visual.cjs
+      - name: Capture setup wizard selected-mode states
+        if: ${{ inputs.scope != 'wizard-flow' }}
+        run: |
+          set -euo pipefail
+          language='${{ matrix.language }}'
+          NODE_PATH="$RUNNER_TEMP/ui/node_modules" UPNP_UI_CONTAINER=upnp-ui-gate \
+            UPNP_UI_LANG="$language" UPNP_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
+            node tests/real-luci-ui-wizard-mode.cjs
+      - name: Capture all setup wizard steps and verify safe save
+        run: |
+          set -euo pipefail
+          language='${{ matrix.language }}'
+          NODE_PATH="$RUNNER_TEMP/ui/node_modules" UPNP_UI_CONTAINER=upnp-ui-gate \
+            UPNP_UI_LANG="$language" UPNP_VISUAL_OUT="$GITHUB_WORKSPACE/real-luci-ui-evidence/visual/$language" \
+            node tests/real-luci-ui-wizard-flow.cjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: real-luci-ui-evidence-${{ matrix.language }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          path: real-luci-ui-evidence/
+          if-no-files-found: warn
+      - name: Remove disposable OpenWrt container
+        if: always()
+        run: docker rm -f upnp-ui-gate || true
