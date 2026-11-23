@@ -41,6 +41,7 @@ jobs:
           bash tests/nft-atomic-rebuild.sh
           bash tests/openclash-inbound-bypass-unsupported.sh
           bash tests/openclash-status-cache-freshness.sh
+          bash tests/log-repeat-suppression.sh
           bash tests/reload-enable-transitions.sh
           bash tests/uci-deny-port-list-contract.sh
           bash tests/fw4-detection-timeout.sh
