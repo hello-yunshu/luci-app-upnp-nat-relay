@@ -3115,6 +3115,9 @@ do_clear_log() {
     fi
 
     "$_cl_logread" -z 2>/dev/null || /etc/init.d/log restart >/dev/null 2>&1 || true
+    # Clearing the log also re-arms every suppressed repeat: the next
+    # occurrence of a persistent condition must show up in the fresh view.
+    rm -rf "${LOG_STATE_DIR}" 2>/dev/null || true
     printf '{"success":true}\n'
 }
 
