@@ -97,6 +97,16 @@
 /* mappings 表已使用 .tr/.th/.td 契约 + data-title，窄屏由主题负责堆叠；
  * 容器仅兜底极窄视口下的横向溢出。 */
 .ubr-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* A theme may pull section tables out of their container (Vantage widens them
+ * with negative side margins and !important). The scroll container then clips
+ * that overhang: the first cell's padding disappears, cells sit flush with the
+ * card edge, and a phantom horizontal scroll appears. Keep the table box inside
+ * the container so the theme's own cell padding stays visible. */
+#maincontent .ubr-table-scroll > table.table {
+	width: 100% !important;
+	margin-left: 0 !important;
+	margin-right: 0 !important;
+}
 
 @media screen and (max-width: 700px) {
 	.ubr-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
