@@ -8,6 +8,7 @@ on:
       - 'scripts/check-proxy-upstreams.py'
       - 'package/luci-app-upnp-nat-relay/root/usr/bin/upnp-nat-relay'
       - 'package/luci-app-upnp-nat-relay/root/etc/init.d/upnp_nat_relay'
+      - 'package/luci-app-upnp-nat-relay/htdocs/**'
       - 'tests/**'
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - 'scripts/check-proxy-upstreams.py'
       - 'package/luci-app-upnp-nat-relay/root/usr/bin/upnp-nat-relay'
       - 'package/luci-app-upnp-nat-relay/root/etc/init.d/upnp_nat_relay'
+      - 'package/luci-app-upnp-nat-relay/htdocs/**'
       - 'tests/**'
   schedule:
     - cron: '23 3 * * 1'
@@ -42,9 +44,12 @@ jobs:
           bash tests/openclash-inbound-bypass-unsupported.sh
           bash tests/openclash-status-cache-freshness.sh
           bash tests/log-repeat-suppression.sh
+          bash tests/log-output-bounded.sh
           bash tests/reload-enable-transitions.sh
           bash tests/uci-deny-port-list-contract.sh
           bash tests/fw4-detection-timeout.sh
+          bash tests/network-cache-age.sh
+          bash tests/network-auto-detect-throttle.sh
 
   upstream-drift:
     runs-on: ubuntu-latest

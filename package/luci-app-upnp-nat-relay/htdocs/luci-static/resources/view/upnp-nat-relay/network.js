@@ -381,6 +381,16 @@ return view.extend({
 			return value === 1 || value === '1' || value === 'ok' || value === true;
 		};
 
+		/* 结果在多少秒内算“够新”：够新就不再自动检测，反复打开页面、多标签页
+		 * 都直接复用刚测过的结果。手动点「检测」不受这个限制，永远强制重测。 */
+		var AUTO_DETECT_MAX_AGE = 15;
+		var autoDetectIsFresh = function() {
+			if (!hasNetCheckData())
+				return false;
+			var age = netCheckData.age;
+			return typeof age === 'number' && age >= 0 && age < AUTO_DETECT_MAX_AGE;
+		};
+
 		var pendingStatus = function() {
 			if (detecting)
 				return '<span>&#8987; ' + _('Detecting...') + '</span>';
@@ -565,6 +575,12 @@ return view.extend({
 		 * 免得后台检测就悄悄把表单改成“未保存”状态。 */
 		var startDetection = function(options) {
 			options = options || {};
+			/* 自动检测还没回来时点了“检测”：等它结束后再跑一轮，保证回填生效。 */
+			if (detectPromise && options.autoFill) {
+				return detectPromise.catch(function() {}).then(function() {
+					return startDetection(options);
+				});
+			}
 			if (detectPromise)
 				return detectPromise;
 
@@ -848,11 +864,16 @@ return view.extend({
 			});
 		};
 
-		/* 打开页面就进入“检测中”，随后自动跑一次检测：状态区直接出结果，
-		 * 用户不用先点一次“检测”才看到信息。缓存命中时先显示上次结果，返回后原地刷新。 */
-		detecting = true;
+		/* 打开页面自动跑一次检测：状态区直接出结果，用户不用先点“检测”才看到信息。
+		 * 但结果够新（15 秒内）就直接复用，反复打开/刷新页面、多标签页不会一直重复探测；
+		 * 没有缓存或缓存对不上当前配置时才显示“检测中”并重新测。 */
+		var skipAutoDetect = autoDetectIsFresh();
+		if (!skipAutoDetect)
+			detecting = true;
 
 		return Promise.resolve(utils.renderWithFooter(m.render(), utils.FOOTER_OPTIONS)).then(function(node) {
+			if (skipAutoDetect)
+				return node;
 			/* 等表单渲染完成再发请求，避免和页面自身的 ubus 调用抢连接。 */
 			window.setTimeout(function() {
 				startDetection({ autoDetect: true }).catch(function() {

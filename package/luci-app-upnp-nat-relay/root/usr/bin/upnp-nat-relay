@@ -23,6 +23,7 @@ GENERATED_CACHE_META="${CACHE_DIR}/generated_mapping_cache.v1.meta"
 NFT_APPLIED_CACHE="${CACHE_DIR}/nft_applied_fingerprint.v1.txt"
 CACHE_TTL_SECONDS=300
 LOCK_FILE="/tmp/upnp_nat_relay.lock"
+NETWORK_CHECK_LOCK_FILE="/tmp/upnp_nat_relay_check.lock"
 OPENCLASH_LOCK_FILE="/tmp/upnp_nat_relay_oc.lock"
 OPENCLASH_BACKUP="/etc/config/openclash.bak.upnp_nat_relay"
 OC_SYNC_TIMESTAMP_FILE="${CACHE_DIR}/openclash_last_sync.txt"
@@ -245,6 +246,17 @@ summarize_command_output() {
             if (!done && out != "")
                 printf "%s", out
         }'
+}
+
+# Report a failed apply/sync result. The payload is a JSON document that can
+# embed raw nft stderr - multi-line and arbitrarily large - so it never goes to
+# syslog as-is, and an identical failure on the next tick is not re-announced.
+log_result_failure() {
+    _lrf_key="$1"
+    _lrf_label="$2"
+    _lrf_payload="$3"
+    _lrf_detail="$(summarize_command_output "$_lrf_payload")"
+    log_once "$_lrf_key" "$_lrf_detail" warn "$_lrf_label${_lrf_detail:+: ${_lrf_detail}}"
 }
 
 _ja=""
@@ -1284,7 +1296,15 @@ ensure_env_cache() {
 
 read_network_cache() {
     if [ -f "${NETWORK_CACHE_FILE}" ]; then
-        cat "${NETWORK_CACHE_FILE}"
+        # 附带 age（秒）：用路由器自己的时钟算，避免浏览器与设备的时区/时钟偏差。
+        # UI 拿它判断结果够不够新、要不要再自动检测一次；旧缓存没有 epoch，按过期处理。
+        _rnc_age=999999
+        _rnc_epoch="$(jsonfilter -e '@.updated_at_epoch' < "${NETWORK_CACHE_FILE}" 2>/dev/null)"
+        if [ -n "${_rnc_epoch}" ]; then
+            _rnc_age=$(( $(date +%s) - _rnc_epoch ))
+            [ "${_rnc_age}" -lt 0 ] && _rnc_age=0
+        fi
+        sed "s/^{/{\"age\":${_rnc_age},/" "${NETWORK_CACHE_FILE}"
     else
         printf '{"cached":0,"updated_at":""}\n'
     fi
@@ -1774,6 +1794,29 @@ do_check_env() {
 do_check_network() {
     load_config
 
+    # 并发去抖：拿不到锁说明另一次检测正在跑（比如多标签页同时打开页面）。
+    # 等它写完缓存后直接复用结果，避免对下游路由重复探测。
+    ensure_dirs
+    exec 9>"${NETWORK_CHECK_LOCK_FILE}"
+    _cn_contended=0
+    if ! flock -n 9; then
+        _cn_contended=1
+        # BusyBox flock has no -w, so wait with a 1s retry loop (up to 15s).
+        _cn_wait=0
+        while ! flock -n 9; do
+            if [ "${_cn_wait}" -ge 15 ]; then
+                break
+            fi
+            sleep 1
+            _cn_wait=$((_cn_wait + 1))
+        done
+    fi
+    if [ "${_cn_contended}" -eq 1 ] && [ -s "${NETWORK_CACHE_FILE}" ]; then
+        cat "${NETWORK_CACHE_FILE}"
+        exec 9>&-
+        return 0
+    fi
+
     _cn_detected_bind_ip="$(detect_interface_ip "${cfg_bind_ifname}")"
     _cn_detected_lan_subnet="$(detect_interface_subnet "${cfg_bind_ifname}")"
     _cn_detected_lan_gateway="$(detect_interface_gateway "${cfg_bind_ifname}")"
@@ -1876,9 +1919,11 @@ do_check_network() {
     done
 
     _cn_updated_at="$(get_timestamp)"
+    _cn_updated_at_epoch="$(date +%s)"
 
-    _cn_json="$(printf '{"cached":1,"updated_at":"%s","bind_ifname":"%s","bind_ip":"%s","downstream_lan_gateway":"%s","downstream_lan_subnet":"%s","downstream_wan_ip":"%s","upstream_wan_if":"%s","detected_bind_ip":"%s","detected_downstream_lan_subnet":"%s","detected_downstream_lan_gateway":"%s","detected_downstream_wan_ip":"%s","detected_upstream_wan_if":"%s","iface_exists":%d,"bind_ip_configured":%d,"gateway_reachable":%d,"upnpc_readable":%d,"upnpc_mapping_count":%d,"wan_ip_reachable":%d,"upstream_wan_exists":%d,"default_route_on_bind":%d,"bad_forwarding":%d,"gateway_set":%d,"gateway_value":"%s","dns_set":%d,"dns_value":"%s","zone_name":"%s","zone_exists":%d,"zone_input":"%s","zone_output":"%s","zone_forward":"%s","zone_masq":"%s"}\n' \
+    _cn_json="$(printf '{"cached":1,"updated_at":"%s","updated_at_epoch":%s,"bind_ifname":"%s","bind_ip":"%s","downstream_lan_gateway":"%s","downstream_lan_subnet":"%s","downstream_wan_ip":"%s","upstream_wan_if":"%s","detected_bind_ip":"%s","detected_downstream_lan_subnet":"%s","detected_downstream_lan_gateway":"%s","detected_downstream_wan_ip":"%s","detected_upstream_wan_if":"%s","iface_exists":%d,"bind_ip_configured":%d,"gateway_reachable":%d,"upnpc_readable":%d,"upnpc_mapping_count":%d,"wan_ip_reachable":%d,"upstream_wan_exists":%d,"default_route_on_bind":%d,"bad_forwarding":%d,"gateway_set":%d,"gateway_value":"%s","dns_set":%d,"dns_value":"%s","zone_name":"%s","zone_exists":%d,"zone_input":"%s","zone_output":"%s","zone_forward":"%s","zone_masq":"%s"}\n' \
         "$(json_escape "$_cn_updated_at")" \
+        "${_cn_updated_at_epoch}" \
         "$(json_escape "${cfg_bind_ifname}")" \
         "$(json_escape "${cfg_bind_ip}")" \
         "$(json_escape "${cfg_downstream_lan_gateway}")" \
@@ -1912,6 +1957,7 @@ do_check_network() {
 
     ensure_dirs
     printf '%s' "$_cn_json" > "${NETWORK_CACHE_FILE}"
+    exec 9>&-
     printf '%s' "$_cn_json"
 }
 
@@ -2179,23 +2225,27 @@ do_sync() {
     else
         if ! nft_ensure_table; then
             _s_last_error="Failed to ensure nft table"
-            log_err "Sync failed: $_s_last_error"
+            # A table that cannot be ensured stays broken across ticks; report
+            # the first failure of the streak rather than one line per interval.
+            log_once nft_table "ensure-failed" err "Sync failed: $_s_last_error"
             write_status "$_s_daemon_running" "$_s_timestamp" "failed" "${cfg_backend}" "$_s_read_count" "$_s_accepted_count" "$_s_rejected_count" 0 "" "" "$_s_last_error"
             printf '{"success":false,"error":"%s"}\n' "$_s_last_error"
             _sync_cleanup; trap - EXIT; return 1
         fi
+        log_recovered nft_table "nft table is available again; sync resumed"
 
         _s_nft_added="$(nft_replace_dnat_rules "$_s_accept_file" "${cfg_downstream_wan_ip}" "${cfg_upstream_wan_if}")" || {
             _s_nft_fail=1
             _s_last_error="nft_rule_batch_failed: previous_rules_preserved"
-            log_warn "Atomic DNAT update failed; existing rules remain active"
+            log_once nft_rule_batch "batch-failed" warn "Atomic DNAT update failed; existing rules remain active"
         }
 
         if [ "$_s_nft_fail" -eq 0 ]; then
             printf '%s' "$_s_accept_fingerprint" 2>/dev/null > "${NFT_APPLIED_CACHE}" || true
             log_info "DNAT rules replaced atomically: ${_s_nft_added} rules active"
+            log_recovered nft_rule_batch ""
         else
-            log_warn "DNAT fingerprint cache retained so the next sync retries the atomic update"
+            log_once nft_rule_cache "cache-retained" warn "DNAT fingerprint cache retained so the next sync retries the atomic update"
         fi
     fi
 
@@ -2785,8 +2835,9 @@ do_setup_openclash() {
         _so_success="$(echo "$_so_result" | sed -n 's/.*"success":\([a-z]*\).*/\1/p')"
         if [ "$_so_success" = "true" ]; then
             log_info "OpenClash per-mapping RETURN rules applied"
+            log_recovered openclash_per_mapping ""
         else
-            log_warn "OpenClash per-mapping RETURN rules failed: $_so_result"
+            log_result_failure openclash_per_mapping "OpenClash per-mapping RETURN rules failed" "$_so_result"
         fi
     else
         _so_result="$(openclash_apply)"
@@ -2795,8 +2846,9 @@ do_setup_openclash() {
         _so_success="$(echo "$_so_result" | sed -n 's/.*"success":\([a-z]*\).*/\1/p')"
         if [ "$_so_success" = "true" ]; then
             log_info "OpenClash RETURN rule applied"
+            log_recovered openclash_return ""
         else
-            log_warn "OpenClash RETURN rule failed: $_so_result"
+            log_result_failure openclash_return "OpenClash RETURN rule failed" "$_so_result"
         fi
     fi
 
@@ -2958,6 +3010,7 @@ do_sync_openclash() {
     if [ "$_dsoc_success" = "true" ]; then
         openclash_record_sync_time
         log_info "OpenClash standalone sync completed"
+        log_recovered openclash_standalone ""
         # Update suggestion cache after sync
         if [ "${cfg_openclash_return_strategy}" = "per_mapping" ] && [ -f "${GENERATED_ACCEPT_CACHE}" ]; then
             _dsoc_suggestion="$(openclash_generate_per_mapping_rules "${GENERATED_ACCEPT_CACHE}")"
@@ -2966,7 +3019,7 @@ do_sync_openclash() {
         fi
         openclash_write_suggestion_cache "$_dsoc_suggestion"
     else
-        log_warn "OpenClash standalone sync failed: $_dsoc_result"
+        log_result_failure openclash_standalone "OpenClash standalone sync failed" "$_dsoc_result"
     fi
 
     printf '%s\n' "$_dsoc_result"
