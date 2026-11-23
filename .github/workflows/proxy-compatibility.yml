@@ -55,6 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Pin the drift policy before running it
+        run: python3 tests/proxy-upstream-policy.py
       - name: Compare latest upstream refs with the qualified snapshot
         env:
           GITHUB_TOKEN: ${{ github.token }}

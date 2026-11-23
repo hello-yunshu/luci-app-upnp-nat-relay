@@ -62,17 +62,10 @@ jobs:
             echo "release=${PKG_RELEASE}"
           } >> "$GITHUB_OUTPUT"
 
-  upstream-compatibility:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Block package builds when proxy upstream refs need requalification
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: python3 scripts/check-proxy-upstreams.py --baseline proxy-upstream-baseline.json --output "$RUNNER_TEMP/proxy-upstreams.json"
-
+  # Upstream drift is not a build gate. The canary in proxy-compatibility.yml
+  # reports it weekly; this workflow only builds what this repository owns.
   build:
-    needs: [check-version, upstream-compatibility]
+    needs: [check-version]
     if: needs.check-version.outputs.changed == 'true'
     strategy:
       fail-fast: false
