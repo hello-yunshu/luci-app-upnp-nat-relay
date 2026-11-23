@@ -13,15 +13,15 @@
       "name": "PassWall1",
       "repo": "Openwrt-Passwall/openwrt-passwall",
       "kind": "release",
-      "observedRef": "26.11.11-1",
-      "qualification": "No plugin-generated runtime flow is qualified yet. Upstream published 26.11.23-1 on 2026-11-23 (18 commits, 22 files, all under luci-app-passwall) changing its own IPv6 TPROXY macro and its rp_filter/src_valid_mark handling. Not requalified: requalification is due before this ref is advanced."
+      "observedRef": "26.11.23-1",
+      "qualification": "No plugin-generated runtime flow is qualified yet. Baseline advanced 2026-11-24 by release-owner decision from 26.11.11-1 to 26.11.23-1 without a new coexistence run: the relay names this package in no code path - no chain names, no init calls, no UCI reads - so a version bump cannot change the relay's own behaviour. 26.11.23-1 (18 commits, 22 files, all under luci-app-passwall) changes its own IPv6 TCP/UDP redirect macro from TPROXY to TPROXY6 inside PSW_MANGLE_V6 and adds src_valid_mark=0 next to the rp_filter=0 it already wrote. No chain priority changes, and every sysctl write loosens reverse-path validation rather than tightening it. IPv6 forwarding through this package has never been claimed; that question starts here."
     },
     {
       "name": "PassWall2",
       "repo": "Openwrt-Passwall/openwrt-passwall2",
       "kind": "release",
-      "observedRef": "26.11.11-1",
-      "qualification": "IPv4/TCP WAN target RETURN flow was qualified with package 26.11.11-r1; UDP, IPv6, and other modes remain unqualified. Upstream published 26.11.23-1 on 2026-11-23 (17 commits, 27 files) switching its IPv6 redirect to the TPROXY6 macro and adding set_tproxy_sysctl(), which writes rp_filter=0 and src_valid_mark=0 for every interface. Not requalified: the change lands on the layer the relay coexists with - prerouting chain order and reverse-path validation of forwarded inbound traffic - so requalification is due before this ref is advanced."
+      "observedRef": "26.11.23-1",
+      "qualification": "IPv4/TCP WAN target RETURN flow was qualified with package 26.11.11-r1; UDP, IPv6, and other modes remain unqualified. Baseline advanced 2026-11-24 by release-owner decision from 26.11.11-1 to 26.11.23-1 without a new coexistence run: 26.11.23-1 (17 commits, 27 files) adds set_tproxy_sysctl() - rp_filter=0 and src_valid_mark=0 for all/default and every /proc/sys/net/ipv4/conf/* entry - and switches its IPv6 TCP/UDP redirect to the TPROXY6 macro. Its own chain priorities are unchanged (nat prerouting dstnat - 1, mangle prerouting mangle - 1), so the relay keeps loading first at dstnat - 5. The relay reads and writes neither sysctl, and both are permissive-direction writes. No IPv6 or UDP claim is made for this package."
     },
     {
       "name": "HomeProxy",
