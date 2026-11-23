@@ -26,6 +26,7 @@ LOCK_FILE="/tmp/upnp_nat_relay.lock"
 OPENCLASH_LOCK_FILE="/tmp/upnp_nat_relay_oc.lock"
 OPENCLASH_BACKUP="/etc/config/openclash.bak.upnp_nat_relay"
 OC_SYNC_TIMESTAMP_FILE="${CACHE_DIR}/openclash_last_sync.txt"
+OC_BYPASS_STATE_FILE="${STATUS_DIR}/openclash_bypass_state.txt"
 
 uci_get() {
     uci -q get "${UCI_CONFIG}.$1" 2>/dev/null
@@ -402,9 +403,22 @@ openclash_is_running() {
     return 1
 }
 
+openclash_is_installed() {
+    # /etc/config/openclash is a conffile: `apk del` / `opkg remove` leaves it
+    # behind, so its presence alone says nothing about the package still being
+    # there. Requiring it made an uninstalled OpenClash report as
+    # "installed (stopped)" forever. Key off package-owned files instead
+    # (init script, rpcd ACL, LuCI controller); without the init script there
+    # is no service to manage anyway.
+    [ -x /etc/init.d/openclash ] && return 0
+    [ -f /usr/share/rpcd/acl.d/luci-app-openclash.json ] && return 0
+    [ -f /usr/lib/lua/luci/controller/openclash.lua ] && return 0
+    return 1
+}
+
 detect_openclash_status() {
     local _dos_installed=0 _dos_running=0 _dos_has_ac=0
-    if [ -f /etc/config/openclash ]; then
+    if openclash_is_installed; then
         _dos_installed=1
         if openclash_is_running; then
             _dos_running=1
@@ -414,6 +428,44 @@ detect_openclash_status() {
         fi
     fi
     printf '%d\t%d\t%d' "$_dos_installed" "$_dos_running" "$_dos_has_ac"
+}
+
+# Keep the OpenClash fields of the env cache live.
+#
+# The full env scan (do_refresh_env) only runs once when the daemon starts and
+# on an explicit "refresh env" click, so every other field is a harmless
+# snapshot of install state. OpenClash is the exception: it is started and
+# stopped at runtime, and a snapshot taken while it was down kept the overview
+# page showing "Installed (Stopped)" for as long as the daemon lived.
+# Re-detect just those fields on each sync tick; cheap (one init script probe
+# plus pidof) and it leaves the "Last Env Check" timestamp meaning what it says.
+refresh_openclash_cache() {
+    if [ ! -s "${ENV_CACHE_FILE}" ]; then
+        do_refresh_env >/dev/null 2>&1 || true
+        return 0
+    fi
+
+    _roc_data="$(detect_openclash_status)"
+    _roc_installed="$(echo "$_roc_data" | cut -f1)"
+    _roc_running="$(echo "$_roc_data" | cut -f2)"
+    _roc_has_ac="$(echo "$_roc_data" | cut -f3)"
+
+    if [ "$_roc_installed" = "1" ]; then
+        if [ "$_roc_running" = "1" ]; then
+            _roc_status="running"
+        else
+            _roc_status="installed"
+        fi
+    else
+        _roc_status="not_installed"
+    fi
+
+    sed -i \
+        -e 's/"openclash_status":"[^"]*"/"openclash_status":"'"$_roc_status"'"/' \
+        -e 's/"openclash_installed":[0-9]*/"openclash_installed":'"$_roc_installed"'/' \
+        -e 's/"openclash_running":[0-9]*/"openclash_running":'"$_roc_running"'/' \
+        -e 's/"openclash_has_access_control":[0-9]*/"openclash_has_access_control":'"$_roc_has_ac"'/' \
+        "${ENV_CACHE_FILE}" 2>/dev/null || true
 }
 
 load_config() {
@@ -1070,7 +1122,7 @@ remove_rule_caches() {
 openclash_detect() {
     _od_installed=0
     _od_running=0
-    if [ -f /etc/config/openclash ]; then
+    if openclash_is_installed; then
         _od_installed=1
         if openclash_is_running; then
             _od_running=1
@@ -1806,6 +1858,8 @@ do_sync() {
     load_config
     ensure_dirs
 
+    refresh_openclash_cache
+
     if [ "$_s_clear_cache" = "1" ]; then
         remove_rule_caches
     fi
@@ -2059,7 +2113,21 @@ do_sync() {
     if [ "${cfg_openclash_mode}" = "auto" ]; then
         _s_oc_result="$(openclash_inbound_bypass_unsupported)"
         _s_oc_action="unsupported"
-        log_warn "OpenClash auto bypass is unsupported for inbound relay mappings; no lan_ac_traffic rule was written"
+        # This verdict is structural (an inbound DNAT mapping cannot be
+        # expressed as a lan_ac_traffic rule), so it repeats on every sync
+        # forever. Warning each tick put ~720 identical lines a day into the
+        # syslog ring buffer and pushed real messages out, which is why the
+        # log view looked like a wall of errors. Warn once per state change
+        # and stay quiet afterwards; a restart of OpenClash re-arms it.
+        _s_oc_state="$(detect_openclash_status | cut -f2)"
+        if [ "$(cat "${OC_BYPASS_STATE_FILE}" 2>/dev/null)" != "${_s_oc_state}" ]; then
+            printf '%s' "${_s_oc_state}" > "${OC_BYPASS_STATE_FILE}" 2>/dev/null || true
+            log_warn "OpenClash auto bypass is unsupported for inbound relay mappings; no lan_ac_traffic rule was written"
+        else
+            log_debug "OpenClash auto bypass still unsupported; no lan_ac_traffic rule was written"
+        fi
+    else
+        rm -f "${OC_BYPASS_STATE_FILE}" 2>/dev/null
     fi
 
     _s_failure_count=0
@@ -2328,6 +2396,9 @@ do_full_status() {
     fi
 
     ensure_env_cache
+    # The page reads the cached snapshot; probe OpenClash live so the badge
+    # reflects the current state instead of whatever it was at the last sync.
+    refresh_openclash_cache
     _dfs_env="$(read_env_cache)"
     _dfs_env_inner="$(printf '%s' "$_dfs_env" | sed 's/^{//;s/}$//')"
     [ -z "$_dfs_env_inner" ] && _dfs_env_inner='"nft_table_status":"-","openclash_status":"-","version":"unknown","updated_at":""'

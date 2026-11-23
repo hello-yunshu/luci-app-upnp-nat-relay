@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.3.16-17
+
+修掉两处让概览页“说谎”的运行时问题。其一，OpenClash 状态只在守护进程启动时扫一次，之后永远读那份快照：设备上快照停在 `2026-11-22 14:03:15`（当时 OpenClash 恰好停止），而实际核心已运行 20 多小时，页面就一直显示 `⚠ 已安装（已停止）`。现在 `do_sync` 每轮与 `--status`（页面加载）都会重新探测 OpenClash 三字段并原位修补 `env_cache.json`，`updated_at` 仍只代表完整环境扫描时间。其二，`openclash_mode=auto` 下“入站映射无法用 lan_ac_traffic 绕过”的结论每个同步周期都 `log_warn` 一次，2 分钟一条、约 720 条/天，把 64KB 的 syslog 环形缓冲冲成了满屏相同告警；改为状态变化时才警告，其余降到 debug，OpenClash 重启会重新触发一次。
+
 ## 1.3.15-1
 
 修复 po2lmo 缺失时静默跳过导致的空 lmo，并去掉 msgid 首尾空白，让 `_()` 的 trimws 能命中；按钮组/操作列改用主题 spacing 变量留间距，表格首列统一 `min-width:9rem`，页脚改回 `div` 并移除自身 `border-top`，避免 bootstrap 裸 `footer` 选择器再次画出横线。
