@@ -98,6 +98,14 @@ jobs:
         with:
           mixkey: ${{ matrix.branch }}
           prefix: ${{ env.SDKDIR }}
+          # The SDK image ships an untracked build root, so the action's
+          # `git log -- tools toolchain` can never produce a hash and warns on
+          # every run.  Drop that (always-empty) key component and keep the
+          # same staging paths explicitly.
+          toolchain: false
+          extra_paths: |
+            staging_dir/host*
+            staging_dir/tool*
 
       - name: Update feeds
         working-directory: ${{ env.SDKDIR }}
