@@ -202,25 +202,28 @@ log_prune_cycle_keys() {
 
 # Escape a string as a JSON value body.
 #
-# This used to pipe through awk, so every field in every JSON document cost a
-# process spawn; a single network check escaped ~25 fields and the daemon
-# escapes the same number on each tick. BusyBox ash has the parameter
-# expansions needed here, so the whole thing stays a shell builtin.
+# Keep this POSIX sh: the relay runs with `#!/bin/sh`, and the contract suite
+# executes it under dash on CI, where `${var//a/b}` and $'...' are not
+# available.
 json_escape_into() {
-    REPLY="$1"
-    # awk split its input into records, so one trailing newline was dropped
-    # rather than escaped as \n.
-    case "${REPLY}" in
-        *$'\n') REPLY="${REPLY%$'\n'}" ;;
-    esac
-    REPLY="${REPLY//\\/\\\\}"
-    REPLY="${REPLY//\"/\\\"}"
-    REPLY="${REPLY//$'\t'/\\t}"
-    REPLY="${REPLY//$'\r'/\\r}"
-    REPLY="${REPLY//$'\n'/\\n}"
-    REPLY="${REPLY//</\\u003c}"
-    REPLY="${REPLY//>/\\u003e}"
-    REPLY="${REPLY//&/\\u0026}"
+    REPLY=$(printf '%s' "$1" | awk '
+        BEGIN {
+            ORS = ""
+            tab = sprintf("%c", 9)
+            cr = sprintf("%c", 13)
+        }
+        {
+            if (NR > 1)
+                printf "\\n"
+            gsub(/\\/, "\\\\")
+            gsub(/"/, "\\\"")
+            gsub(tab, "\\t")
+            gsub(cr, "\\r")
+            gsub(/</, "\\u003c")
+            gsub(/>/, "\\u003e")
+            gsub(/&/, "\\u0026")
+            printf "%s", $0
+        }')
 }
 
 json_escape() {
@@ -595,15 +598,16 @@ load_config() {
     cfg_log_rejected=""
 
     _lc_dump="$(uci -q show "${UCI_CONFIG}" 2>/dev/null)"
+    # `uci show` single-quotes values and escapes an embedded quote as '\''.
+    # Undo the escape in one pass, then drop the surrounding quotes per line so
+    # callers see exactly what `uci get` returned.
+    _lc_dump="$(printf '%s\n' "${_lc_dump}" | sed "s/'\\\\''/'/g")"
     while IFS= read -r _lc_line; do
         _lc_key="${_lc_line%%=*}"
         _lc_val="${_lc_line#*=}"
         _lc_key="${_lc_key#"${UCI_CONFIG}".}"
-        # `uci show` single-quotes values and escapes embedded quotes as
-        # '\'' ; undo both so callers see exactly what `uci get` returned.
         _lc_val="${_lc_val#\'}"
         _lc_val="${_lc_val%\'}"
-        _lc_val="${_lc_val//\'\\\'\'/\'}"
         case "${_lc_key}" in
             main.enabled) cfg_enabled="${_lc_val}" ;;
             main.interval) cfg_interval="${_lc_val}" ;;
@@ -633,7 +637,7 @@ load_config() {
             default.port)
                 # libuci returns a list option as one whitespace-separated
                 # value; `uci show` prints all items on one quoted line.
-                _lc_val="${_lc_val//\'/}"
+                _lc_val="$(printf '%s' "${_lc_val}" | tr -d "'")"
                 cfg_deny_ports="${cfg_deny_ports:+${cfg_deny_ports} }${_lc_val}"
                 ;;
         esac
