@@ -47,6 +47,7 @@ jobs:
           bash tests/log-output-bounded.sh
           bash tests/reload-enable-transitions.sh
           bash tests/uci-deny-port-list-contract.sh
+          bash tests/uci-multiline-value-contract.sh
           bash tests/fw4-detection-timeout.sh
           bash tests/network-cache-age.sh
           bash tests/network-auto-detect-throttle.sh
