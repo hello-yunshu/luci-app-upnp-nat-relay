@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 0
       - id: check
         run: |
-          PKG_VERSION=$(grep '^PKG_VERSION:=' package/luci-app-upnp-nat-relay/Makefile | cut -d= -f2)
+          PKG_VERSION=$(cat VERSION)
           PKG_RELEASE=$(grep '^PKG_RELEASE:=' package/luci-app-upnp-nat-relay/Makefile | cut -d= -f2)
           TAG="v${PKG_VERSION}-${PKG_RELEASE}"
 
